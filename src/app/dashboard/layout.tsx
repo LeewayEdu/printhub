@@ -5,11 +5,12 @@ import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/lib/supabase/client'
-import { LayoutDashboard, ShoppingBag, User, LogOut, Package, Menu, X, ChevronRight, MessageSquare, TrendingUp, Truck, Tag, Bell, Image, DollarSign, Users, Zap, Star, FileSpreadsheet } from 'lucide-react'
+import { LayoutDashboard, ShoppingBag, User, LogOut, Package, Menu, X, ChevronRight, MessageSquare, TrendingUp, Truck, Tag, Bell, Image, DollarSign, Users, Zap, Star, FileSpreadsheet, Heart } from 'lucide-react'
 
 const customerLinks = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
   { href: '/dashboard/orders', label: 'My Orders', icon: ShoppingBag },
+  { href: '/dashboard/wishlist', label: 'Wishlist', icon: Heart },
   { href: '/dashboard/affiliate', label: 'Affiliate', icon: TrendingUp },
   { href: '/dashboard/profile', label: 'Profile', icon: User },
 ]
@@ -25,6 +26,7 @@ const adminLinks = [
   { href: '/dashboard/admin/banners', label: 'Hero Banners', icon: Image },
   { href: '/dashboard/admin/flash-sale', label: 'Flash Sale', icon: Zap },
   { href: '/dashboard/admin/testimonials', label: 'Testimonials', icon: Star },
+  { href: '/dashboard/admin/reviews', label: 'Product Reviews', icon: MessageSquare },
   { href: '/dashboard/admin/messages', label: 'Messages', icon: MessageSquare },
   { href: '/dashboard/orders', label: 'My Orders', icon: ShoppingBag },
   { href: '/dashboard/profile', label: 'Profile', icon: User },

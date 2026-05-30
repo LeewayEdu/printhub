@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import { supabase } from '@/lib/supabase/client'
+import { ProductCard as SharedProductCard, ShopSidebar, ProductCardData } from '@/components/shop/ShopComponents'
 import { useCartStore } from '@/store/cartStore'
 import { ShoppingCart, Search, SlidersHorizontal, X, ChevronLeft, ChevronRight, Minus, Plus, Upload, Link as LinkIcon, Pen } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -53,34 +54,6 @@ function getImages(p: Product): string[] {
   return []
 }
 
-function CardImage({ imgs, name }: { imgs: string[]; name: string }) {
-  const [idx, setIdx] = useState(0)
-  const [hovering, setHovering] = useState(false)
-  const timerRef = useRef<NodeJS.Timeout | null>(null)
-  useEffect(() => {
-    if (hovering && imgs.length > 1) {
-      timerRef.current = setInterval(() => setIdx(i => (i + 1) % imgs.length), 3000)
-    } else {
-      if (timerRef.current) clearInterval(timerRef.current)
-      if (!hovering) setIdx(0)
-    }
-    return () => { if (timerRef.current) clearInterval(timerRef.current) }
-  }, [hovering, imgs.length])
-  return (
-    <div style={{ width: '100%', height: '100%', position: 'relative' as const }}
-      onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)}>
-      {imgs[idx]
-        ? <img src={imgs[idx]} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' as const, transition: 'opacity 0.35s' }} />
-        : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40 }}>🖨️</div>}
-      {imgs.length > 1 && (
-        <div style={{ position: 'absolute' as const, bottom: 6, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 4 }}>
-          {imgs.map((_, i) => <span key={i} style={{ width: 5, height: 5, borderRadius: '50%', background: i === idx ? 'white' : 'rgba(255,255,255,0.45)', display: 'block', transition: 'background 0.3s' }} />)}
-        </div>
-      )}
-    </div>
-  )
-}
-
 export default function ShopPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
@@ -103,13 +76,23 @@ export default function ShopPage() {
   const [designFile, setDesignFile] = useState<File | null>(null)
   const [designLink, setDesignLink] = useState('')
   const [designBrief, setDesignBrief] = useState<Record<string, string>>({})
+  const [wishlistIds, setWishlistIds] = useState<string[]>([])
+  const [sidebarCategory, setSidebarCategory] = useState('All Products')
+  const [catCounts, setCatCounts] = useState<Record<string, number>>({})
   const [heroBanners, setHeroBanners] = useState<any[]>([])
   const [heroIdx, setHeroIdx] = useState(0)
   
   useEffect(() => {
+    // Wishlist
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        supabase.from('wishlists').select('product_id').eq('user_id', session.user.id)
+          .then(({ data }) => { if (data) setWishlistIds(data.map((w: any) => w.product_id)) })
+      }
+    })
     supabase.from('products').select('*').eq('is_active', true).order('created_at', { ascending: false })
       .then(({ data }) => { if (data) setProducts(data as Product[]); setLoading(false) })
-    supabase.from('hero_banners').select('*').eq('is_active', true).eq('page_type', 'shop').order('sort_order')
+    supabase.from('hero_banners').select('*').eq('is_active', true).order('sort_order')
       .then(({ data }) => { if (data && data.length > 0) setHeroBanners(data) })
   }, [])
 
@@ -249,23 +232,15 @@ export default function ShopPage() {
 {/* Shop body */}
 <section style={{ background: 'var(--bg-secondary)', padding: '32px 40px', minHeight: '60vh' }}>
   <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-    <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 24 }} className="shop-layout">
+    <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 24 }} className="shop-layout">
 
-      {/* Category sidebar */}
-      <aside style={{ position: 'sticky' as const, top: 80, alignSelf: 'start' as const }}>
-        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, overflow: 'hidden' }}>
-          <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--border-color)', fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13, color: 'var(--text-primary)', textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>
-            Categories
-          </div>
-          {CATEGORIES.map(c => (
-            <button key={c} onClick={() => setCat(c)}
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', textAlign: 'left' as const, padding: '10px 18px', borderRadius: 0, border: 'none', borderBottom: '1px solid var(--border-color)', background: cat === c ? 'var(--red-pale)' : 'transparent', color: cat === c ? 'var(--red)' : 'var(--text-primary)', fontSize: 13, fontWeight: cat === c ? 700 : 400, cursor: 'pointer', transition: 'all 0.15s' }}>
-              <span>{c}</span>
-              {cat === c && <span style={{ fontSize: 10, color: 'var(--red)' }}>✓</span>}
-            </button>
-          ))}
-        </div>
-      </aside>
+      {/* Category sidebar — shared component */}
+      <ShopSidebar
+        categoryMap={catCounts}
+        activeCategory={cat}
+        onCategoryChange={setCat}
+        mode="filter"
+      />
 
       {/* Main content */}
       <div>
@@ -308,54 +283,14 @@ export default function ShopPage() {
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }} className="pg">
-            {filtered.map(p => {
-              const imgs = getImages(p)
-              return (
-                <div key={p.id} className="card-hover" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column' as const }}>
-                  <div style={{ height: 160, background: 'var(--bg-secondary)', position: 'relative' as const, overflow: 'hidden', cursor: 'pointer' }} onClick={() => open(p)}>
-                    {imgs[0]
-                      ? <img src={imgs[0]} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s' }} />
-                      : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40 }}>🖨️</div>}
-                    {p.badge && (
-                      <div style={{ position: 'absolute' as const, top: 8, left: 8, background: 'var(--red)', color: 'white', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10, fontFamily: 'Montserrat' }}>{p.badge}</div>
-                    )}
-                    {(p as any).discount_type && (p as any).discount_value && (
-                      <div style={{ position: 'absolute' as const, top: 8, right: 8, background: '#10b981', color: 'white', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10, fontFamily: 'Montserrat' }}>
-                        {(p as any).discount_type === 'percentage' ? `${(p as any).discount_value}% OFF` : 'SALE'}
-                      </div>
-                    )}
-                    {imgs.length > 1 && (
-                      <div style={{ position: 'absolute' as const, bottom: 6, right: 6, background: 'rgba(0,0,0,0.6)', color: 'white', fontSize: 10, padding: '2px 6px', borderRadius: 8 }}>+{imgs.length - 1}</div>
-                    )}
-                  </div>
-                  <div style={{ padding: 14, flex: 1, display: 'flex', flexDirection: 'column' as const }}>
-                    <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 3 }}>{p.category}</div>
-                    <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13, marginBottom: 4, color: 'var(--text-primary)', flex: 1 }}>{p.name}</div>
-                    {p.spec_groups?.length > 0 && (
-                      <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 6 }}>
-                        {p.spec_groups.map(g => g.name).join(' · ')}
-                      </div>
-                    )}
-                    {(p as any).discount_type && (p as any).discount_value ? (
-                      <div style={{ marginBottom: 10 }}>
-                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', textDecoration: 'line-through' }}>{displayPrice(p)}</div>
-                        <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 16, color: 'var(--red)' }}>
-                          {p.pricing_model === 'area'
-                            ? `₦${Math.round(p.area_rate * (1 - ((p as any).discount_type === 'percentage' ? (p as any).discount_value / 100 : 0))).toLocaleString()}/${p.area_unit}`
-                            : `From ₦${Math.round(p.price - ((p as any).discount_type === 'flat' ? (p as any).discount_value : p.price * (p as any).discount_value / 100)).toLocaleString()}`}
-                        </div>
-                      </div>
-                    ) : (
-                      <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 16, color: 'var(--red)', marginBottom: 10 }}>{displayPrice(p)}</div>
-                    )}
-                    <button onClick={() => open(p)}
-                      style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px', background: 'var(--red)', color: 'white', border: 'none', borderRadius: 8, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
-                      <ShoppingCart size={13} /> Order Now
-                    </button>
-                  </div>
-                </div>
-              )
-            })}
+            {filtered.map(p => (
+              <SharedProductCard
+                key={p.id}
+                product={p as any}
+                onOpen={(prod: any) => { setSelected(prod as any); setQty((prod as any).moq || 1) }}
+                wishlistIds={wishlistIds}
+              />
+            ))}
           </div>
         )}
       </div>
@@ -499,7 +434,7 @@ export default function ShopPage() {
                             }}
                            style={{ width: 70, textAlign: 'center' as const, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 16, border: '1px solid #e8e8e5', borderRadius: 8, padding: '6px', background: '#f7f7f5', color: '#1A1A1A', outline: 'none' }}
                           />
-                          <button onClick={() => setQty(qty + inc)}
+                          <button onClick={() => { if (!selected.max_qty || qty + inc <= selected.max_qty) setQty(qty + inc) }}
                             style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <Plus size={13} color="var(--text-primary)" />
                           </button>
@@ -564,36 +499,21 @@ export default function ShopPage() {
                     </div>
 
                     {/* Price display */}
-                    {selected.max_qty && qty > selected.max_qty ? (
-                      <div style={{ background: '#fff8e1', border: '1px solid #f59e0b', borderRadius: 10, padding: '14px 16px' }}>
-                        <div style={{ fontSize: 13, color: '#92400e', lineHeight: 1.6, marginBottom: 12 }}>
-                          ⚠️ <strong>Maximum order is {selected.max_qty} pcs.</strong><br />
-                          For larger quantities, contact us for a quote.
-                        </div>
-                        <a
-                          href={`https://wa.me/2348052929523?text=${encodeURIComponent(`Hi, I need a bulk quote for ${selected.name} — quantity: ${qty} pcs`)}`}
-                          target="_blank" rel="noopener noreferrer"
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 16px', background: '#25D366', color: 'white', borderRadius: 8, fontSize: 13, fontWeight: 700, fontFamily: 'Montserrat', textDecoration: 'none' }}>
-                          💬 Request Bulk Quote on WhatsApp
-                        </a>
+                    <div style={{ background: '#f7f7f5', borderRadius: 10, padding: '12px 14px', border: '1px solid #e8e8e5' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                        <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                          {selected.pricing_model === 'area' ? `${w}×${h} ${selected.area_unit}` : `${qty} pcs`}
+                        </span>
+                        <span style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 22, color: 'var(--red)' }}>
+                          ₦{price.toLocaleString()}
+                        </span>
                       </div>
-                    ) : (
-                      <div style={{ background: '#f7f7f5', borderRadius: 10, padding: '12px 14px', border: '1px solid #e8e8e5' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                          <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                            {selected.pricing_model === 'area' ? `${w}×${h} ${selected.area_unit}` : `${qty} pcs`}
-                          </span>
-                          <span style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 22, color: 'var(--red)' }}>
-                            ₦{price.toLocaleString()}
-                          </span>
+                      {selected.pricing_model === 'unit' && qty > 0 && (
+                        <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                          ₦{Math.round(price / qty).toLocaleString()} per piece
                         </div>
-                        {selected.pricing_model === 'unit' && qty > 0 && (
-                          <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-                            ₦{Math.round(price / qty).toLocaleString()} per piece
-                          </div>
-                        )}
-                      </div>
-                    )}
+                      )}
+                    </div>
 
                   </div>
                 </div>

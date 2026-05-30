@@ -19,6 +19,7 @@ interface ProductForm {
   spec_groups: SpecGroup[]
   featured: boolean; badge: string; collection: string
   discount_type: '' | 'percentage' | 'flat'; discount_value: number | ''
+  rating: number; review_count: number
   images: File[]; existing_images: string[]
 }
 
@@ -55,6 +56,7 @@ const emptyForm: ProductForm = {
   spec_groups: [],
   featured: false, badge: '', collection: '',
   discount_type: '', discount_value: '',
+  rating: 0, review_count: 0,
   images: [], existing_images: [],
 }
 
@@ -144,6 +146,7 @@ export default function AdminProductsPage() {
       spec_groups: p.spec_groups?.length ? p.spec_groups : [],
       featured: p.featured || false, badge: p.badge || '', collection: p.collection || '',
       discount_type: (p.discount_type as any) || '', discount_value: p.discount_value || '',
+      rating: (p as any).rating || 0, review_count: (p as any).review_count || 0,
       images: [], existing_images: p.images || (p.image_url ? [p.image_url] : []),
     })
     setShowModal(true)
@@ -185,6 +188,8 @@ export default function AdminProductsPage() {
       badge: form.badge || null, collection: form.collection || null,
       discount_type: form.discount_type || null,
       discount_value: form.discount_value ? Number(form.discount_value) : null,
+      rating: Number(form.rating) || 0,
+      review_count: Number(form.review_count) || 0,
       images: allImages, image_url: allImages[0] || null, is_active: true,
     }
     let savedId = editing?.id
@@ -495,6 +500,30 @@ export default function AdminProductsPage() {
                       <input type="number" value={form.discount_value} onChange={e => setF('discount_value', e.target.value === '' ? '' : Number(e.target.value))} placeholder={form.discount_type === 'percentage' ? 'e.g. 20' : 'e.g. 5000'} style={inputStyle} />
                     </div>
                   )}
+                </div>
+              </div>
+
+              {/* RATINGS */}
+              <div style={sectionStyle}>
+                <div style={sectionTitle}>Ratings & Social Proof</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
+                  <div>
+                    <label style={labelStyle}>Initial Rating (0–5)</label>
+                    <input type="number" min="0" max="5" step="0.1" value={form.rating || ''} onChange={e => setF('rating', Number(e.target.value))} placeholder="e.g. 4.8" style={inputStyle} />
+                    <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>Manually seed from customer feedback. Auto-updates when reviews are approved.</div>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Review Count</label>
+                    <input type="number" min="0" value={form.review_count || ''} onChange={e => setF('review_count', Number(e.target.value))} placeholder="e.g. 47" style={inputStyle} />
+                    <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>Auto-updates when reviews are approved.</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', paddingTop: 28 }}>
+                    {Number(form.rating) > 0 && (
+                      <div style={{ fontSize: 13 }}>
+                        Preview: {'★'.repeat(Math.floor(Number(form.rating)))}{'☆'.repeat(5 - Math.floor(Number(form.rating)))} {Number(form.rating).toFixed(1)}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 

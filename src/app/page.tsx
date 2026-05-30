@@ -1,91 +1,23 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
-import { useCartStore } from '@/store/cartStore'
-import { ShoppingCart, Star, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Star } from 'lucide-react'
 import { BRAND, HOME_SERVICES, STARTER_KITS, AFFILIATE_TIERS, CLIENTS } from '@/lib/constants'
+import { ProductCard, ShopSidebar, ProductCardData } from '@/components/shop/ShopComponents'
 
 // ─── TYPES ───────────────────────────────────────────────────
-interface Product {
-  id: string; name: string; category: string
-  pricing_model: string; price: number; moq: number
-  area_rate: number; area_unit: string
-  featured: boolean; badge: string
-  images: string[]; image_url: string
-  is_active: boolean
-  discount_type: string | null; discount_value: number | null
-}
 interface HeroBanner { id: string; image_url: string; title: string | null; subtitle: string | null; link_url: string | null; overlay_opacity?: number; cta_text?: string | null; cta_url?: string | null }
 interface Testimonial { id: string; name: string; company: string | null; text: string; rating: number }
-
-// ─── HELPERS ─────────────────────────────────────────────────
-function displayPrice(p: Product) {
-  if (p.pricing_model === 'area') return `₦${Number(p.area_rate).toLocaleString()}/${p.area_unit}`
-  return `From ₦${Number(p.price).toLocaleString()}`
-}
-function getImg(p: Product) {
-  return p.images?.[0] || p.image_url || null
-}
-
-// ─── PRODUCT CARD ─────────────────────────────────────────────
-function ProductCard({ product, onOpen }: { product: Product; onOpen: (p: Product) => void }) {
-  const [idx, setIdx] = useState(0)
-  const [hovering, setHovering] = useState(false)
-  const imgs = product.images?.length ? product.images : product.image_url ? [product.image_url] : []
-  const intervalRef = useRef<NodeJS.Timeout | null>(null)
-
-  useEffect(() => {
-    if (hovering && imgs.length > 1) {
-      intervalRef.current = setInterval(() => setIdx(i => (i + 1) % imgs.length), 3000)
-    } else {
-      if (intervalRef.current) clearInterval(intervalRef.current)
-      if (!hovering) setIdx(0)
-    }
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
-  }, [hovering, imgs.length])
-
-  return (
-    <div className="card-hover" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column' as const }}>
-      <div style={{ height: 160, background: 'var(--bg-secondary)', position: 'relative' as const, overflow: 'hidden', cursor: 'pointer' }}
-        onClick={() => onOpen(product)}
-        onMouseEnter={() => setHovering(true)}
-        onMouseLeave={() => setHovering(false)}>
-        {imgs[idx]
-          ? <img src={imgs[idx]} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'opacity 0.3s' }} />
-          : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40 }}>🖨️</div>}
-        {product.badge && (
-          <div style={{ position: 'absolute' as const, top: 8, left: 8, background: 'var(--red)', color: 'white', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10, fontFamily: 'Montserrat' }}>{product.badge}</div>
-        )}
-        {product.discount_type && product.discount_value && (
-          <div style={{ position: 'absolute' as const, top: 8, right: 8, background: '#10b981', color: 'white', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10, fontFamily: 'Montserrat' }}>
-            {product.discount_type === 'percentage' ? `${product.discount_value}% OFF` : 'SALE'}
-          </div>
-        )}
-        {imgs.length > 1 && (
-          <div style={{ position: 'absolute' as const, bottom: 6, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 4 }}>
-            {imgs.map((_, i) => <span key={i} style={{ width: 5, height: 5, borderRadius: '50%', background: i === idx ? 'white' : 'rgba(255,255,255,0.45)', display: 'block', transition: 'background 0.3s' }} />)}
-          </div>
-        )}
-      </div>
-      <div style={{ padding: 14, flex: 1, display: 'flex', flexDirection: 'column' as const }}>
-        <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 3 }}>{product.category}</div>
-        <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13, marginBottom: 6, color: 'var(--text-primary)', flex: 1 }}>{product.name}</div>
-        <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 15, color: 'var(--red)', marginBottom: 10 }}>{displayPrice(product)}</div>
-        <button onClick={() => onOpen(product)}
-          style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px', background: 'var(--red)', color: 'white', border: 'none', borderRadius: 8, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
-          <ShoppingCart size={13} /> Order Now
-        </button>
-      </div>
-    </div>
-  )
-}
+type Product = ProductCardData
 
 // ─── MAIN PAGE ────────────────────────────────────────────────
 export default function HomePage() {
+  const router = useRouter()
   const [heroBanners, setHeroBanners] = useState<HeroBanner[]>([])
   const [heroIdx, setHeroIdx] = useState(0)
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([])
@@ -93,6 +25,7 @@ export default function HomePage() {
   const [testimonials, setTestimonials] = useState<Testimonial[]>([])
   const [categoryMap, setCategoryMap] = useState<Record<string, number>>({})
   const [activeCat, setActiveCat] = useState('All Products')
+  const [wishlistIds, setWishlistIds] = useState<string[]>([])
 
 
   useEffect(() => {
@@ -117,6 +50,14 @@ export default function HomePage() {
     // Testimonials
     supabase.from('testimonials').select('*').eq('is_active', true).order('sort_order')
       .then(({ data }) => { if (data) setTestimonials(data as Testimonial[]) })
+
+    // Wishlist IDs for current user
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        supabase.from('wishlists').select('product_id').eq('user_id', session.user.id)
+          .then(({ data }) => { if (data) setWishlistIds(data.map(w => w.product_id)) })
+      }
+    })
   }, [])
 
   // Hero auto-cycle
@@ -134,7 +75,12 @@ export default function HomePage() {
   const SHOP_CATS = ['All Products', ...Array.from(new Set(allProducts.map(p => p.category))).slice(0, 13)]
 
   // We pass openModal handler — on homepage we just redirect to /shop
-  const openProduct = (p: Product) => { window.location.href = `/shop` }
+  const openProduct = (p: Product) => { router.push(`/shop?product=${p.id}`) }
+
+  const handleSidebarCategory = (cat: string) => {
+    if (cat === 'All Products') router.push('/shop')
+    else router.push(`/shop?cat=${encodeURIComponent(cat)}`)
+  }
 
   return (
     <>
@@ -234,6 +180,20 @@ export default function HomePage() {
           )}
         </section>
 
+        {/* ── BELOW HERO: SIDEBAR LAYOUT ── */}
+        <div style={{ maxWidth: 1300, margin: '0 auto', padding: '32px 24px', display: 'flex', gap: 28, alignItems: 'flex-start' }} className="sidebar-layout">
+
+          {/* LEFT SIDEBAR */}
+          <ShopSidebar
+            categoryMap={categoryMap}
+            activeCategory={activeCat}
+            onCategoryChange={handleSidebarCategory}
+            mode="navigate"
+          />
+
+          {/* RIGHT CONTENT */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+
         {/* ── SCROLLING TRUST TICKER ── */}
         <div style={{ background: 'var(--red)', overflow: 'hidden', padding: '13px 0' }}>
           <div className="trust-track">
@@ -255,7 +215,7 @@ export default function HomePage() {
         </div>
 
         {/* ── HOW IT WORKS ── */}
-        <section id="how-it-works" className="section" style={{ background: 'white' }}>
+        <section id="how-it-works" style={{ background: 'white', padding: '40px 0' }}>
           <div className="section-inner">
             <div style={{ textAlign: 'center' as const, marginBottom: 56 }}>
               <div className="badge badge-red" style={{ marginBottom: 14 }}>Simple process</div>
@@ -283,7 +243,7 @@ export default function HomePage() {
         </section>
 
         {/* ── SHOP BY CATEGORY + LIVE PRODUCTS ── */}
-        <section className="section" style={{ background: 'var(--light)' }}>
+        <section style={{ background: 'var(--light)', padding: '40px 0', borderRadius: 12, marginBottom: 12 }}>
           <div className="section-inner">
             <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 32, flexWrap: 'wrap' as const, gap: 16 }}>
               <div>
@@ -309,7 +269,7 @@ export default function HomePage() {
             {/* Products grid */}
             {categoryProducts.length > 0 ? (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }} className="cat-products-grid">
-                {categoryProducts.map(p => <ProductCard key={p.id} product={p} onOpen={openProduct} />)}
+                {categoryProducts.map(p => <ProductCard key={p.id} product={p} onOpen={openProduct} wishlistIds={wishlistIds} />)}
               </div>
             ) : (
               <div style={{ textAlign: 'center' as const, padding: '48px 0', color: 'var(--gray)' }}>
@@ -325,7 +285,7 @@ export default function HomePage() {
 
         {/* ── FEATURED PRODUCTS ── */}
         {featuredProducts.length > 0 && (
-          <section className="section" style={{ background: 'white' }}>
+          <section style={{ background: 'white', padding: '40px 0' }}>
             <div className="section-inner">
               <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 36, flexWrap: 'wrap' as const, gap: 12 }}>
                 <div>
@@ -335,7 +295,7 @@ export default function HomePage() {
                 <Link href="/shop" style={{ fontSize: 13, color: 'var(--red)', fontWeight: 700, textDecoration: 'none', fontFamily: 'Montserrat' }}>View all →</Link>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }} className="featured-grid">
-                {featuredProducts.map(p => <ProductCard key={p.id} product={p} onOpen={openProduct} />)}
+                {featuredProducts.map(p => <ProductCard key={p.id} product={p} onOpen={openProduct} wishlistIds={wishlistIds} />)}
               </div>
             </div>
           </section>
@@ -343,7 +303,7 @@ export default function HomePage() {
 
         {/* ── BESTSELLERS ── */}
         {bestsellers.length > 0 && (
-          <section className="section" style={{ background: 'var(--light)' }}>
+          <section style={{ background: 'var(--light)', padding: '40px 0', borderRadius: 12, marginBottom: 12 }}>
             <div className="section-inner">
               <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 36, flexWrap: 'wrap' as const, gap: 12 }}>
                 <div>
@@ -353,14 +313,14 @@ export default function HomePage() {
                 <Link href="/shop" style={{ fontSize: 13, color: 'var(--red)', fontWeight: 700, textDecoration: 'none', fontFamily: 'Montserrat' }}>View all →</Link>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }} className="best-grid">
-                {bestsellers.map(p => <ProductCard key={p.id} product={p} onOpen={openProduct} />)}
+                {bestsellers.map(p => <ProductCard key={p.id} product={p} onOpen={openProduct} wishlistIds={wishlistIds} />)}
               </div>
             </div>
           </section>
         )}
 
         {/* ── SERVICES ── */}
-        <section id="services" className="section" style={{ background: 'white' }}>
+        <section id="services" style={{ background: 'white', padding: '40px 0' }}>
           <div className="section-inner">
             <div style={{ textAlign: 'center' as const, marginBottom: 48 }}>
               <div className="badge badge-red" style={{ marginBottom: 14 }}>What we print</div>
@@ -381,7 +341,7 @@ export default function HomePage() {
         </section>
 
         {/* ── WHY CHOOSE US ── */}
-        <section className="section" style={{ background: 'var(--black)' }}>
+        <section style={{ background: 'var(--black)', padding: '40px 0', borderRadius: 12, marginBottom: 12 }}>
           <div className="section-inner">
             <div style={{ textAlign: 'center' as const, marginBottom: 56 }}>
               <div className="badge badge-dark" style={{ marginBottom: 14 }}>Why PrintHub</div>
@@ -410,7 +370,7 @@ export default function HomePage() {
         </section>
 
         {/* ── STARTER KITS ── */}
-        <section className="section" style={{ background: 'white' }}>
+        <section style={{ background: 'white', padding: '40px 0' }}>
           <div className="section-inner">
             <div style={{ textAlign: 'center' as const, marginBottom: 48 }}>
               <div className="badge badge-red" style={{ marginBottom: 14 }}>New business? Start here</div>
@@ -540,6 +500,9 @@ export default function HomePage() {
           </div>
         </section>
 
+          </div>{/* end right content */}
+        </div>{/* end sidebar layout */}
+
       </main>
       <Footer />
 
@@ -609,7 +572,10 @@ export default function HomePage() {
           .best-grid { grid-template-columns: repeat(2, 1fr) !important; }
           .clients-inner-grid { grid-template-columns: repeat(2, 1fr) !important; }
           .flash-sale-bar { flex-direction: column !important; gap: 8px !important; text-align: center !important; }
-          .section { padding: 48px 16px !important; }
+        }
+        @media (max-width: 860px) {
+          .sidebar-layout { flex-direction: column !important; }
+          .sidebar-layout > aside { width: 100% !important; position: static !important; max-height: none !important; }
         }
       ` }} />
     </>
