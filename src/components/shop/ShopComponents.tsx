@@ -241,8 +241,8 @@ export function ShopSidebar({
   ]
 
   return (
-    <aside style={{ width: 260, flexShrink: 0, position: 'sticky' as const, top: 80, alignSelf: 'flex-start' as const, maxHeight: 'calc(100vh - 100px)', overflowY: 'auto' as const }}>
-      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 12, overflow: 'hidden' }}>
+    <aside style={{ width: '100%' }}>
+      <div style={{ background: 'var(--bg-card)' }}>
 
         {/* Sidebar header */}
         <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border-color)', background: 'var(--red)' }}>

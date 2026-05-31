@@ -110,8 +110,19 @@ body {
 .section { padding: 80px 40px; }
 .section-inner { max-width: 1100px; margin: 0 auto; }
 
+/* ── RESPONSIVE SPACING ── */
 @media (max-width: 900px) {
-  .section { padding: 60px 20px; }
+  .section { padding: 60px 24px; }
+}
+@media (max-width: 640px) {
+  .section { padding: 48px 16px; }
+  .section-inner { padding: 0; }
+}
+
+/* ── GLOBAL MOBILE CONTAINER ── */
+/* Ensures nothing touches screen edges */
+@media (max-width: 640px) {
+  body { overflow-x: hidden; }
 }
 
 /* ── BUTTON BASE ── */

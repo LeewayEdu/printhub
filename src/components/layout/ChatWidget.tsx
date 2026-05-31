@@ -51,7 +51,7 @@ export default function ChatWidget() {
           onClick={() => setOpen(true)}
           style={{
             position: 'fixed', bottom: 28, right: 28, zIndex: 998,
-            width: 52, height: 52, background: '#1A1A1A',
+            width: 52, height: 52, background: 'var(--red)',
             borderRadius: '50%', border: 'none', cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             boxShadow: '0 4px 20px rgba(0,0,0,0.3)',

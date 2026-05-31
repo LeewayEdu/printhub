@@ -63,7 +63,7 @@ export default function FlashSaleBanner() {
   const pad = (n: number) => String(n).padStart(2, '0')
 
   return (
-    <div style={{ background: '#111', padding: '9px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, flexWrap: 'wrap' as const, position: 'relative' as const }}>
+    <div style={{ background: '#111', padding: '9px clamp(12px, 3vw, 16px)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, flexWrap: 'wrap' as const, position: 'relative' as const }}>
       {/* Label */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
         <Zap size={13} color="#f59e0b" fill="#f59e0b" />

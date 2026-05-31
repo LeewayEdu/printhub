@@ -105,8 +105,16 @@ export default function Footer() {
       </div>
 
       <style>{`
-        @media (max-width: 900px) { .footer-grid { grid-template-columns: 1fr 1fr !important; gap: 32px !important; } }
-        @media (max-width: 500px) { .footer-grid { grid-template-columns: 1fr !important; } }
+        @media (max-width: 900px) {
+          .footer-grid { grid-template-columns: 1fr 1fr !important; gap: 32px !important; }
+          footer { padding: 48px 24px 24px !important; }
+        }
+        @media (max-width: 640px) {
+          footer { padding: 40px 16px 20px !important; }
+        }
+        @media (max-width: 500px) {
+          .footer-grid { grid-template-columns: 1fr !important; gap: 28px !important; }
+        }
       `}</style>
     </footer>
   )

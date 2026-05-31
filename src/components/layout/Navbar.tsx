@@ -71,7 +71,7 @@ useEffect(() => {
         </Link>
 
         {/* DESKTOP NAV LINKS */}
-        <div style={{ display: 'flex', gap: 28 }} className="desktop-nav">
+        <div style={{ display: 'flex', gap: 28, alignItems: 'center' }} className="desktop-nav">
           {NAV_LINKS.map(link => (
             <Link
               key={link.href}
@@ -140,17 +140,29 @@ useEffect(() => {
             )}
           </Link>
 
-          {/* Login */}
+          {/* Dashboard / Login — always visible as icon */}
           <Link
-  href={isLoggedIn ? '/dashboard' : '/auth'}
-  style={{
-    fontSize: 13, fontWeight: 500, padding: '8px 16px',
-    border: '1px solid var(--border-color)', borderRadius: 8,
-    color: 'var(--text-primary)', textDecoration: 'none', transition: 'all 0.2s',
-  }}
->
-  {isLoggedIn ? 'Dashboard' : 'Login'}
-</Link>
+            href={isLoggedIn ? '/dashboard' : '/auth'}
+            title={isLoggedIn ? 'Dashboard' : 'Login'}
+            style={{
+              position: 'relative', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', width: 38, height: 38,
+              borderRadius: 8, border: '1px solid var(--border-color)',
+              color: 'var(--text-primary)', textDecoration: 'none', transition: 'all 0.2s',
+              background: isLoggedIn ? 'var(--red)' : 'transparent',
+              borderColor: isLoggedIn ? 'var(--red)' : 'var(--border-color)',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.borderColor = 'var(--red)'
+              e.currentTarget.style.color = isLoggedIn ? 'white' : 'var(--red)'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.borderColor = isLoggedIn ? 'var(--red)' : 'var(--border-color)'
+              e.currentTarget.style.color = isLoggedIn ? 'white' : 'var(--text-primary)'
+            }}
+          >
+            <User size={17} color={isLoggedIn ? 'white' : 'currentColor'} />
+          </Link>
 
           {/* Order Now */}
           <Link
@@ -219,12 +231,12 @@ useEffect(() => {
           ))}
           <div style={{ display: 'flex', gap: 12, marginTop: 32 }}>
             <Link
-              href="/auth"
+              href={isLoggedIn ? '/dashboard' : '/auth'}
               onClick={() => setMenuOpen(false)}
               className="btn btn-ghost"
               style={{ flex: 1, justifyContent: 'center' }}
             >
-              Login
+              {isLoggedIn ? 'Dashboard' : 'Login'}
             </Link>
             <Link
               href="/auth?tab=register"
@@ -239,14 +251,24 @@ useEffect(() => {
       )}
 
       <style>{`
-        @media (max-width: 860px) {
+        /* Shrink nav gap + font on large tablets */
+        @media (max-width: 1200px) {
+          nav { padding: 0 20px !important; }
+          .desktop-nav { gap: 18px !important; }
+          .desktop-nav a { font-size: 13px !important; }
+        }
+        @media (max-width: 1060px) {
+          .desktop-nav { gap: 12px !important; }
+          .desktop-nav a { font-size: 12px !important; }
+        }
+        /* Collapse to hamburger at 940px */
+        @media (max-width: 940px) {
           .desktop-nav { display: none !important; }
           .mobile-menu-btn { display: flex !important; }
-        }
-        @media (max-width: 480px) {
-          .nav-order-btn { display: none !important; }
           nav { padding: 0 16px !important; }
+          .nav-order-btn { display: none !important; }
         }
+        @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
       `}</style>
     </>
   )

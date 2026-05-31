@@ -4,10 +4,12 @@ const nextConfig = {
     remotePatterns: [
       { protocol: 'https', hostname: 'res.cloudinary.com' },
       { protocol: 'https', hostname: 'images.unsplash.com' },
+      { protocol: 'https', hostname: '*.supabase.co' },
+      { protocol: 'https', hostname: 'storage.googleapis.com' },
     ],
   },
   experimental: {
-    serverActions: { allowedOrigins: ['localhost:3000'] },
+    serverActions: { allowedOrigins: ['localhost:3000', 'printhub.cchumedia.com', '*.vercel.app'] },
   },
 }
 

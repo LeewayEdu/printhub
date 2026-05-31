@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import { supabase } from '@/lib/supabase/client'
@@ -54,12 +55,13 @@ function getImages(p: Product): string[] {
   return []
 }
 
-export default function ShopPage() {
+function ShopContent() {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const { addToCart } = useCartStore()
-  const [search, setSearch] = useState('')
-  const [cat, setCat] = useState('All Products')
+  const searchParams = useSearchParams()
+  const [search, setSearch] = useState(searchParams.get('search') || '')
+  const [cat, setCat] = useState(searchParams.get('cat') || 'All Products')
   const [sort, setSort] = useState('newest')
   const [selected, setSelected] = useState<Product | null>(null)
   
@@ -193,7 +195,7 @@ export default function ShopPage() {
           <img src={banner.image_url} alt={banner.title || 'Banner'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           <div style={{ position: 'absolute' as const, inset: 0, background: 'rgba(0,0,0,0.45)' }} />
           {(banner.title || banner.subtitle) && (
-            <div style={{ position: 'absolute' as const, inset: 0, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', padding: '0 40px', textAlign: 'center' as const, zIndex: 2 }}>
+            <div style={{ position: 'absolute' as const, inset: 0, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', padding: '0 clamp(16px, 4vw, 40px)', textAlign: 'center' as const, zIndex: 2 }}>
               {banner.title && <h1 style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 'clamp(28px, 4vw, 48px)', color: 'white', lineHeight: 1.1, marginBottom: 10 }}>{banner.title}</h1>}
               {banner.subtitle && <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.8)', marginBottom: 20 }}>{banner.subtitle}</p>}
               {banner.link_url && <a href={banner.link_url} style={{ display: 'inline-block', padding: '10px 24px', background: 'var(--red)', color: 'white', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>Shop Now</a>}
@@ -215,7 +217,7 @@ export default function ShopPage() {
       <div style={{ position: 'absolute' as const, inset: 0, background: 'var(--black)' }} />
       <div style={{ position: 'absolute' as const, inset: 0, backgroundImage: 'radial-gradient(circle at 15% 50%, rgba(192,57,43,0.15) 0%, transparent 50%)' }} />
       <div style={{ position: 'absolute' as const, inset: 0, backgroundImage: 'linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
-      <div style={{ position: 'absolute' as const, inset: 0, display: 'flex', flexDirection: 'column' as const, justifyContent: 'center', padding: '0 40px', zIndex: 2 }}>
+      <div style={{ position: 'absolute' as const, inset: 0, display: 'flex', flexDirection: 'column' as const, justifyContent: 'center', padding: '0 clamp(16px, 4vw, 40px)', zIndex: 2 }}>
         <div style={{ maxWidth: 1100, margin: '0 auto', width: '100%' }}>
           <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.4)', marginBottom: 12 }}>Our services</div>
           <h1 style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 'clamp(32px, 5vw, 52px)', color: 'white', lineHeight: 1.05, marginBottom: 12 }}>
@@ -230,20 +232,21 @@ export default function ShopPage() {
 
         {/* Shop body */}
 {/* Shop body */}
-<section style={{ background: 'var(--bg-secondary)', padding: '32px 40px', minHeight: '60vh' }}>
-  <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-    <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 24 }} className="shop-layout">
+<section style={{ background: 'var(--bg-secondary)', minHeight: '60vh' }}>
+  <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: 0 }} className="shop-layout">
 
       {/* Category sidebar — shared component */}
-      <ShopSidebar
-        categoryMap={catCounts}
-        activeCategory={cat}
-        onCategoryChange={setCat}
-        mode="filter"
-      />
+      <div style={{ borderRight: '1px solid var(--border-color)', background: 'var(--bg-card)', minHeight: '60vh' }}>
+        <ShopSidebar
+          categoryMap={catCounts}
+          activeCategory={cat}
+          onCategoryChange={setCat}
+          mode="filter"
+        />
+      </div>
 
       {/* Main content */}
-      <div>
+      <div style={{ padding: 'clamp(16px, 3vw, 28px)' }}>
         {/* Search + sort */}
         <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' as const, alignItems: 'center' }}>
           <div style={{ position: 'relative' as const, flex: 1, minWidth: 200 }}>
@@ -294,7 +297,6 @@ export default function ShopPage() {
           </div>
         )}
       </div>
-    </div>
   </div>
 </section>
       </main>
@@ -536,15 +538,32 @@ export default function ShopPage() {
         )
       })()}
 
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
+        /* Shop layout — hide sidebar on tablet/mobile */
+        @media (max-width: 1024px) {
+          .shop-layout > div:first-child { display: none !important; }
+        }
+        /* Product grid */
         @media (max-width: 900px) {
           .pg { grid-template-columns: repeat(2, 1fr) !important; }
           .mg { grid-template-columns: 1fr !important; }
+          .shop-layout > div:last-child { padding: 16px !important; }
         }
         @media (max-width: 480px) {
+          .pg { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+        @media (max-width: 360px) {
           .pg { grid-template-columns: 1fr !important; }
         }
-      `}</style>
+      ` }} />
     </>
+  )
+}
+
+export default function ShopPage() {
+  return (
+    <Suspense fallback={null}>
+      <ShopContent />
+    </Suspense>
   )
 }
