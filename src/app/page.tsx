@@ -144,9 +144,8 @@ export default function HomePage() {
             </>
           )}
 
-          {/* Hero content — left aligned, single column, search below headline */}
-          <div style={{ maxWidth: 1100, margin: '0 auto', width: '100%', position: 'relative' as const, zIndex: 2 }}>
-
+          {/* Hero content — centred, single column */}
+<div style={{ maxWidth: 760, margin: '0 auto', width: '100%', position: 'relative' as const, zIndex: 2, textAlign: 'center' as const }}>
             {/* Live badge */}
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(192,57,43,0.18)', border: '1px solid rgba(192,57,43,0.4)', borderRadius: 20, padding: '5px 14px', marginBottom: 24 }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--red)', display: 'inline-block', animation: 'pulseDot 2s infinite' }} />
@@ -260,7 +259,7 @@ export default function HomePage() {
             </p>
 
             {/* CTA buttons */}
-            <div className="hero-cta-row" style={{ display: 'flex', gap: 12, flexWrap: 'wrap' as const, marginBottom: 48 }}>
+            <div className="hero-cta-row" style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' as const, marginBottom: 48 }}>
               <Link href={heroBanners[heroIdx]?.cta_url || heroBanners[heroIdx]?.link_url || '/shop'} className="btn btn-primary" style={{ fontSize: 15, padding: '14px 28px' }}>
                 {heroBanners[heroIdx]?.cta_text || 'Shop Now'}
               </Link>
@@ -268,7 +267,7 @@ export default function HomePage() {
             </div>
 
             {/* Stats */}
-            <div className="hero-stats" style={{ display: 'flex', gap: 0, flexWrap: 'wrap' as const }}>
+            <div className="hero-stats" style={{ display: 'flex', gap: 0, justifyContent: 'center', flexWrap: 'wrap' as const }}>
               {[
                 { value: BRAND.stats.years, label: 'Years in business' },
                 { value: BRAND.stats.jobs, label: 'Jobs delivered' },
