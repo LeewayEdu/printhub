@@ -213,6 +213,12 @@ export default function CheckoutPage() {
   const initPaystack = () => {
     if (!email) { toast.error('Please enter your email address'); return }
     if (!selectedDelivery) { toast.error('Please select a delivery option first'); return }
+    if ((deliveryType === 'local' || deliveryType === 'interstate') && !address.trim()) {
+      toast.error('Please enter your delivery address'); return
+    }
+    if (deliveryType === 'interstate' && !selectedDelivery?.state) {
+      toast.error('Please select your state for interstate delivery'); return
+    }
 
     // Grab the public key — must be set in .env.local as NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY
     const paystackKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY
@@ -457,7 +463,7 @@ export default function CheckoutPage() {
                     ) : (
                       <button onClick={handleBankPayment} disabled={isProcessing}
                         style={{ flex: 2, padding: '12px', background: isProcessing ? '#ccc' : 'var(--red)', color: 'white', border: 'none', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, cursor: isProcessing ? 'not-allowed' : 'pointer' }}>
-                        {isProcessing ? 'Saving order...' : 'Confirm Bank Transfer Order'}
+                        {isProcessing ? 'Processing Payment...' : 'Confirm Bank Transfer Order'}
                       </button>
                     )}
                   </div>

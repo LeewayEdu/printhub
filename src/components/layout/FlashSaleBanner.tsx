@@ -45,9 +45,11 @@ export default function FlashSaleBanner() {
       .eq('is_active', true)
       .order('created_at', { ascending: false })
       .limit(1)
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) { console.error('FlashSale fetch error:', error.message); return }
         if (data && data.length > 0) {
           const s = data[0]
+          // Check not expired
           if (new Date(s.ends_at) > new Date()) setSale(s)
         }
       })

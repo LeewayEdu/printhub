@@ -45,6 +45,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <FlashSaleBanner />
           {children}
         </ThemeProvider>
+        <Script src="https://js.paystack.co/v1/inline.js" strategy="afterInteractive" />
         <Toaster
           position="top-right"
           toastOptions={{

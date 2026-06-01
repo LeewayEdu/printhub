@@ -16,7 +16,7 @@ export default function AdminUsersPage() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { router.push('/auth'); return }
       const { data } = await supabase.from('profiles').select('role').eq('id', session.user.id).single()
-      if (data?.role !== 'admin') { router.push('/dashboard'); return }
+      if (!['admin','super_admin'].includes(data?.role)) { router.push('/dashboard'); return }
       fetchUsers()
     }
     check()

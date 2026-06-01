@@ -22,7 +22,7 @@ export default function AdminMessagesPage() {
         .select('role')
         .eq('id', session.user.id)
         .single()
-      if (data?.role !== 'admin') { router.push('/dashboard'); return }
+      if (!['admin','super_admin'].includes(data?.role)) { router.push('/dashboard'); return }
       setIsAdmin(true)
       fetchMessages()
     }

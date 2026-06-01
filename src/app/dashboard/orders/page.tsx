@@ -64,6 +64,7 @@ export default function OrdersPage() {
     let added = 0
     for (const item of order.items) {
       try {
+        // Add to cart with all original specs
         addToCart(
           item.product_id,
           item.name,
@@ -71,6 +72,20 @@ export default function OrdersPage() {
           item.displayQty || `${item.quantity || 1} pcs`,
           item.specs || {},
         )
+        // Copy design details if they exist — find the cart item just added and update it
+        if (item.design_file_url || item.design_link || item.design_brief) {
+          const { items } = useCartStore.getState()
+          const newItem = items[items.length - 1]
+          if (newItem) {
+            const designType = item.design_file_url ? 'upload' : item.design_link ? 'link' : 'request'
+            useCartStore.getState().updateDesign(newItem.cartItemId, {
+              type: designType,
+              fileUrl: item.design_file_url || null,
+              link: item.design_link || null,
+              brief: item.design_brief ? JSON.parse(JSON.stringify(item.design_brief)) : null,
+            })
+          }
+        }
         added++
       } catch (e) {
         console.error('Could not re-add item:', item.name)

@@ -15,12 +15,13 @@ const customerLinks = [
   { href: '/dashboard/profile', label: 'Profile', icon: User },
 ]
 
-const adminLinks = [
+// Super Admin — full access to everything
+const superAdminLinks = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
   { href: '/dashboard/admin/orders', label: 'All Orders', icon: ShoppingBag },
   { href: '/dashboard/admin/products', label: 'Products', icon: Package },
   { href: '/dashboard/admin/bulk-upload', label: 'Bulk Upload', icon: FileSpreadsheet },
-  { href: '/dashboard/admin/delivery', label: 'Delivery', icon: Truck },
+  { href: '/dashboard/admin/delivery', label: 'Delivery Settings', icon: Truck },
   { href: '/dashboard/admin/promos', label: 'Promo Codes', icon: Tag },
   { href: '/dashboard/admin/notifications', label: 'Notifications', icon: Bell },
   { href: '/dashboard/admin/banners', label: 'Hero Banners', icon: Image },
@@ -28,11 +29,24 @@ const adminLinks = [
   { href: '/dashboard/admin/testimonials', label: 'Testimonials', icon: Star },
   { href: '/dashboard/admin/reviews', label: 'Product Reviews', icon: MessageSquare },
   { href: '/dashboard/admin/messages', label: 'Messages', icon: MessageSquare },
+  { href: '/dashboard/admin/payouts', label: 'Payouts', icon: DollarSign },
+  { href: '/dashboard/admin/users', label: 'Manage Users', icon: Users },
   { href: '/dashboard/orders', label: 'My Orders', icon: ShoppingBag },
   { href: '/dashboard/profile', label: 'Profile', icon: User },
-  { href: '/dashboard/admin/payouts', label: 'Payouts', icon: DollarSign },
-  { href: '/dashboard/admin/users', label: 'Users', icon: Users },
-] 
+]
+
+// Admin (Staff) — operational tasks only, no user management or finance
+const adminLinks = [
+  { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
+  { href: '/dashboard/admin/orders', label: 'All Orders', icon: ShoppingBag },
+  { href: '/dashboard/admin/products', label: 'Add Products', icon: Package },
+  { href: '/dashboard/admin/bulk-upload', label: 'Bulk Upload', icon: FileSpreadsheet },
+  { href: '/dashboard/admin/testimonials', label: 'Testimonials', icon: Star },
+  { href: '/dashboard/admin/reviews', label: 'Product Reviews', icon: MessageSquare },
+  { href: '/dashboard/admin/messages', label: 'Messages', icon: MessageSquare },
+  { href: '/dashboard/orders', label: 'My Orders', icon: ShoppingBag },
+  { href: '/dashboard/profile', label: 'Profile', icon: User },
+]
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { logout } = useAuthStore()
@@ -60,7 +74,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     router.push('/')
   }
 
-  const links = role === 'admin' ? adminLinks : customerLinks
+  const links = role === 'super_admin' ? superAdminLinks
+    : role === 'admin' ? adminLinks
+    : customerLinks
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', background: 'var(--light)' }}>
@@ -81,9 +97,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
             <div style={{ fontFamily: 'Montserrat', fontWeight: 600, fontSize: 14, color: 'white' }}>{profile.first_name} {profile.last_name}</div>
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>{profile.email}</div>
-            {role === 'admin' && (
+            {(role === 'admin' || role === 'super_admin') && (
               <div style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(192,57,43,0.2)', border: '1px solid rgba(192,57,43,0.4)', borderRadius: 12, padding: '3px 10px' }}>
-                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--red)', fontFamily: 'Montserrat' }}>ADMIN</span>
+                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--red)', fontFamily: 'Montserrat' }}>
+                  {role === 'super_admin' ? '⭐ SUPER ADMIN' : 'ADMIN'}
+                </span>
               </div>
             )}
           </div>

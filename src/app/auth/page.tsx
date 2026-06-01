@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
+import { Eye, EyeOff } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 function AuthContent() {
@@ -89,6 +90,7 @@ function LoginForm() {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showLoginPwd, setShowLoginPwd] = useState(false)
 
   useEffect(() => { setError(null) }, [])
 
@@ -115,7 +117,13 @@ function LoginForm() {
         </div>
         <div style={{ marginBottom: 8 }}>
           <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--dark)', display: 'block', marginBottom: 6 }}>Password</label>
-          <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required className="form-input" />
+          <div style={{ position: 'relative' as const }}>
+            <input type={showLoginPwd ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required className="form-input" style={{ paddingRight: 44 }} />
+            <button type="button" onClick={() => setShowLoginPwd(p => !p)}
+              style={{ position: 'absolute' as const, right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray)', display: 'flex', alignItems: 'center', padding: 0 }}>
+              {showLoginPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
         </div>
         <div style={{ textAlign: 'right' as const, marginBottom: 20 }}>
           <Link href="/auth/forgot-password" style={{ fontSize: 13, color: 'var(--red)', textDecoration: 'none' }}>Forgot password?</Link>
@@ -142,6 +150,7 @@ function LoginForm() {
 
 function RegisterForm({ onSuccess }: { onSuccess: () => void }) {
   const { signup, isLoading, error, success, setError } = useAuthStore()
+  const [showRegPwd, setShowRegPwd] = useState(false)
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', phone: '', password: '',
     heardFrom: '', isAffiliate: false,
@@ -190,7 +199,13 @@ function RegisterForm({ onSuccess }: { onSuccess: () => void }) {
         </div>
         <div style={{ marginBottom: 16 }}>
           <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--dark)', display: 'block', marginBottom: 6 }}>Password</label>
-          <input type="password" value={form.password} onChange={e => set('password', e.target.value)} placeholder="Create a strong password" required minLength={6} className="form-input" />
+          <div style={{ position: 'relative' as const }}>
+            <input type={showRegPwd ? 'text' : 'password'} value={form.password} onChange={e => set('password', e.target.value)} placeholder="Create a strong password" required minLength={6} className="form-input" style={{ paddingRight: 44 }} />
+            <button type="button" onClick={() => setShowRegPwd((p: boolean) => !p)}
+              style={{ position: 'absolute' as const, right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray)', display: 'flex', alignItems: 'center', padding: 0 }}>
+              {showRegPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
         </div>
         <div style={{ marginBottom: 16 }}>
           <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--dark)', display: 'block', marginBottom: 6 }}>How did you hear about us?</label>

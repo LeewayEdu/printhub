@@ -422,8 +422,8 @@ function ShopContent() {
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <button onClick={() => { if (qty - inc >= moq) setQty(qty - inc) }}
-                            style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', cursor: qty <= moq ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: qty <= moq ? 0.4 : 1 }}>
-                            <Minus size={13} color="var(--text-primary)" />
+                            style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid #d1d5db', background: '#f3f4f6', cursor: qty <= moq ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: qty <= moq ? 0.4 : 1 }}>
+                            <Minus size={13} color="#1A1A1A" />
                           </button>
                           <input
                             type="number"
@@ -434,11 +434,12 @@ function ShopContent() {
                               const val = Number(e.target.value)
                               if (val >= moq) setQty(val)
                             }}
-                           style={{ width: 70, textAlign: 'center' as const, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 16, border: '1px solid #e8e8e5', borderRadius: 8, padding: '6px', background: '#f7f7f5', color: '#1A1A1A', outline: 'none' }}
+                            style={{ width: 70, textAlign: 'center' as const, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 16, border: '1px solid #e8e8e5', borderRadius: 8, padding: '6px', background: '#f7f7f5', color: '#1A1A1A', outline: 'none', MozAppearance: 'textfield' as const }}
+                            className="no-spinners"
                           />
                           <button onClick={() => { if (!selected.max_qty || qty + inc <= selected.max_qty) setQty(qty + inc) }}
-                            style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Plus size={13} color="var(--text-primary)" />
+                            style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid #d1d5db', background: '#f3f4f6', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Plus size={13} color="#1A1A1A" />
                           </button>
                           <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>pcs</span>
                         </div>
@@ -555,6 +556,9 @@ function ShopContent() {
         @media (max-width: 360px) {
           .pg { grid-template-columns: 1fr !important; }
         }
+        .no-spinners::-webkit-outer-spin-button,
+        .no-spinners::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .no-spinners { -moz-appearance: textfield; }
       ` }} />
     </>
   )
