@@ -422,8 +422,8 @@ function ShopContent() {
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <button onClick={() => { if (qty - inc >= moq) setQty(qty - inc) }}
-                            style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid #d1d5db', background: '#f3f4f6', cursor: qty <= moq ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: qty <= moq ? 0.4 : 1 }}>
-                            <Minus size={13} color="#1A1A1A" />
+                            style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', cursor: qty <= moq ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: qty <= moq ? 0.4 : 1 }}>
+                            <Minus size={13} color="var(--text-primary)" />
                           </button>
                           <input
                             type="number"
@@ -434,12 +434,11 @@ function ShopContent() {
                               const val = Number(e.target.value)
                               if (val >= moq) setQty(val)
                             }}
-                            style={{ width: 70, textAlign: 'center' as const, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 16, border: '1px solid #e8e8e5', borderRadius: 8, padding: '6px', background: '#f7f7f5', color: '#1A1A1A', outline: 'none', MozAppearance: 'textfield' as const }}
-                            className="no-spinners"
+                           style={{ width: 70, textAlign: 'center' as const, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 16, border: '1px solid #e8e8e5', borderRadius: 8, padding: '6px', background: '#f7f7f5', color: '#1A1A1A', outline: 'none' }}
                           />
                           <button onClick={() => { if (!selected.max_qty || qty + inc <= selected.max_qty) setQty(qty + inc) }}
-                            style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid #d1d5db', background: '#f3f4f6', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Plus size={13} color="#1A1A1A" />
+                            style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Plus size={13} color="var(--text-primary)" />
                           </button>
                           <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>pcs</span>
                         </div>
@@ -522,6 +521,51 @@ function ShopContent() {
                 </div>
               </div>
 
+              {/* ── YOU MAY ALSO LIKE ── */}
+              {(() => {
+                const related = products
+                  .filter(p => p.id !== selected.id && p.category === selected.category)
+                  .slice(0, 4)
+                const bundles = products
+                  .filter(p => p.id !== selected.id && p.category !== selected.category && p.featured)
+                  .slice(0, related.length < 2 ? 4 : 2)
+                const upsells = [...related, ...bundles].slice(0, 4)
+                if (upsells.length === 0) return null
+                return (
+                  <div style={{ padding: '16px 24px', borderTop: '1px solid #f0f0ee', background: '#fafafa', flexShrink: 0 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#999', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 12 }}>
+                      You may also like
+                    </div>
+                    <div style={{ display: 'flex', gap: 10, overflowX: 'auto' as const, paddingBottom: 4 }}>
+                      {upsells.map(p => {
+                        const img = p.images?.[0] || p.image_url
+                        const upsellPrice = p.pricing_model === 'area'
+                          ? `₦${Number(p.area_rate).toLocaleString()}/${p.area_unit}`
+                          : `From ₦${Number(p.price).toLocaleString()}`
+                        return (
+                          <div key={p.id}
+                            onClick={() => { setSelected(p); setQty(p.moq || 1); setSpecs({}); setW(0); setH(0); setImgIdx(0); setDesignType('upload'); setDesignFile(null); setDesignLink(''); setDesignBrief({ businessName: '', colors: '', slogan: '', notes: '', referenceUrl: '' }) }}
+                            style={{ flexShrink: 0, width: 130, background: 'white', border: '1px solid #e8e8e5', borderRadius: 10, overflow: 'hidden', cursor: 'pointer', transition: 'box-shadow 0.15s' }}
+                            onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)')}
+                            onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>
+                            <div style={{ height: 70, overflow: 'hidden', background: '#f5f5f3' }}>
+                              {img
+                                ? <img src={img} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>🖨️</div>}
+                            </div>
+                            <div style={{ padding: '8px 10px' }}>
+                              <div style={{ fontSize: 11, color: '#888', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{p.category}</div>
+                              <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 11, color: '#1A1A1A', lineHeight: 1.3, marginBottom: 4, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const }}>{p.name}</div>
+                              <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 11, color: 'var(--red)' }}>{upsellPrice}</div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })()}
+
               {/* Modal footer */}
               <div style={{ padding: '14px 24px', borderTop: '1px solid #e8e8e5', display: 'flex', gap: 10, flexShrink: 0, background: '#ffffff', borderRadius: '0 0 16px 16px' }}>
                 <button onClick={() => setSelected(null)}
@@ -556,9 +600,6 @@ function ShopContent() {
         @media (max-width: 360px) {
           .pg { grid-template-columns: 1fr !important; }
         }
-        .no-spinners::-webkit-outer-spin-button,
-        .no-spinners::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-        .no-spinners { -moz-appearance: textfield; }
       ` }} />
     </>
   )
