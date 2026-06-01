@@ -215,8 +215,8 @@ function RegisterForm({ onSuccess }: { onSuccess: () => void }) {
             <option>WhatsApp</option>
             <option>Referred by a friend</option>
             <option>Google Search</option>
-            <option>MCAP / AIM Training</option>
-            <option>C-Chu Global / Crypto Silas</option>
+            <option>Flyers/Stickers</option>
+            <option>Banner</option>
             <option>Other</option>
           </select>
         </div>
