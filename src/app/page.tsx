@@ -162,7 +162,7 @@ export default function HomePage() {
             </h1>
 
             {/* ── SEARCH BAR — fixed here below headline, unaffected by banners ── */}
-            <div ref={searchRef} style={{ position: 'relative' as const, marginBottom: 32, maxWidth: 560 }}>
+            <div ref={searchRef} style={{ position: 'relative' as const, marginBottom: 32, maxWidth: 560, margin: '0 auto 32px' }}>
               <div style={{ display: 'flex', alignItems: 'center', background: 'white', borderRadius: 50, boxShadow: heroSearchFocused ? '0 0 0 4px rgba(192,57,43,0.35), 0 12px 40px rgba(0,0,0,0.4)' : '0 8px 32px rgba(0,0,0,0.3)', transition: 'box-shadow 0.2s', position: 'relative' as const, zIndex: 101 }}>
                 <div style={{ paddingLeft: 22, color: '#bbb', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
