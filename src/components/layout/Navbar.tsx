@@ -9,6 +9,7 @@ import { useThemeStore } from '@/store/themeStore'
 import { Sun, Moon } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import NotificationBar from './NotificationBar'
+import FlashSaleBanner from './FlashSaleBanner'
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false)
@@ -36,6 +37,7 @@ useEffect(() => {
   return (
     <>
       <NotificationBar />
+      <FlashSaleBanner />
       <nav
         style={{
           position: 'sticky',

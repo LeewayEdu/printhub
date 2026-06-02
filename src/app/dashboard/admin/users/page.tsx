@@ -33,6 +33,29 @@ export default function AdminUsersPage() {
     `${u.first_name} ${u.last_name} ${u.email} ${u.phone}`.toLowerCase().includes(search.toLowerCase())
   )
 
+  const exportCSV = () => {
+    const headers = ['First Name', 'Last Name', 'Email', 'Phone', 'Role', 'Loyalty Points', 'Is Affiliate', 'Heard From', 'Joined']
+    const rows = filtered.map((u: any) => [
+      u.first_name || '',
+      u.last_name || '',
+      u.email || '',
+      u.phone || '',
+      u.role || 'user',
+      u.loyalty_points || 0,
+      u.is_affiliate ? 'Yes' : 'No',
+      u.heard_from || '',
+      new Date(u.created_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })
+    ])
+    const csv = [headers, ...rows].map(row => row.map((v: any) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `printhub-users-${new Date().toISOString().slice(0,10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div>
       <div style={{ marginBottom: 24 }}>
@@ -40,9 +63,15 @@ export default function AdminUsersPage() {
         <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{users.length} registered users</p>
       </div>
 
-      <div style={{ position: 'relative' as const, marginBottom: 20, maxWidth: 360 }}>
-        <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, email or phone..." className="form-input" style={{ paddingLeft: 36 }} />
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 20 }}>
+        <div style={{ position: 'relative' as const, flex: 1, maxWidth: 360 }}>
+          <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, email or phone..." className="form-input" style={{ paddingLeft: 36 }} />
+        </div>
+        <button onClick={exportCSV}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 18px', background: '#10b981', color: 'white', border: 'none', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13, cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' as const }}>
+          ⬇ Export CSV
+        </button>
       </div>
 
       {loading ? (

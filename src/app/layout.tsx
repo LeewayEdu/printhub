@@ -3,7 +3,6 @@ import './globals.css'
 import { Toaster } from 'react-hot-toast'
 import ThemeProvider from '@/components/layout/ThemeProvider'
 import ChatWidget from '@/components/layout/ChatWidget'
-import FlashSaleBanner from '@/components/layout/FlashSaleBanner'
 import Script from 'next/script'
 
 export const metadata: Metadata = {
@@ -42,10 +41,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <ThemeProvider>
-          <FlashSaleBanner />
           {children}
         </ThemeProvider>
-        <Script src="https://js.paystack.co/v1/inline.js" strategy="afterInteractive" />
         <Toaster
           position="top-right"
           toastOptions={{

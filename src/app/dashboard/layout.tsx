@@ -60,12 +60,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) { router.push('/auth'); return }
       supabase.from('profiles')
-        .select('first_name, last_name, email, role')
-        .eq('id', session.user.id)
-        .single()
-        .then(({ data }) => {
-          if (data) { setRole(data.role); setProfile(data) }
-        })
+  .select('first_name, last_name, email, role')
+  .eq('id', session.user.id)
+  .single()
+  .then(({ data, error }) => {
+    console.log('Profile data:', data, 'Error:', error) // ← add this
+    if (data) { setRole(data.role); setProfile(data) }
+  })
     })
   }, [])
 

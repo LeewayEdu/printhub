@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
 import { Zap, X } from 'lucide-react'
+import { useFlashSaleStore } from '@/store/flashSaleStore'
 
 interface FlashSale {
   id: string
@@ -45,19 +46,17 @@ export default function FlashSaleBanner() {
       .eq('is_active', true)
       .order('created_at', { ascending: false })
       .limit(1)
-      .then(({ data, error }) => {
-        if (error) { console.error('FlashSale fetch error:', error.message); return }
+      .then(({ data }) => {
         if (data && data.length > 0) {
           const s = data[0]
-          // Check not expired
-          if (new Date(s.ends_at) > new Date()) setSale(s)
+          if (new Date(s.ends_at) > new Date()) { setSale(s); useFlashSaleStore.getState().setIsActive(true) }
         }
       })
   }, [])
 
   // Auto-hide when countdown expires
   useEffect(() => {
-    if (sale && !countdown) setSale(null)
+    if (sale && !countdown) { setSale(null); useFlashSaleStore.getState().setIsActive(false) }
   }, [countdown, sale])
 
   if (!sale || !countdown || dismissed) return null
@@ -102,7 +101,7 @@ export default function FlashSaleBanner() {
       </Link>
 
       {/* Dismiss */}
-      <button onClick={() => setDismissed(true)}
+      <button onClick={() => { setDismissed(true); useFlashSaleStore.getState().setIsActive(false) }}
         style={{ position: 'absolute' as const, right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.4)', padding: 4, display: 'flex', alignItems: 'center' }}>
         <X size={14} />
       </button>
