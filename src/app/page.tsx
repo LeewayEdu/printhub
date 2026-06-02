@@ -9,6 +9,7 @@ import Footer from '@/components/layout/Footer'
 import { Star } from 'lucide-react'
 import { BRAND, HOME_SERVICES, STARTER_KITS, AFFILIATE_TIERS, CLIENTS } from '@/lib/constants'
 import { ProductCard, ShopSidebar, ProductCardData } from '@/components/shop/ShopComponents'
+import FlashSaleBanner from '@/components/layout/FlashSaleBanner'
 
 // ─── TYPES ───────────────────────────────────────────────────
 interface HeroBanner { id: string; image_url: string; title: string | null; subtitle: string | null; link_url: string | null; overlay_opacity?: number; cta_text?: string | null; cta_url?: string | null }
@@ -111,6 +112,9 @@ export default function HomePage() {
     <>
       <Navbar />
       <main>
+        {/* ── FLASH SALE BANNER — below navbar, above hero ── */}
+        <FlashSaleBanner />
+
         {/* ── FULL PAGE SIDEBAR LAYOUT ── */}
         <div style={{ display: 'flex', alignItems: 'flex-start' }} className="sidebar-layout">
 
