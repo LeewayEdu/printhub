@@ -9,7 +9,8 @@ import Footer from '@/components/layout/Footer'
 import { Star } from 'lucide-react'
 import { BRAND, HOME_SERVICES, STARTER_KITS, AFFILIATE_TIERS, CLIENTS } from '@/lib/constants'
 import { ProductCard, ShopSidebar, ProductCardData } from '@/components/shop/ShopComponents'
-import FlashSaleBanner from '@/components/layout/FlashSaleBanner'
+import { useFlashSaleStore } from '@/store/flashSaleStore'
+
 
 // ─── TYPES ───────────────────────────────────────────────────
 interface HeroBanner { id: string; image_url: string; title: string | null; subtitle: string | null; link_url: string | null; overlay_opacity?: number; cta_text?: string | null; cta_url?: string | null }
@@ -31,6 +32,8 @@ export default function HomePage() {
   const [heroResults, setHeroResults] = useState<Product[]>([])
   const [heroSearchFocused, setHeroSearchFocused] = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
+  const flashSaleActive = useFlashSaleStore(s => s.isActive)
+  const [tickerItems, setTickerItems] = useState<{text: string, emoji: string}[]>([])
 
 
   useEffect(() => {
@@ -56,6 +59,10 @@ export default function HomePage() {
     supabase.from('testimonials').select('*').eq('is_active', true).order('sort_order')
       .then(({ data }) => { if (data) setTestimonials(data as Testimonial[]) })
 
+    // Trust ticker
+    supabase.from('trust_ticker').select('text, emoji').eq('is_active', true).order('sort_order')
+      .then(({ data }) => { if (data?.length) setTickerItems(data) })
+        
     // Wishlist IDs for current user
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
@@ -112,9 +119,6 @@ export default function HomePage() {
     <>
       <Navbar />
       <main>
-        {/* ── FLASH SALE BANNER — below navbar, above hero ── */}
-        <FlashSaleBanner />
-
         {/* ── FULL PAGE SIDEBAR LAYOUT ── */}
         <div style={{ display: 'flex', alignItems: 'flex-start' }} className="sidebar-layout">
 
@@ -298,25 +302,18 @@ export default function HomePage() {
           )}
         </section>
 
-        {/* ── SCROLLING TRUST TICKER ── */}
-        <div style={{ background: 'var(--red)', overflow: 'hidden', padding: '13px 0' }}>
-          <div className="trust-track">
-            {[...Array(2)].flatMap(() => [
-              '🚀 Lightning-fast 24hr rush service',
-              '🎨 Free design review on every order',
-              '💰 Prices from ₦3,000',
-              '🔄 Free reprint guarantee',
-              '📦 Nationwide delivery across all 36 states',
-              '⭐ Earn 2% loyalty points on every order',
-              '✅ 300 DPI quality check on all files',
-              '💳 Paystack · Bank Transfer · WhatsApp',
-            ]).map((item, i) => (
-              <span key={i} style={{ display: 'inline-flex', alignItems: 'center', padding: '0 clamp(12px, 3vw, 36px)', fontFamily: 'Montserrat', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.9)', letterSpacing: '0.05em', textTransform: 'uppercase' as const, whiteSpace: 'nowrap' as const, borderRight: '1px solid rgba(255,255,255,0.25)' }}>
-                {item}
-              </span>
-            ))}
+        {/* ── SCROLLING TRUST TICKER — admin-controlled, hidden when flash sale active ── */}
+        {!flashSaleActive && tickerItems.length > 0 && (
+          <div style={{ background: 'var(--red)', overflow: 'hidden', padding: '13px 0' }}>
+            <div className="trust-track">
+              {[...Array(2)].flatMap(() => tickerItems).map((item, i) => (
+                <span key={i} style={{ display: 'inline-flex', alignItems: 'center', padding: '0 clamp(12px, 3vw, 36px)', fontFamily: 'Montserrat', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.9)', letterSpacing: '0.05em', textTransform: 'uppercase' as const, whiteSpace: 'nowrap' as const, borderRight: '1px solid rgba(255,255,255,0.25)' }}>
+                  {item.emoji} {item.text}
+                </span>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* ── HOW IT WORKS ── */}
         <section id="how-it-works" className="section" style={{ background: 'white', paddingLeft: 'clamp(16px, 3vw, 40px)', paddingRight: 'clamp(16px, 3vw, 40px)', paddingTop: 40, paddingBottom: 40 }}>

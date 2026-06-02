@@ -36,6 +36,7 @@ export interface Order {
   created_at: string;
   items?: OrderItem[];
   // Extended fields
+  job_number?: string | null;
   receipt_url?: string | null;
   production_notes?: string | null;
   receipt_verified?: boolean;

@@ -24,7 +24,7 @@ function generateReceipt(order: any) {
       <td style="padding:10px 8px;border-bottom:1px solid #f0f0f0;text-align:center">${item.quantity || 1}</td>
       <td style="padding:10px 8px;border-bottom:1px solid #f0f0f0;text-align:right">₦${Number(item.price).toLocaleString()}</td>
     </tr>`).join('')
-  receiptWindow.document.write(`<!DOCTYPE html><html><head><title>Receipt - ${order.id.slice(0,8).toUpperCase()}</title>
+  receiptWindow.document.write(`<!DOCTYPE html><html><head><title>Receipt - ${order.job_number || order.id.slice(0,8).toUpperCase()}</title>
   <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;color:#1A1A1A;padding:40px;max-width:600px;margin:0 auto}
   .header{text-align:center;margin-bottom:32px;border-bottom:3px solid #C0392B;padding-bottom:20px}
   .logo{font-size:28px;font-weight:900;color:#C0392B}.company{font-size:13px;color:#666;margin-top:4px}
@@ -44,7 +44,7 @@ function generateReceipt(order: any) {
   <div><div class="logo">PrintHub</div><div style="font-size:12px;color:#666;font-weight:600">by C-Chu Media Ltd</div></div></div>
   <div class="company">Suite 38, Mazfallah Shopping Complex, Karu, Abuja<br>Tel: +234 806 375 3209 · info@cchumedia.com</div></div>
   <div class="receipt-title">RECEIPT / INVOICE</div>
-  <div class="receipt-id">Order #${order.id.slice(0,8).toUpperCase()} &nbsp;·&nbsp; ${new Date(order.created_at).toLocaleDateString('en-NG',{day:'numeric',month:'long',year:'numeric'})} &nbsp;·&nbsp; <span class="status">${order.status.toUpperCase()}</span></div>
+  <div class="receipt-id">Order #${order.job_number || order.id.slice(0,8).toUpperCase()} &nbsp;·&nbsp; ${new Date(order.created_at).toLocaleDateString('en-NG',{day:'numeric',month:'long',year:'numeric'})} &nbsp;·&nbsp; <span class="status">${order.status.toUpperCase()}</span></div>
   <div class="section"><div class="section-title">Customer Details</div><div class="info-grid">
   <div class="info-item"><label>Name</label><span>${order.first_name} ${order.last_name}</span></div>
   <div class="info-item"><label>Phone</label><span>${order.phone||'—'}</span></div>
@@ -151,7 +151,7 @@ export default function AdminOrdersPage() {
                   style={{ padding: '18px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', flexWrap: 'wrap' as const, gap: 12 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' as const }}>
                     <div>
-                      <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14 }}>#{order.id.slice(0, 8).toUpperCase()}</div>
+                      <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14 }}>#{order.job_number || order.id.slice(0, 8).toUpperCase()}</div>
                       <div style={{ fontSize: 12, color: 'var(--gray)', marginTop: 2 }}>{new Date(order.created_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
                     </div>
                     <div>

@@ -64,7 +64,6 @@ export default function OrdersPage() {
     let added = 0
     for (const item of order.items) {
       try {
-        // Add to cart with all original specs
         addToCart(
           item.product_id,
           item.name,
@@ -72,20 +71,6 @@ export default function OrdersPage() {
           item.displayQty || `${item.quantity || 1} pcs`,
           item.specs || {},
         )
-        // Copy design details if they exist — find the cart item just added and update it
-        if (item.design_file_url || item.design_link || item.design_brief) {
-          const { items } = useCartStore.getState()
-          const newItem = items[items.length - 1]
-          if (newItem) {
-            const designType = item.design_file_url ? 'upload' : item.design_link ? 'link' : 'request'
-            useCartStore.getState().updateDesign(newItem.cartItemId, {
-              type: designType,
-              fileUrl: item.design_file_url || null,
-              link: item.design_link || null,
-              brief: item.design_brief ? JSON.parse(JSON.stringify(item.design_brief)) : null,
-            })
-          }
-        }
         added++
       } catch (e) {
         console.error('Could not re-add item:', item.name)
@@ -135,7 +120,7 @@ export default function OrdersPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' as const }}>
                 <div>
                   <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, color: 'var(--black)' }}>
-                    #{order.id.slice(0, 8).toUpperCase()}
+                    #{order.job_number || order.id.slice(0, 8).toUpperCase()}
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--gray)', marginTop: 2 }}>
                     {new Date(order.created_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })}
@@ -225,7 +210,7 @@ export default function OrdersPage() {
                     <ShoppingCart size={14} />
                     {reordering === order.id ? 'Adding to cart...' : 'Reorder'}
                   </button>
-                  <a href={`https://wa.me/2348052929523?text=Hello%2C%20I%20need%20help%20with%20order%20%23${order.id.slice(0,8).toUpperCase()}`}
+                  <a href={`https://wa.me/2348052929523?text=Hello%2C%20I%20need%20help%20with%20order%20%23${order.job_number || order.id.slice(0,8).toUpperCase()}`}
                     target="_blank" rel="noopener noreferrer"
                     style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 20px', background: '#25D366', color: 'white', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
                     💬 Get help

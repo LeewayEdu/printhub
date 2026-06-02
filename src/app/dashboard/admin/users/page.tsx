@@ -10,6 +10,8 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [currentRole, setCurrentRole] = useState<string>('')
+  const [updatingId, setUpdatingId] = useState<string | null>(null)
 
   useEffect(() => {
     const check = async () => {
@@ -17,6 +19,7 @@ export default function AdminUsersPage() {
       if (!session) { router.push('/auth'); return }
       const { data } = await supabase.from('profiles').select('role').eq('id', session.user.id).single()
       if (!['admin','super_admin'].includes(data?.role)) { router.push('/dashboard'); return }
+      setCurrentRole(data?.role || '')
       fetchUsers()
     }
     check()
@@ -29,32 +32,23 @@ export default function AdminUsersPage() {
     setLoading(false)
   }
 
+  const updateRole = async (userId: string, newRole: string) => {
+    setUpdatingId(userId)
+    const { error } = await supabase
+      .from('profiles')
+      .update({ role: newRole })
+      .eq('id', userId)
+    if (error) {
+      alert('Failed to update role: ' + error.message)
+    } else {
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u))
+    }
+    setUpdatingId(null)
+  }
+
   const filtered = users.filter(u =>
     `${u.first_name} ${u.last_name} ${u.email} ${u.phone}`.toLowerCase().includes(search.toLowerCase())
   )
-
-  const exportCSV = () => {
-    const headers = ['First Name', 'Last Name', 'Email', 'Phone', 'Role', 'Loyalty Points', 'Is Affiliate', 'Heard From', 'Joined']
-    const rows = filtered.map((u: any) => [
-      u.first_name || '',
-      u.last_name || '',
-      u.email || '',
-      u.phone || '',
-      u.role || 'user',
-      u.loyalty_points || 0,
-      u.is_affiliate ? 'Yes' : 'No',
-      u.heard_from || '',
-      new Date(u.created_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })
-    ])
-    const csv = [headers, ...rows].map(row => row.map((v: any) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `printhub-users-${new Date().toISOString().slice(0,10)}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
 
   return (
     <div>
@@ -63,15 +57,9 @@ export default function AdminUsersPage() {
         <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{users.length} registered users</p>
       </div>
 
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 20 }}>
-        <div style={{ position: 'relative' as const, flex: 1, maxWidth: 360 }}>
-          <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, email or phone..." className="form-input" style={{ paddingLeft: 36 }} />
-        </div>
-        <button onClick={exportCSV}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 18px', background: '#10b981', color: 'white', border: 'none', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13, cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' as const }}>
-          ⬇ Export CSV
-        </button>
+      <div style={{ position: 'relative' as const, marginBottom: 20, maxWidth: 360 }}>
+        <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, email or phone..." className="form-input" style={{ paddingLeft: 36 }} />
       </div>
 
       {loading ? (
@@ -98,9 +86,21 @@ export default function AdminUsersPage() {
                   <td style={{ padding: '14px 16px', fontSize: 13, color: 'var(--text-secondary)' }}>{user.email}</td>
                   <td style={{ padding: '14px 16px', fontSize: 13, color: 'var(--text-secondary)' }}>{user.phone || '—'}</td>
                   <td style={{ padding: '14px 16px' }}>
-                    <span style={{ display: 'inline-flex', padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, fontFamily: 'Montserrat', background: user.role === 'admin' ? '#C0392B20' : 'var(--bg-secondary)', color: user.role === 'admin' ? '#C0392B' : 'var(--text-secondary)', textTransform: 'uppercase' as const }}>
-                      {user.role || 'customer'}
-                    </span>
+                    {currentRole === 'super_admin' ? (
+                      <select
+                        value={user.role || 'user'}
+                        disabled={updatingId === user.id}
+                        onChange={e => updateRole(user.id, e.target.value)}
+                        style={{ padding: '4px 10px', borderRadius: 20, border: '1px solid var(--border-color)', fontSize: 11, fontWeight: 700, fontFamily: 'Montserrat', textTransform: 'uppercase' as const, cursor: 'pointer', background: user.role === 'super_admin' ? '#7c3aed20' : user.role === 'admin' ? '#C0392B20' : 'var(--bg-secondary)', color: user.role === 'super_admin' ? '#7c3aed' : user.role === 'admin' ? '#C0392B' : 'var(--text-secondary)', outline: 'none', opacity: updatingId === user.id ? 0.5 : 1 }}>
+                        <option value="user">User</option>
+                        <option value="admin">Admin</option>
+                        <option value="super_admin">Super Admin</option>
+                      </select>
+                    ) : (
+                      <span style={{ display: 'inline-flex', padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, fontFamily: 'Montserrat', background: user.role === 'super_admin' ? '#7c3aed20' : user.role === 'admin' ? '#C0392B20' : 'var(--bg-secondary)', color: user.role === 'super_admin' ? '#7c3aed' : user.role === 'admin' ? '#C0392B' : 'var(--text-secondary)', textTransform: 'uppercase' as const }}>
+                        {user.role || 'user'}
+                      </span>
+                    )}
                   </td>
                   <td style={{ padding: '14px 16px', fontFamily: 'Montserrat', fontWeight: 600, fontSize: 13, color: 'var(--text-primary)' }}>
                     {Number(user.loyalty_points || 0).toLocaleString()}
