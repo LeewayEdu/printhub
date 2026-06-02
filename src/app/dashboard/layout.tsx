@@ -50,6 +50,7 @@ const superAdminLinks: NavLink[] = [
   { href: '/dashboard/admin/reviews', label: 'Product Reviews', icon: MessageSquare },
   { href: '/dashboard/admin/messages', label: 'Messages', icon: MessageSquare },
   { href: '/dashboard/admin/payouts', label: 'Payouts', icon: DollarSign },
+  { href: '/dashboard/admin/affiliates', label: 'Affiliates', icon: TrendingUp },
   { href: '/dashboard/admin/users', label: 'Manage Users', icon: Users },
   { href: '/dashboard/orders', label: 'My Orders', icon: ShoppingBag },
   { href: '/dashboard/profile', label: 'Profile', icon: User },
