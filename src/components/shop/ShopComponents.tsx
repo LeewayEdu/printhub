@@ -28,6 +28,7 @@ export interface ProductCardData {
   review_count: number
   total_orders: number
   is_active: boolean
+  moq?: number
 }
 
 // ─── HELPERS ──────────────────────────────────────────────────
@@ -204,9 +205,16 @@ export function ProductCard({
           )}
         </div>
 
-        {/* Price */}
-        <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 15, color: 'var(--red)', marginTop: 4 }}>
-          {displayPrice(product)}
+        {/* Price + MOQ */}
+        <div style={{ marginTop: 4, display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 6 }}>
+          <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 15, color: 'var(--red)' }}>
+            {displayPrice(product)}
+          </div>
+          {product.moq && product.moq > 1 && (
+            <div style={{ fontSize: 10, color: 'var(--text-secondary)', fontFamily: 'Open Sans', flexShrink: 0 }}>
+              Min: {product.moq} pcs
+            </div>
+          )}
         </div>
 
         {/* Order button */}
