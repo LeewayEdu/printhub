@@ -220,7 +220,7 @@ export async function POST(req: NextRequest) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama3-8b-8192',
+        model: 'llama-3.1-8b-instant',
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           ...messages,
@@ -231,6 +231,15 @@ export async function POST(req: NextRequest) {
     })
 
     const data = await response.json()
+
+    // Log error from Groq if any
+    if (!response.ok || data.error) {
+      console.error('Groq API error:', JSON.stringify(data))
+      return NextResponse.json({ 
+        reply: `Sorry, I could not process that. Please try again or chat with us on WhatsApp: +234 805 292 9523` 
+      })
+    }
+
     const reply = data.choices?.[0]?.message?.content || 'Sorry, I could not process that. Please try again or chat with us on WhatsApp: +234 805 292 9523'
 
     return NextResponse.json({ reply })
