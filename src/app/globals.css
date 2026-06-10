@@ -217,3 +217,16 @@ body {
 .badge-red   { background: var(--red-pale); color: var(--red); }
 .badge-dark  { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.7); }
 .badge-gold  { background: rgba(212,168,67,0.12); color: var(--gold); }
+
+/* ── PRODUCT CARD MOBILE ── */
+@media (max-width: 480px) {
+  .card-img { height: 130px !important; }
+  .card-info { padding: 8px 10px !important; gap: 2px !important; }
+  .card-name { font-size: 11px !important; -webkit-line-clamp: 2 !important; }
+  .card-category { font-size: 9px !important; letter-spacing: 0 !important; }
+  .product-card { border-radius: 8px !important; }
+}
+@media (max-width: 360px) {
+  .card-img { height: 110px !important; }
+  .card-name { font-size: 10px !important; }
+}

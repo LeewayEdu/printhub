@@ -28,7 +28,7 @@ export interface ProductCardData {
   review_count: number
   total_orders: number
   is_active: boolean
-  moq?: number
+  moq?: number 
 }
 
 // ─── HELPERS ──────────────────────────────────────────────────
@@ -161,7 +161,7 @@ export function ProductCard({
       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = 'none'; (e.currentTarget as HTMLElement).style.transform = 'none' }}>
 
       {/* Image */}
-      <div style={{ height: 170, background: 'var(--bg-secondary)', position: 'relative' as const, overflow: 'hidden', cursor: 'pointer' }}
+      <div className="card-img" style={{ height: 170, background: 'var(--bg-secondary)', position: 'relative' as const, overflow: 'hidden', cursor: 'pointer' }}
         onClick={() => onOpen(product)}>
         <CardImage imgs={imgs} name={product.name} />
 
@@ -184,14 +184,14 @@ export function ProductCard({
       </div>
 
       {/* Info */}
-      <div style={{ padding: '12px 14px', flex: 1, display: 'flex', flexDirection: 'column' as const, gap: 4 }}>
+      <div className="card-info" style={{ padding: '10px 12px', flex: 1, display: 'flex', flexDirection: 'column' as const, gap: 3 }}>
         {/* Category */}
-        <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', fontWeight: 600 }}>
+        <div className="card-category" style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.04em', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
           {product.category}
         </div>
 
         {/* Name */}
-        <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.4, flex: 1 }}>
+        <div className="card-name" style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden' }}>
           {product.name}
         </div>
 
@@ -206,12 +206,12 @@ export function ProductCard({
         </div>
 
         {/* Price + MOQ */}
-        <div style={{ marginTop: 4, display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 6 }}>
-          <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 15, color: 'var(--red)' }}>
+        <div style={{ marginTop: 4 }}>
+          <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 14, color: 'var(--red)' }}>
             {displayPrice(product)}
           </div>
           {product.moq && product.moq > 1 && (
-            <div style={{ fontSize: 10, color: 'var(--text-secondary)', fontFamily: 'Open Sans', flexShrink: 0 }}>
+            <div style={{ fontSize: 10, color: 'var(--text-secondary)', fontFamily: 'Open Sans', marginTop: 1 }}>
               Min: {product.moq} pcs
             </div>
           )}
@@ -219,7 +219,7 @@ export function ProductCard({
 
         {/* Order button */}
         <button onClick={() => onOpen(product)}
-          style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px', background: 'var(--red)', color: 'white', border: 'none', borderRadius: 8, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 12, cursor: 'pointer', marginTop: 8, transition: 'background 0.2s' }}
+          style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px', background: 'var(--red)', color: 'white', border: 'none', borderRadius: 8, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 11, cursor: 'pointer', marginTop: 6, transition: 'background 0.2s' }}
           onMouseEnter={e => (e.currentTarget.style.background = 'var(--red-dark)')}
           onMouseLeave={e => (e.currentTarget.style.background = 'var(--red)')}>
           <ShoppingCart size={13} /> Order Now
@@ -230,6 +230,17 @@ export function ProductCard({
 }
 
 // ─── SIDEBAR ──────────────────────────────────────────────────
+// ─── MOBILE CSS ───────────────────────────────────────────────
+export const productCardCSS = `
+  @media (max-width: 480px) {
+    .card-img { height: 140px !important; }
+    .card-info { padding: 8px 10px !important; }
+    .card-name { font-size: 11px !important; -webkit-line-clamp: 2; }
+    .card-category { font-size: 9px !important; }
+    .product-card { border-radius: 10px !important; }
+  }
+`
+
 export function ShopSidebar({
   categoryMap,
   activeCategory,
