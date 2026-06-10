@@ -8,6 +8,7 @@ import { useCartStore } from '@/store/cartStore'
 import { supabase } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 import { ShoppingBag, MapPin, CreditCard, Check, Upload } from 'lucide-react'
+import Script from 'next/script'
 
 const STEPS = ['Review', 'Delivery', 'Payment']
 
@@ -41,6 +42,7 @@ export default function CheckoutPage() {
   const [receiptFile, setReceiptFile] = useState<File | null>(null)
 
   // Promo
+  const [paystackReady, setPaystackReady] = useState(false)
   const [promoCode, setPromoCode] = useState('')
   const [promoApplied, setPromoApplied] = useState<any>(null)
   const [promoLoading, setPromoLoading] = useState(false)
@@ -152,7 +154,7 @@ export default function CheckoutPage() {
     )
 
     // Send email + WhatsApp via server-side API route (fire-and-forget)
-    const shortId = order.job_number || order.id.slice(0, 8).toUpperCase()
+    const shortId = order.id.slice(0, 8).toUpperCase()
     const itemNames = items.map(i => `${i.name} (${i.displayQty})`).join(', ')
     fetch('/api/notify', {
       method: 'POST',
@@ -214,40 +216,45 @@ export default function CheckoutPage() {
     if (!email) { toast.error('Please enter your email address'); return }
     if (!selectedDelivery) { toast.error('Please select a delivery option first'); return }
 
-    // Grab the public key — must be set in .env.local as NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY
     const paystackKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY
     if (!paystackKey) {
-      toast.error('Payment not configured. Contact support.')
-      console.error('Missing NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY in .env.local')
+      toast.error('Payment not configured — contact support.')
       return
     }
 
-    const tryOpen = () => {
-      // @ts-ignore
-      const PaystackPop = window.PaystackPop
-      if (!PaystackPop) {
-        toast.error('Payment is loading, please try again in a moment')
-        return
+    // @ts-ignore
+    const PaystackPop = window.PaystackPop
+    if (!PaystackPop) {
+      // Script not yet loaded — load it now and retry
+      const existing = document.getElementById('paystack-script')
+      if (!existing) {
+        const script = document.createElement('script')
+        script.id = 'paystack-script'
+        script.src = 'https://js.paystack.co/v1/inline.js'
+        script.onload = () => initPaystack()
+        document.head.appendChild(script)
+      } else {
+        toast('Payment is loading, please try again in a moment')
       }
-      try {
-        // @ts-ignore
-        const handler = PaystackPop.setup({
-          key: paystackKey,
-          email,
-          amount: Math.round(total * 100), // kobo, must be integer
-          currency: 'NGN',
-          ref: `PRINTHUB-${Date.now()}`,
-          callback: (response: any) => handlePaystackSuccess(response),
-          onClose: () => toast('Payment window closed'),
-        })
-        handler.openIframe()
-      } catch (err: any) {
-        console.error('Paystack error:', err)
-        toast.error(err?.message || 'Payment failed to open. Please try again.')
-      }
+      return
     }
 
-    tryOpen()
+    try {
+      // @ts-ignore
+      const handler = PaystackPop.setup({
+        key: paystackKey,
+        email,
+        amount: Math.round(total * 100),
+        currency: 'NGN',
+        ref: `PRINTHUB-${Date.now()}`,
+        callback: (response: any) => handlePaystackSuccess(response),
+        onClose: () => toast('Payment window closed'),
+      })
+      handler.openIframe()
+    } catch (err: any) {
+      console.error('Paystack error:', err)
+      toast.error(err?.message || 'Payment failed to open. Please try again.')
+    }
   }
 
   // ── EARLY RETURN (after all hooks) ───────────────────────────
@@ -452,12 +459,12 @@ export default function CheckoutPage() {
                       <button onClick={initPaystack} disabled={isProcessing}
                         style={{ flex: 2, padding: '12px', background: isProcessing ? '#ccc' : 'var(--red)', color: 'white', border: 'none', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, cursor: isProcessing ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                         <CreditCard size={16} />
-                        {isProcessing ? 'Processing...' : `Pay ₦${total.toLocaleString()} via Paystack`}
+                        {isProcessing ? 'Processing...' : !paystackReady ? 'Loading payment...' : `Pay ₦${total.toLocaleString()} via Paystack`}
                       </button>
                     ) : (
                       <button onClick={handleBankPayment} disabled={isProcessing}
                         style={{ flex: 2, padding: '12px', background: isProcessing ? '#ccc' : 'var(--red)', color: 'white', border: 'none', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, cursor: isProcessing ? 'not-allowed' : 'pointer' }}>
-                        {isProcessing ? 'Saving order...' : 'Confirm Bank Transfer Order'}
+                        {isProcessing ? 'Processing Payment...' : 'Confirm Bank Transfer Order'}
                       </button>
                     )}
                   </div>
@@ -499,6 +506,12 @@ export default function CheckoutPage() {
         </div>
       </main>
       <Footer />
+      <Script
+        id="paystack-script"
+        src="https://js.paystack.co/v1/inline.js"
+        strategy="afterInteractive"
+        onLoad={() => setPaystackReady(true)}
+      />
       <style dangerouslySetInnerHTML={{ __html: `@media (max-width: 900px) { .co-layout { grid-template-columns: 1fr !important; } }` }} />
     </>
   )
