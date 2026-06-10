@@ -31,7 +31,7 @@ export default function LiveCalculatorV2({
   const [tierLabel, setTierLabel] = useState<string | null>(null)
   const [discountPct, setDiscountPct] = useState(0)
 
-  const isBookCategory = category === 'Book Publishing'
+  const isBookCategory = category === 'Book Publishing' || category === 'Magazines & Journals'
   const hasSpecs = Object.keys(groups).length > 0
 
   // Load spec groups and tiers

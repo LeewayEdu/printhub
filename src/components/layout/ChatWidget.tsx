@@ -17,6 +17,12 @@ export default function ChatWidget() {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
+  // Lead capture state
+  const [leadCaptured, setLeadCaptured] = useState(false)
+  const [leadName, setLeadName] = useState('')
+  const [leadPhone, setLeadPhone] = useState('')
+  const [showLeadForm, setShowLeadForm] = useState(false)
+  const [leadSaving, setLeadSaving] = useState(false)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -36,11 +42,45 @@ export default function ChatWidget() {
         body: JSON.stringify({ messages: [...messages, userMsg] }),
       })
       const data = await res.json()
-      setMessages(prev => [...prev, { role: 'assistant', content: data.reply }])
+      const reply = data.reply || ''
+      setMessages(prev => [...prev, { role: 'assistant', content: reply }])
+
+      // After 3 messages from user, offer lead capture if not yet captured
+      const userMsgCount = [...messages, userMsg].filter(m => m.role === 'user').length
+      if (userMsgCount >= 2 && !leadCaptured) {
+        setTimeout(() => {
+          setShowLeadForm(true)
+        }, 800)
+      }
     } catch {
       setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, something went wrong. Please chat with us on WhatsApp.' }])
     }
     setLoading(false)
+  }
+
+  const saveLead = async () => {
+    if (!leadName.trim() && !leadPhone.trim()) { setShowLeadForm(false); setLeadCaptured(true); return }
+    setLeadSaving(true)
+    try {
+      // Save to Supabase leads table
+      await fetch('/api/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: leadName.trim(),
+          phone: leadPhone.trim(),
+          source: 'chatbot',
+          conversation: messages.map(m => `${m.role}: ${m.content}`).join('\n'),
+        })
+      })
+    } catch (e) { /* non-critical */ }
+    setLeadSaving(false)
+    setLeadCaptured(true)
+    setShowLeadForm(false)
+    setMessages(prev => [...prev, {
+      role: 'assistant',
+      content: `Thanks${leadName ? `, ${leadName}` : ''}! We have your details. Our team will reach out on ${leadPhone || 'WhatsApp'} shortly. You can also continue chatting or click the WhatsApp button below.`
+    }])
   }
 
   return (
@@ -127,6 +167,33 @@ export default function ChatWidget() {
               💬 Continue on WhatsApp instead
             </a>
           </div>
+
+          {/* Lead capture form */}
+          {showLeadForm && !leadCaptured && (
+            <div style={{ padding: '12px 14px', background: '#fef5f5', borderTop: '1px solid #fde8e8' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--red)', fontFamily: 'Montserrat', marginBottom: 8 }}>
+                📋 Leave your details and we'll follow up
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+                <input value={leadName} onChange={e => setLeadName(e.target.value)}
+                  placeholder="Your name"
+                  style={{ padding: '7px 10px', border: '1px solid #e8e8e5', borderRadius: 7, fontSize: 12, outline: 'none', fontFamily: 'Open Sans' }} />
+                <input value={leadPhone} onChange={e => setLeadPhone(e.target.value)}
+                  placeholder="WhatsApp / phone number"
+                  style={{ padding: '7px 10px', border: '1px solid #e8e8e5', borderRadius: 7, fontSize: 12, outline: 'none', fontFamily: 'Open Sans' }} />
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button onClick={saveLead} disabled={leadSaving}
+                    style={{ flex: 1, padding: '7px', background: 'var(--red)', color: 'white', border: 'none', borderRadius: 7, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+                    {leadSaving ? 'Saving...' : 'Submit'}
+                  </button>
+                  <button onClick={() => { setShowLeadForm(false); setLeadCaptured(true) }}
+                    style={{ padding: '7px 12px', background: 'white', border: '1px solid #e8e8e5', borderRadius: 7, fontSize: 11, cursor: 'pointer', color: '#888' }}>
+                    Skip
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Input */}
           <div style={{ padding: '10px 14px 14px', display: 'flex', gap: 8 }}>

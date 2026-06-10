@@ -56,7 +56,7 @@ interface Product {
 const CATEGORIES = [
   'Banners & Large Format', 'Business Cards', 'Papers & Stationery',
   'Stickers & Labels', 'Branded Souvenirs', 'Signage & Installation',
-  'Book Publishing', 'Campaign Materials', 'Graphic Design',
+  'Book Publishing', 'Magazines & Journals', 'Campaign Materials', 'Graphic Design',
   'Shirts & Uniforms', 'Frames & Canvas', 'Gift Items',
   'Vehicle Branding', 'Event Materials',
 ]

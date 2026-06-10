@@ -156,7 +156,7 @@ export function calculate(params: {
     subtotal += Number(opt.price_modifier) * effectiveArea * qty
   }
 
-  // 7. per_page (books/magazines)
+  // 7. per_page (books/magazines/journals)
   const perPageOptions = selectedOptions.filter(s => s.modifier_type === 'per_page')
   for (const opt of perPageOptions) {
     subtotal += Number(opt.price_modifier) * pages * qty

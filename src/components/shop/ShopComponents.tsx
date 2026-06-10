@@ -2,6 +2,7 @@
 // This file is imported by 'use client' pages so no directive needed here
 
 import { useState, useEffect, useRef } from 'react'
+import NextImage from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Heart, Star, ShoppingCart } from 'lucide-react'
@@ -104,7 +105,16 @@ function CardImage({ imgs, name }: { imgs: string[]; name: string }) {
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}>
       {imgs[idx]
-        ? <img src={imgs[idx]} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' as const, transition: 'opacity 0.35s' }} />
+        ? <div style={{ position: 'relative' as const, width: '100%', height: '100%' }}>
+            <NextImage
+              src={imgs[idx]}
+              alt={name}
+              fill
+              sizes="(max-width: 480px) 45vw, (max-width: 1024px) 30vw, 20vw"
+              style={{ objectFit: 'cover', transition: 'opacity 0.35s' }}
+              unoptimized={imgs[idx]?.includes('unsplash') || imgs[idx]?.includes('blob:')}
+            />
+          </div>
         : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, background: '#f5f5f3' }}>🖨️</div>
       }
       {imgs.length > 1 && (
