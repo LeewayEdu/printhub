@@ -6,10 +6,10 @@ import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import { supabase } from '@/lib/supabase/client'
 import { ProductCard as SharedProductCard, ShopSidebar, ProductCardData } from '@/components/shop/ShopComponents'
+import LiveCalculatorV2 from '@/components/shop/LiveCalculatorV2'
 import { useCartStore } from '@/store/cartStore'
 import { ShoppingCart, Search, SlidersHorizontal, X, ChevronLeft, ChevronRight, Minus, Plus, Upload, Link as LinkIcon, Pen } from 'lucide-react'
 import toast from 'react-hot-toast'
-import LiveCalculator from '@/components/shop/LiveCalculator'
 
 
 interface SpecOption { label: string; price: number }
@@ -65,7 +65,7 @@ function ShopContent() {
   const [cat, setCat] = useState(searchParams.get('cat') || 'All Products')
   const [sort, setSort] = useState('newest')
   const [selected, setSelected] = useState<Product | null>(null)
-  const [calcPrice, setCalcPrice] = useState<number | null>(null)
+  
 
   // Product config state
   const [qty, setQty] = useState(1)
@@ -84,6 +84,9 @@ function ShopContent() {
   const [catCounts, setCatCounts] = useState<Record<string, number>>({})
   const [heroBanners, setHeroBanners] = useState<any[]>([])
   const [heroIdx, setHeroIdx] = useState(0)
+  const [calcPrice, setCalcPrice] = useState<number | null>(null)
+  const [calcSpecs, setCalcSpecs] = useState<Record<string, string>>({})
+  const [calcSummary, setCalcSummary] = useState<string>('')
   
   useEffect(() => {
     // Wishlist
@@ -163,7 +166,11 @@ function ShopContent() {
       displayQty = `${qty} pcs`
     }
 
-    addToCart(selected.id, selected.name, price, displayQty, sl)
+    const finalPrice = calcPrice || price
+    const finalSpecs = calcSpecs && Object.keys(calcSpecs).length > 0
+      ? { ...sl, ...calcSpecs }
+      : sl
+    addToCart(selected.id, selected.name, finalPrice, displayQty, finalSpecs)
 
     // Store design in cart item
     if (designType) {
@@ -249,7 +256,7 @@ function ShopContent() {
       {/* Main content */}
       <div style={{ padding: 'clamp(16px, 3vw, 28px)' }}>
         {/* Search + sort */}
-        <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' as const, alignItems: 'center' }}>
+        <div className="shop-search-row" style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' as const, alignItems: 'center' }}>
           <div style={{ position: 'relative' as const, flex: 1, minWidth: 200 }}>
             <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search products..." className="form-input" style={{ paddingLeft: 36, fontSize: 13 }} />
@@ -291,7 +298,7 @@ function ShopContent() {
               <SharedProductCard
                 key={p.id}
                 product={p as any}
-                onOpen={(prod: any) => { setSelected(prod as any); setQty((prod as any).moq || 1); setCalcPrice(null) }}
+                onOpen={(prod: any) => { setSelected(prod as any); setQty((prod as any).moq || 1); setCalcPrice(null); setCalcSpecs({}); setCalcSummary('') }}
                 wishlistIds={wishlistIds}
               />
             ))}
@@ -501,13 +508,19 @@ function ShopContent() {
                       )}
                     </div>
 
-                    {/* Live Price Calculator */}
-                    <LiveCalculator
+                    {/* Live Price Calculator V2 */}
+                    <LiveCalculatorV2
                       category={selected.category}
+                      productName={selected.name}
                       qty={qty}
-                      w={w}
-                      h={h}
-                      onPriceUpdate={(total: number) => setCalcPrice(total)}
+                      widthFt={w}
+                      heightFt={h}
+                      isAreaBased={selected.pricing_model === 'area'}
+                      onPriceUpdate={(total: number, specSummary: Record<string, string>, summaryText: string) => {
+                        setCalcPrice(total)
+                        setCalcSpecs(specSummary)
+                        setCalcSummary(summaryText)
+                      }}
                     />
 
                     {/* Price display */}
@@ -549,22 +562,31 @@ function ShopContent() {
       })()}
 
       <style dangerouslySetInnerHTML={{ __html: `
-        /* Shop layout — hide sidebar on tablet/mobile */
         @media (max-width: 1024px) {
+          .shop-layout { grid-template-columns: 1fr !important; }
           .shop-layout > div:first-child { display: none !important; }
-        }
-        /* Product grid */
-        @media (max-width: 900px) {
-          .pg { grid-template-columns: repeat(2, 1fr) !important; }
+          .shop-layout > div:last-child { width: 100% !important; padding: 16px !important; box-sizing: border-box !important; }
+          .pg { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
           .mg { grid-template-columns: 1fr !important; }
-          .shop-layout > div:last-child { padding: 16px !important; }
+        }
+        @media (max-width: 600px) {
+          .shop-search-row { flex-direction: column !important; }
+          .shop-search-row > * { width: 100% !important; max-width: 100% !important; }
         }
         @media (max-width: 480px) {
-          .pg { grid-template-columns: repeat(2, 1fr) !important; }
+          .pg { gap: 8px !important; }
+          .card-img { height: 130px !important; }
+          .card-info { padding: 8px !important; }
+          .card-name { font-size: 11px !important; -webkit-line-clamp: 2 !important; }
+          .card-category { font-size: 9px !important; }
+          .shop-layout > div:last-child { padding: 10px !important; }
         }
         @media (max-width: 360px) {
           .pg { grid-template-columns: 1fr !important; }
         }
+        .no-spinners::-webkit-outer-spin-button,
+        .no-spinners::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .no-spinners { -moz-appearance: textfield; }
       ` }} />
     </>
   )
