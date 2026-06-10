@@ -13,8 +13,8 @@ import Script from 'next/script'
 const STEPS = ['Review', 'Delivery', 'Payment']
 
 const BANK_DETAILS = {
-  bankName: 'YOUR BANK NAME',
-  accountNumber: 'YOUR ACCOUNT NUMBER',
+  bankName: 'MoniePoint',
+  accountNumber: '6727587825',
   accountName: 'C-Chu Media Limited',
 }
 
