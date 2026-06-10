@@ -22,6 +22,8 @@ interface Product {
   area_unit: string; min_width: number; min_height: number
   spec_groups: SpecGroup[]; featured: boolean; badge: string
   images: string[]; image_url: string; is_active: boolean; created_at: string
+  display_price?: number
+  is_fixed_price?: boolean
 }
 
 const CATEGORIES = [
@@ -508,8 +510,8 @@ function ShopContent() {
                       )}
                     </div>
 
-                    {/* Live Price Calculator V2 */}
-                    <LiveCalculatorV2
+                    {/* Live Price Calculator V2 — shown for non-fixed products */}
+                    {!selected.is_fixed_price && <LiveCalculatorV2
                       category={selected.category}
                       productName={selected.name}
                       qty={qty}
@@ -521,7 +523,7 @@ function ShopContent() {
                         setCalcSpecs(specSummary)
                         setCalcSummary(summaryText)
                       }}
-                    />
+                    />}
 
                     {/* Price display */}
                     <div style={{ background: '#f7f7f5', borderRadius: 10, padding: '12px 14px', border: '1px solid #e8e8e5' }}>
@@ -532,6 +534,9 @@ function ShopContent() {
                         <span style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 22, color: 'var(--red)' }}>
                           ₦{(calcPrice || price).toLocaleString()}
                         </span>
+                        {!calcPrice && selected.display_price && (
+                          <span style={{ fontSize: 11, color: '#888', display: 'block', marginTop: 2 }}>From ₦{Number(selected.display_price).toLocaleString()}</span>
+                        )}
                       </div>
                       {selected.pricing_model === 'unit' && qty > 0 && (
                         <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>

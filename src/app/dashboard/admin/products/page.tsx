@@ -6,31 +6,51 @@ import { useRouter } from 'next/navigation'
 import { Plus, Pencil, Trash2, X, Upload } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-interface SpecOption { label: string; price: number }
-interface SpecGroup { name: string; options: SpecOption[] }
-interface QtyTier { qty: number; multiplier: number }
-
 interface ProductForm {
-  name: string; description: string; category: string
-  pricing_model: 'unit' | 'area' | 'fixed'
-  price: number | ''; moq: number | ''; increment: number | ''; max_qty: number | '' | null
-  qty_tiers: QtyTier[]
-  area_rate: number | ''; area_unit: 'sqft' | 'sqin'; min_width: number | ''; min_height: number | ''
-  spec_groups: SpecGroup[]
-  featured: boolean; badge: string; collection: string
-  discount_type: '' | 'percentage' | 'flat'; discount_value: number | ''
-  rating: number; review_count: number
-  images: File[]; existing_images: string[]
+  name: string
+  description: string
+  category: string
+  display_price: number | ''
+  is_fixed_price: boolean
+  moq: number | ''
+  increment: number | ''
+  max_qty: number | '' | null
+  featured: boolean
+  badge: string
+  collection: string
+  rating: number
+  review_count: number
+  discount_type: '' | 'percentage' | 'flat'
+  discount_value: number | ''
+  images: File[]
+  existing_images: string[]
 }
 
 interface Product {
-  id: string; name: string; description: string; category: string
-  pricing_model: string; price: number; moq: number; increment: number
-  max_qty: number | null; qty_tiers: QtyTier[]; area_rate: number; area_unit: string
-  min_width: number; min_height: number; spec_groups: SpecGroup[]
-  featured: boolean; badge: string; collection: string; images: string[]
-  image_url: string; is_active: boolean; created_at: string
-  discount_type: string | null; discount_value: number | null
+  id: string
+  name: string
+  description: string
+  category: string
+  display_price: number
+  price: number
+  is_fixed_price: boolean
+  pricing_model: string
+  area_rate: number
+  area_unit: string
+  moq: number
+  increment: number
+  max_qty: number | null
+  featured: boolean
+  badge: string
+  collection: string
+  rating: number
+  review_count: number
+  discount_type: string | null
+  discount_value: number | null
+  images: string[]
+  image_url: string
+  is_active: boolean
+  created_at: string
 }
 
 const CATEGORIES = [
@@ -49,14 +69,12 @@ const COLLECTIONS = [
 
 const emptyForm: ProductForm = {
   name: '', description: '', category: '',
-  pricing_model: 'unit',
-  price: '', moq: '', increment: '', max_qty: '',
-  qty_tiers: [{ qty: 1, multiplier: 1.0 }, { qty: 5, multiplier: 4.5 }, { qty: 10, multiplier: 8.5 }],
-  area_rate: '', area_unit: 'sqft', min_width: '', min_height: '',
-  spec_groups: [],
+  display_price: '',
+  is_fixed_price: false,
+  moq: '', increment: '', max_qty: '',
   featured: false, badge: '', collection: '',
-  discount_type: '', discount_value: '',
   rating: 0, review_count: 0,
+  discount_type: '', discount_value: '',
   images: [], existing_images: [],
 }
 
@@ -137,16 +155,13 @@ export default function AdminProductsPage() {
     setEditing(p)
     setForm({
       name: p.name || '', description: p.description || '', category: p.category || '',
-      pricing_model: (p.pricing_model as any) || 'unit',
-      price: p.price || '', moq: p.moq || '', increment: p.increment || '',
+      display_price: p.display_price || p.price || '',
+      is_fixed_price: p.is_fixed_price || false,
+      moq: p.moq || '', increment: p.increment || '',
       max_qty: p.max_qty || '',
-      qty_tiers: p.qty_tiers?.length ? p.qty_tiers : emptyForm.qty_tiers,
-      area_rate: p.area_rate || '', area_unit: (p.area_unit as any) || 'sqft',
-      min_width: p.min_width || '', min_height: p.min_height || '',
-      spec_groups: p.spec_groups?.length ? p.spec_groups : [],
       featured: p.featured || false, badge: p.badge || '', collection: p.collection || '',
       discount_type: (p.discount_type as any) || '', discount_value: p.discount_value || '',
-      rating: (p as any).rating || 0, review_count: (p as any).review_count || 0,
+      rating: Number(p.rating) || 0, review_count: Number(p.review_count) || 0,
       images: [], existing_images: p.images || (p.image_url ? [p.image_url] : []),
     })
     setShowModal(true)
@@ -168,29 +183,31 @@ export default function AdminProductsPage() {
   const handleSave = async () => {
     if (!form.name) { toast.error('Product name is required'); return }
     if (!form.category) { toast.error('Category is required'); return }
-    if (form.pricing_model === 'unit' && !form.price) { toast.error('MOQ price is required'); return }
-    if (form.pricing_model === 'area' && !form.area_rate) { toast.error('Area rate is required'); return }
+    if (!form.display_price && !form.is_fixed_price) { toast.error('Display price is required'); return }
     setIsLoading(true)
     const newImageUrls = form.images.length > 0 ? await uploadImages(form.images) : []
     const allImages = [...form.existing_images, ...newImageUrls]
     const payload = {
-      name: form.name, description: form.description, category: form.category,
-      pricing_model: form.pricing_model,
-      price: form.pricing_model !== 'area' ? Number(form.price) || 0 : 0,
-      moq: Number(form.moq) || 1, increment: Number(form.increment) || 1,
+      name: form.name,
+      description: form.description,
+      category: form.category,
+      display_price: Number(form.display_price) || 0,
+      price: Number(form.display_price) || 0, // keep price in sync for backwards compat
+      is_fixed_price: form.is_fixed_price,
+      pricing_model: form.is_fixed_price ? 'fixed' : 'unit', // backwards compat
+      moq: Number(form.moq) || 1,
+      increment: Number(form.increment) || 1,
       max_qty: form.max_qty ? Number(form.max_qty) : null,
-      qty_tiers: form.pricing_model === 'unit' ? form.qty_tiers : [],
-      area_rate: form.pricing_model === 'area' ? Number(form.area_rate) : null,
-      area_unit: form.area_unit,
-      min_width: form.pricing_model === 'area' ? Number(form.min_width) : null,
-      min_height: form.pricing_model === 'area' ? Number(form.min_height) : null,
-      spec_groups: form.spec_groups, featured: form.featured,
-      badge: form.badge || null, collection: form.collection || null,
-      discount_type: form.discount_type || null,
-      discount_value: form.discount_value ? Number(form.discount_value) : null,
+      featured: form.featured,
+      badge: form.badge || null,
+      collection: form.collection || null,
       rating: Number(form.rating) || 0,
       review_count: Number(form.review_count) || 0,
-      images: allImages, image_url: allImages[0] || null, is_active: true,
+      discount_type: form.discount_type || null,
+      discount_value: form.discount_value ? Number(form.discount_value) : null,
+      images: allImages,
+      image_url: allImages[0] || null,
+      is_active: true,
     }
     let savedId = editing?.id
     if (editing) {
@@ -218,15 +235,7 @@ export default function AdminProductsPage() {
 
   const setF = <K extends keyof ProductForm>(key: K, value: ProductForm[K]) => setForm(p => ({ ...p, [key]: value }))
 
-  const addSpecGroup = () => setF('spec_groups', [...form.spec_groups, { name: '', options: [{ label: '', price: 0 }] }])
-  const updateSpecGroupName = (i: number, name: string) => { const g = [...form.spec_groups]; g[i] = { ...g[i], name }; setF('spec_groups', g) }
-  const removeSpecGroup = (i: number) => setF('spec_groups', form.spec_groups.filter((_, idx) => idx !== i))
-  const addSpecOption = (gi: number) => { const g = [...form.spec_groups]; g[gi].options.push({ label: '', price: 0 }); setF('spec_groups', g) }
-  const updateSpecOption = (gi: number, oi: number, field: 'label' | 'price', value: string | number) => { const g = [...form.spec_groups]; g[gi].options[oi] = { ...g[gi].options[oi], [field]: value }; setF('spec_groups', g) }
-  const removeSpecOption = (gi: number, oi: number) => { const g = [...form.spec_groups]; g[gi].options = g[gi].options.filter((_, i) => i !== oi); setF('spec_groups', g) }
-  const addTier = () => setF('qty_tiers', [...form.qty_tiers, { qty: 0, multiplier: 1 }])
-  const updateTier = (i: number, field: 'qty' | 'multiplier', value: number) => { const t = [...form.qty_tiers]; t[i] = { ...t[i], [field]: value }; setF('qty_tiers', t) }
-  const removeTier = (i: number) => setF('qty_tiers', form.qty_tiers.filter((_, idx) => idx !== i))
+  // Spec options and qty tiers are now managed globally via Admin → Spec Options
 
   const filtered = products.filter(p => {
     const ms = p.name?.toLowerCase().includes(search.toLowerCase())
@@ -357,211 +366,123 @@ export default function AdminProductsPage() {
               {/* PRICING */}
               <div style={sectionStyle}>
                 <div style={sectionTitle}>Pricing</div>
+                <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 14 }}>
 
-                {/* Model selector */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 20 }}>
-                  {[
-                    { value: 'unit', label: 'Unit Pricing', desc: 'Per piece + quantity tiers' },
-                    { value: 'area', label: 'Area Pricing', desc: 'Per sqft / sq inch' },
-                    { value: 'fixed', label: 'Fixed Price', desc: 'Single price' },
-                  ].map(model => (
-                    <div key={model.value} onClick={() => setF('pricing_model', model.value as any)}
-                      style={{ padding: 12, borderRadius: 9, border: `2px solid ${form.pricing_model === model.value ? '#C0392B' : '#e0e0e0'}`, background: form.pricing_model === model.value ? '#FDEDEC' : '#fafafa', cursor: 'pointer' }}>
-                      <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13, color: form.pricing_model === model.value ? '#C0392B' : '#1A1A1A', marginBottom: 3 }}>{model.label}</div>
-                      <div style={{ fontSize: 11, color: '#888' }}>{model.desc}</div>
-                    </div>
-                  ))}
-                </div>
+                  {/* Fixed price toggle */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: form.is_fixed_price ? '#fef3c7' : '#f0fdf4', borderRadius: 10, border: `1px solid ${form.is_fixed_price ? '#fbbf24' : '#86efac'}` }}>
+                    <input type="checkbox" id="fixed_price" checked={form.is_fixed_price}
+                      onChange={e => setF('is_fixed_price', e.target.checked)}
+                      style={{ accentColor: '#C0392B', width: 16, height: 16, cursor: 'pointer' }} />
+                    <label htmlFor="fixed_price" style={{ cursor: 'pointer' }}>
+                      <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13, color: '#1A1A1A' }}>Fixed Price Item</div>
+                      <div style={{ fontSize: 11, color: '#666', marginTop: 1 }}>
+                        {form.is_fixed_price
+                          ? 'Customer pays a fixed price × quantity. No spec calculator.'
+                          : 'Live calculator will show based on category spec options. Recommended.'}
+                      </div>
+                    </label>
+                  </div>
 
-                {form.pricing_model === 'unit' && (
-                  <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 16 }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
-                      <div>
-                        <label style={labelStyle}>MOQ Price (₦)</label>
-                        <input type="number" value={form.price} onChange={e => setF('price', e.target.value === '' ? '' : Number(e.target.value))} placeholder="e.g. 15000" style={inputStyle} />
-                      </div>
-                      <div>
-                        <label style={labelStyle}>MOQ Quantity</label>
-                        <input type="number" value={form.moq} onChange={e => setF('moq', e.target.value === '' ? '' : Number(e.target.value))} placeholder="e.g. 100" style={inputStyle} />
-                      </div>
-                      <div>
-                        <label style={labelStyle}>Increment</label>
-                        <input type="number" value={form.increment} onChange={e => setF('increment', e.target.value === '' ? '' : Number(e.target.value))} placeholder="e.g. 50" style={inputStyle} />
+                  {/* Display price */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+                    <div>
+                      <label style={labelStyle}>
+                        {form.is_fixed_price ? 'Price per unit (₦) *' : 'Display price (₦) *'}
+                      </label>
+                      <input type="number"
+                        value={form.display_price}
+                        onChange={e => setF('display_price', e.target.value === '' ? '' : Number(e.target.value))}
+                        placeholder={form.is_fixed_price ? 'e.g. 75000' : 'e.g. 4500'}
+                        style={inputStyle} />
+                      <div style={{ fontSize: 10, color: '#888', marginTop: 4 }}>
+                        {form.is_fixed_price ? 'Price charged per piece' : 'Shown as "From ₦X" on product card'}
                       </div>
                     </div>
                     <div>
-                      <label style={labelStyle}>Max Quantity (leave blank for no limit — beyond this shows "contact for quote")</label>
-                      <input type="number" value={form.max_qty || ''} onChange={e => setF('max_qty', e.target.value === '' ? '' : Number(e.target.value))} placeholder="e.g. 1000" style={{ ...inputStyle, maxWidth: 200 }} />
+                      <label style={labelStyle}>MOQ (Min order qty)</label>
+                      <input type="number"
+                        value={form.moq}
+                        onChange={e => setF('moq', e.target.value === '' ? '' : Number(e.target.value))}
+                        placeholder="e.g. 100" style={inputStyle} />
                     </div>
-
-                    {/* Quantity tiers */}
                     <div>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                        <label style={labelStyle}>Quantity Tiers</label>
-                        <button onClick={addTier} style={{ fontSize: 12, color: '#C0392B', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, fontFamily: 'Montserrat' }}>+ Add tier</button>
-                      </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 10, marginBottom: 6 }}>
-                        <div style={{ fontSize: 11, color: '#888', fontWeight: 600, textTransform: 'uppercase' as const }}>Quantity (pcs)</div>
-                        <div style={{ fontSize: 11, color: '#888', fontWeight: 600, textTransform: 'uppercase' as const }}>Multiplier</div>
-                        <div />
-                      </div>
-                      {form.qty_tiers.map((tier, i) => (
-                        <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 10, marginBottom: 8, alignItems: 'center' }}>
-                          <input type="number" value={tier.qty || ''} onChange={e => updateTier(i, 'qty', Number(e.target.value))} placeholder="e.g. 250" style={inputStyle} />
-                          <input type="number" step="0.1" value={tier.multiplier || ''} onChange={e => updateTier(i, 'multiplier', Number(e.target.value))} placeholder="e.g. 2.0" style={inputStyle} />
-                          <button onClick={() => removeTier(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#999' }}><X size={15} /></button>
-                        </div>
-                      ))}
-                      {Number(form.price) > 0 && Number(form.moq) > 0 && (
-                        <div style={{ marginTop: 12, background: '#fafafa', border: '1px solid #e8e8e5', borderRadius: 8, padding: '12px 14px' }}>
-                          <div style={{ fontSize: 11, color: '#888', fontWeight: 600, marginBottom: 8, textTransform: 'uppercase' as const }}>Price preview</div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
-                            <span style={{ color: '#666' }}>{form.moq} pcs (MOQ)</span>
-                            <span style={{ fontFamily: 'Montserrat', fontWeight: 700 }}>₦{Number(form.price).toLocaleString()}</span>
-                          </div>
-                          {form.qty_tiers.map((tier, i) => (
-                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
-                              <span style={{ color: '#666' }}>{tier.qty} pcs</span>
-                              <span style={{ fontFamily: 'Montserrat', fontWeight: 700 }}>₦{Math.round(Number(form.price) * tier.multiplier).toLocaleString()}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                      <label style={labelStyle}>Increment (qty step)</label>
+                      <input type="number"
+                        value={form.increment}
+                        onChange={e => setF('increment', e.target.value === '' ? '' : Number(e.target.value))}
+                        placeholder="e.g. 50" style={inputStyle} />
                     </div>
                   </div>
-                )}
 
-                {form.pricing_model === 'area' && (
-                  <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 14 }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                      <div>
-                        <label style={labelStyle}>Rate per unit (₦)</label>
-                        <input type="number" value={form.area_rate} onChange={e => setF('area_rate', e.target.value === '' ? '' : Number(e.target.value))} placeholder="e.g. 500" style={inputStyle} />
-                      </div>
-                      <div>
-                        <label style={labelStyle}>Unit</label>
-                        <select value={form.area_unit} onChange={e => setF('area_unit', e.target.value as any)} style={{ ...inputStyle, cursor: 'pointer' }}>
-                          <option value="sqft">Square feet (sqft)</option>
-                          <option value="sqin">Square inches (sq in)</option>
-                        </select>
-                      </div>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                      <div>
-                        <label style={labelStyle}>Min width ({form.area_unit === 'sqft' ? 'ft' : 'in'})</label>
-                        <input type="number" step="0.5" value={form.min_width} onChange={e => setF('min_width', e.target.value === '' ? '' : Number(e.target.value))} style={inputStyle} />
-                      </div>
-                      <div>
-                        <label style={labelStyle}>Min height ({form.area_unit === 'sqft' ? 'ft' : 'in'})</label>
-                        <input type="number" step="0.5" value={form.min_height} onChange={e => setF('min_height', e.target.value === '' ? '' : Number(e.target.value))} style={inputStyle} />
+                  <div>
+                    <label style={labelStyle}>Max Quantity (blank = no limit)</label>
+                    <input type="number"
+                      value={form.max_qty || ''}
+                      onChange={e => setF('max_qty', e.target.value === '' ? '' : Number(e.target.value))}
+                      placeholder="e.g. 10000" style={{ ...inputStyle, maxWidth: 200 }} />
+                  </div>
+
+                  {/* Info about spec options */}
+                  {!form.is_fixed_price && form.category && (
+                    <div style={{ padding: '12px 16px', background: '#eff6ff', borderRadius: 10, border: '1px solid #bfdbfe' }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: '#1d4ed8', marginBottom: 4 }}>💡 Live Calculator Active</div>
+                      <div style={{ fontSize: 11, color: '#3730a3' }}>
+                        Spec options for <strong>{form.category}</strong> are managed in{' '}
+                        <a href="/dashboard/admin/spec-options" target="_blank" style={{ color: '#1d4ed8', textDecoration: 'underline' }}>
+                          Admin → Spec Options
+                        </a>. Add new paper types, laminations, materials and pricing there.
                       </div>
                     </div>
-                    {Number(form.area_rate) > 0 && (
-                      <div style={{ background: '#fafafa', border: '1px solid #e8e8e5', borderRadius: 8, padding: '10px 14px', fontSize: 13 }}>
-                        Example: 5×7 = <strong>₦{(5 * 7 * Number(form.area_rate)).toLocaleString()}</strong>
+                  )}
+
+                  {/* Discount */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, paddingTop: 4 }}>
+                    <div>
+                      <label style={labelStyle}>Discount Type</label>
+                      <select value={form.discount_type} onChange={e => setF('discount_type', e.target.value as any)} style={{ ...inputStyle, cursor: 'pointer' }}>
+                        <option value="">No discount</option>
+                        <option value="percentage">Percentage (e.g. 20% OFF)</option>
+                        <option value="flat">Flat amount (e.g. ₦2,000 OFF)</option>
+                      </select>
+                    </div>
+                    {form.discount_type && (
+                      <div>
+                        <label style={labelStyle}>{form.discount_type === 'percentage' ? 'Discount %' : 'Discount Amount (₦)'}</label>
+                        <input type="number" value={form.discount_value}
+                          onChange={e => setF('discount_value', e.target.value === '' ? '' : Number(e.target.value))}
+                          placeholder={form.discount_type === 'percentage' ? 'e.g. 20' : 'e.g. 2000'}
+                          style={inputStyle} />
                       </div>
                     )}
                   </div>
-                )}
-
-                {form.pricing_model === 'fixed' && (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
-                    <div>
-                      <label style={labelStyle}>Price (₦)</label>
-                      <input type="number" value={form.price} onChange={e => setF('price', e.target.value === '' ? '' : Number(e.target.value))} placeholder="e.g. 25000" style={inputStyle} />
-                    </div>
-                    <div>
-                      <label style={labelStyle}>MOQ</label>
-                      <input type="number" value={form.moq} onChange={e => setF('moq', e.target.value === '' ? '' : Number(e.target.value))} placeholder="e.g. 1" style={inputStyle} />
-                    </div>
-                    <div>
-                      <label style={labelStyle}>Increment</label>
-                      <input type="number" value={form.increment} onChange={e => setF('increment', e.target.value === '' ? '' : Number(e.target.value))} placeholder="e.g. 1" style={inputStyle} />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* DISCOUNT */}
-              <div style={sectionStyle}>
-                <div style={sectionTitle}>Discount (optional)</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                  <div>
-                    <label style={labelStyle}>Discount type</label>
-                    <select value={form.discount_type} onChange={e => setF('discount_type', e.target.value as any)} style={{ ...inputStyle, cursor: 'pointer' }}>
-                      <option value="">No discount</option>
-                      <option value="percentage">Percentage (%)</option>
-                      <option value="flat">Flat amount (₦)</option>
-                    </select>
-                  </div>
-                  {form.discount_type && (
-                    <div>
-                      <label style={labelStyle}>{form.discount_type === 'percentage' ? 'Percentage off' : 'Amount off (₦)'}</label>
-                      <input type="number" value={form.discount_value} onChange={e => setF('discount_value', e.target.value === '' ? '' : Number(e.target.value))} placeholder={form.discount_type === 'percentage' ? 'e.g. 20' : 'e.g. 5000'} style={inputStyle} />
-                    </div>
-                  )}
                 </div>
               </div>
 
               {/* RATINGS */}
               <div style={sectionStyle}>
-                <div style={sectionTitle}>Ratings & Social Proof</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
+                <div style={sectionTitle}>Ratings & Reviews</div>
+                <div style={{ fontSize: 12, color: '#888', marginBottom: 12 }}>
+                  Add walk-in customer ratings manually. These show as star ratings on the product card.
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                   <div>
-                    <label style={labelStyle}>Initial Rating (0–5)</label>
-                    <input type="number" min="0" max="5" step="0.1" value={form.rating || ''} onChange={e => setF('rating', Number(e.target.value))} placeholder="e.g. 4.8" style={inputStyle} />
-                    <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>Manually seed from customer feedback. Auto-updates when reviews are approved.</div>
+                    <label style={labelStyle}>Average Rating (0–5)</label>
+                    <input type="number" min="0" max="5" step="0.1"
+                      value={form.rating}
+                      onChange={e => setF('rating', Number(e.target.value))}
+                      placeholder="e.g. 4.5" style={inputStyle} />
                   </div>
                   <div>
-                    <label style={labelStyle}>Review Count</label>
-                    <input type="number" min="0" value={form.review_count || ''} onChange={e => setF('review_count', Number(e.target.value))} placeholder="e.g. 47" style={inputStyle} />
-                    <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>Auto-updates when reviews are approved.</div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', paddingTop: 28 }}>
-                    {Number(form.rating) > 0 && (
-                      <div style={{ fontSize: 13 }}>
-                        Preview: {'★'.repeat(Math.floor(Number(form.rating)))}{'☆'.repeat(5 - Math.floor(Number(form.rating)))} {Number(form.rating).toFixed(1)}
-                      </div>
-                    )}
+                    <label style={labelStyle}>Number of Reviews</label>
+                    <input type="number" min="0"
+                      value={form.review_count}
+                      onChange={e => setF('review_count', Number(e.target.value))}
+                      placeholder="e.g. 24" style={inputStyle} />
                   </div>
                 </div>
-              </div>
-
-              {/* SPECIFICATIONS */}
-              <div style={sectionStyle}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, paddingBottom: 10, borderBottom: '1px solid #e8e8e5' }}>
-                  <span style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, color: '#1A1A1A' }}>Specifications</span>
-                  <button onClick={addSpecGroup} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', background: '#C0392B', color: 'white', border: 'none', borderRadius: 7, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
-                    <Plus size={13} /> Add Spec
-                  </button>
-                </div>
-                {form.spec_groups.length === 0 ? (
-                  <div style={{ textAlign: 'center' as const, padding: '24px 0', color: '#888', fontSize: 13 }}>
-                    No specs yet. Click "Add Spec" to add Paper Weight, Lamination, Size, etc.
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 14 }}>
-                    {form.spec_groups.map((group, gi) => (
-                      <div key={gi} style={{ background: '#fafafa', borderRadius: 10, padding: 14, border: '1px solid #e8e8e5' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                          <input value={group.name} onChange={e => updateSpecGroupName(gi, e.target.value)} placeholder="Spec name (e.g. Paper Weight)" style={{ ...inputStyle, flex: 1, fontWeight: 600 }} />
-                          <button onClick={() => removeSpecGroup(gi)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#999' }}><X size={16} /></button>
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 150px auto', gap: 8, marginBottom: 8 }}>
-                          <div style={{ fontSize: 11, color: '#888', fontWeight: 600, textTransform: 'uppercase' as const }}>Option label</div>
-                          <div style={{ fontSize: 11, color: '#888', fontWeight: 600, textTransform: 'uppercase' as const }}>Add-on (₦)</div>
-                          <div />
-                        </div>
-                        {group.options.map((opt, oi) => (
-                          <div key={oi} style={{ display: 'grid', gridTemplateColumns: '1fr 150px auto', gap: 8, marginBottom: 8, alignItems: 'center' }}>
-                            <input value={opt.label} onChange={e => updateSpecOption(gi, oi, 'label', e.target.value)} placeholder="e.g. 400gsm" style={inputStyle} />
-                            <input type="number" value={opt.price || ''} onChange={e => updateSpecOption(gi, oi, 'price', Number(e.target.value))} placeholder="0" style={inputStyle} />
-                            <button onClick={() => removeSpecOption(gi, oi)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#999' }}><X size={14} /></button>
-                          </div>
-                        ))}
-                        <button onClick={() => addSpecOption(gi)} style={{ fontSize: 12, color: '#C0392B', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, fontFamily: 'Montserrat', marginTop: 4 }}>+ Add option</button>
-                      </div>
-                    ))}
+                {form.rating > 0 && (
+                  <div style={{ marginTop: 10, fontSize: 12, color: '#666' }}>
+                    Preview: {'⭐'.repeat(Math.round(form.rating))} {form.rating}/5 ({form.review_count} reviews)
                   </div>
                 )}
               </div>

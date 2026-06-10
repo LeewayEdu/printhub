@@ -16,6 +16,8 @@ export interface ProductCardData {
   category: string
   pricing_model: string
   price: number
+  display_price?: number
+  is_fixed_price?: boolean
   area_rate: number
   area_unit: string
   images: string[]
@@ -28,13 +30,26 @@ export interface ProductCardData {
   review_count: number
   total_orders: number
   is_active: boolean
-  moq?: number 
+  moq?: number
 }
 
 // ─── HELPERS ──────────────────────────────────────────────────
 export function displayPrice(p: ProductCardData) {
   if (p.pricing_model === 'area') return `₦${Number(p.area_rate).toLocaleString()}/${p.area_unit}`
-  return `From ₦${Number(p.price).toLocaleString()}`
+  const base = p.display_price || p.price
+  if (p.is_fixed_price) return `₦${Number(base).toLocaleString()}`
+  return `From ₦${Number(base).toLocaleString()}`
+}
+
+export function getDiscountedPrice(p: ProductCardData): { original: number; discounted: number; pct: number } | null {
+  if (!p.discount_type || !p.discount_value) return null
+  const base = Number(p.display_price || p.price)
+  if (!base) return null
+  const discounted = p.discount_type === 'percentage'
+    ? Math.round(base * (1 - Number(p.discount_value) / 100))
+    : Math.max(0, base - Number(p.discount_value))
+  const pct = Math.round(((base - discounted) / base) * 100)
+  return { original: base, discounted, pct }
 }
 
 function getImg(p: ProductCardData) {
@@ -161,7 +176,7 @@ export function ProductCard({
       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = 'none'; (e.currentTarget as HTMLElement).style.transform = 'none' }}>
 
       {/* Image */}
-      <div className="card-img" style={{ height: 170, background: 'var(--bg-secondary)', position: 'relative' as const, overflow: 'hidden', cursor: 'pointer' }}
+      <div style={{ height: 170, background: 'var(--bg-secondary)', position: 'relative' as const, overflow: 'hidden', cursor: 'pointer' }}
         onClick={() => onOpen(product)}>
         <CardImage imgs={imgs} name={product.name} />
 
@@ -184,14 +199,14 @@ export function ProductCard({
       </div>
 
       {/* Info */}
-      <div className="card-info" style={{ padding: '10px 12px', flex: 1, display: 'flex', flexDirection: 'column' as const, gap: 3 }}>
+      <div style={{ padding: '12px 14px', flex: 1, display: 'flex', flexDirection: 'column' as const, gap: 4 }}>
         {/* Category */}
-        <div className="card-category" style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.04em', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+        <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', fontWeight: 600 }}>
           {product.category}
         </div>
 
         {/* Name */}
-        <div className="card-name" style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden' }}>
+        <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.4, flex: 1 }}>
           {product.name}
         </div>
 
@@ -205,11 +220,30 @@ export function ProductCard({
           )}
         </div>
 
-        {/* Price + MOQ */}
+        {/* Price + Discount badge */}
         <div style={{ marginTop: 4 }}>
-          <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 14, color: 'var(--red)' }}>
-            {displayPrice(product)}
-          </div>
+          {(() => {
+            const disc = getDiscountedPrice(product)
+            return disc ? (
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' as const }}>
+                  <span style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 14, color: 'var(--red)' }}>
+                    ₦{disc.discounted.toLocaleString()}
+                  </span>
+                  <span style={{ fontFamily: 'Montserrat', fontWeight: 600, fontSize: 11, color: '#999', textDecoration: 'line-through' }}>
+                    ₦{disc.original.toLocaleString()}
+                  </span>
+                  <span style={{ fontSize: 10, fontWeight: 700, background: 'var(--red)', color: 'white', padding: '1px 5px', borderRadius: 4 }}>
+                    -{disc.pct}%
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 14, color: 'var(--red)' }}>
+                {displayPrice(product)}
+              </div>
+            )
+          })()}
           {product.moq && product.moq > 1 && (
             <div style={{ fontSize: 10, color: 'var(--text-secondary)', fontFamily: 'Open Sans', marginTop: 1 }}>
               Min: {product.moq} pcs
@@ -219,7 +253,7 @@ export function ProductCard({
 
         {/* Order button */}
         <button onClick={() => onOpen(product)}
-          style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px', background: 'var(--red)', color: 'white', border: 'none', borderRadius: 8, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 11, cursor: 'pointer', marginTop: 6, transition: 'background 0.2s' }}
+          style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px', background: 'var(--red)', color: 'white', border: 'none', borderRadius: 8, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 12, cursor: 'pointer', marginTop: 8, transition: 'background 0.2s' }}
           onMouseEnter={e => (e.currentTarget.style.background = 'var(--red-dark)')}
           onMouseLeave={e => (e.currentTarget.style.background = 'var(--red)')}>
           <ShoppingCart size={13} /> Order Now
@@ -230,17 +264,6 @@ export function ProductCard({
 }
 
 // ─── SIDEBAR ──────────────────────────────────────────────────
-// ─── MOBILE CSS ───────────────────────────────────────────────
-export const productCardCSS = `
-  @media (max-width: 480px) {
-    .card-img { height: 140px !important; }
-    .card-info { padding: 8px 10px !important; }
-    .card-name { font-size: 11px !important; -webkit-line-clamp: 2; }
-    .card-category { font-size: 9px !important; }
-    .product-card { border-radius: 10px !important; }
-  }
-`
-
 export function ShopSidebar({
   categoryMap,
   activeCategory,
