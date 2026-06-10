@@ -9,6 +9,7 @@ import { ProductCard as SharedProductCard, ShopSidebar, ProductCardData } from '
 import { useCartStore } from '@/store/cartStore'
 import { ShoppingCart, Search, SlidersHorizontal, X, ChevronLeft, ChevronRight, Minus, Plus, Upload, Link as LinkIcon, Pen } from 'lucide-react'
 import toast from 'react-hot-toast'
+import LiveCalculator from '@/components/shop/LiveCalculator'
 
 
 interface SpecOption { label: string; price: number }
@@ -64,7 +65,7 @@ function ShopContent() {
   const [cat, setCat] = useState(searchParams.get('cat') || 'All Products')
   const [sort, setSort] = useState('newest')
   const [selected, setSelected] = useState<Product | null>(null)
-  
+  const [calcPrice, setCalcPrice] = useState<number | null>(null)
 
   // Product config state
   const [qty, setQty] = useState(1)
@@ -130,8 +131,7 @@ function ShopContent() {
     setDesignBrief({})
   }
 
-  const [uploading, setUploading] = useState(false)
-  const addCart = async () => {
+  const addCart = () => {
   if (!selected) return
   if (!designType) {
     toast.error('Please select a design option before adding to cart')
@@ -149,6 +149,7 @@ function ShopContent() {
     toast.error('Please enter at least your business name for the design brief')
     return
   }
+  // ... rest of existing addCart code
     const price = calculatePrice(selected, qty, specs, w, h)
     const sl: Record<string, string> = {}
     Object.entries(specs).forEach(([k, v]) => { sl[k] = v.label })
@@ -162,41 +163,20 @@ function ShopContent() {
       displayQty = `${qty} pcs`
     }
 
-    // Upload design file to storage BEFORE adding to cart
-    let fileUrl: string | null = null
-    if (designType === 'upload' && designFile) {
-      setUploading(true)
-      try {
-        const ext = designFile.name.split('.').pop() || 'file'
-        const path = `designs/${Date.now()}-${crypto.randomUUID()}.${ext}`
-        const { error: upErr } = await supabase.storage
-          .from('products')
-          .upload(path, designFile, { upsert: false })
-        if (upErr) {
-          console.error('Upload error:', upErr)
-          toast.error('Design upload failed — you can send via WhatsApp after ordering')
-        } else {
-          const { data: urlData } = supabase.storage.from('products').getPublicUrl(path)
-          fileUrl = urlData.publicUrl
-        }
-      } catch (err) {
-        console.error('Upload exception:', err)
-      }
-      setUploading(false)
-    }
-
     addToCart(selected.id, selected.name, price, displayQty, sl)
 
-    // Store design in cart item — fileUrl is now the real uploaded URL
-    const state = useCartStore.getState()
-    const latest = state.items[state.items.length - 1]
-    if (latest && designType) {
-      state.updateDesign(latest.cartItemId, {
-        type: designType,
-        fileUrl: fileUrl,
-        link: designType === 'link' ? designLink : null,
-        brief: designType === 'request' ? designBrief : null,
-      })
+    // Store design in cart item
+    if (designType) {
+      const state = useCartStore.getState()
+      const latest = state.items[state.items.length - 1]
+      if (latest) {
+        state.updateDesign(latest.cartItemId, {
+          type: designType,
+          fileUrl: null,
+          link: designType === 'link' ? designLink : null,
+          brief: designType === 'request' ? designBrief : null,
+        })
+      }
     }
 
     setSelected(null)
@@ -311,7 +291,7 @@ function ShopContent() {
               <SharedProductCard
                 key={p.id}
                 product={p as any}
-                onOpen={(prod: any) => { setSelected(prod as any); setQty((prod as any).moq || 1) }}
+                onOpen={(prod: any) => { setSelected(prod as any); setQty((prod as any).moq || 1); setCalcPrice(null) }}
                 wishlistIds={wishlistIds}
               />
             ))}
@@ -443,8 +423,8 @@ function ShopContent() {
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <button onClick={() => { if (qty - inc >= moq) setQty(qty - inc) }}
-                            style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid #d1d5db', background: '#f3f4f6', cursor: qty <= moq ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: qty <= moq ? 0.4 : 1 }}>
-                            <Minus size={13} color="#1A1A1A" />
+                            style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', cursor: qty <= moq ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: qty <= moq ? 0.4 : 1 }}>
+                            <Minus size={13} color="var(--text-primary)" />
                           </button>
                           <input
                             type="number"
@@ -458,8 +438,8 @@ function ShopContent() {
                            style={{ width: 70, textAlign: 'center' as const, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 16, border: '1px solid #e8e8e5', borderRadius: 8, padding: '6px', background: '#f7f7f5', color: '#1A1A1A', outline: 'none' }}
                           />
                           <button onClick={() => { if (!selected.max_qty || qty + inc <= selected.max_qty) setQty(qty + inc) }}
-                            style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid #d1d5db', background: '#f3f4f6', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Plus size={13} color="#1A1A1A" />
+                            style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Plus size={13} color="var(--text-primary)" />
                           </button>
                           <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>pcs</span>
                         </div>
@@ -521,6 +501,15 @@ function ShopContent() {
                       )}
                     </div>
 
+                    {/* Live Price Calculator */}
+                    <LiveCalculator
+                      category={selected.category}
+                      qty={qty}
+                      w={w}
+                      h={h}
+                      onPriceUpdate={(total: number) => setCalcPrice(total)}
+                    />
+
                     {/* Price display */}
                     <div style={{ background: '#f7f7f5', borderRadius: 10, padding: '12px 14px', border: '1px solid #e8e8e5' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
@@ -528,7 +517,7 @@ function ShopContent() {
                           {selected.pricing_model === 'area' ? `${w}×${h} ${selected.area_unit}` : `${qty} pcs`}
                         </span>
                         <span style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 22, color: 'var(--red)' }}>
-                          ₦{price.toLocaleString()}
+                          ₦{(calcPrice || price).toLocaleString()}
                         </span>
                       </div>
                       {selected.pricing_model === 'unit' && qty > 0 && (
@@ -548,9 +537,9 @@ function ShopContent() {
                   style={{ flex: 1, padding: '11px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 600, fontSize: 13, cursor: 'pointer', color: 'var(--text-primary)' }}>
                   Cancel
                 </button>
-                <button onClick={addCart} disabled={uploading}
-                  style={{ flex: 2, padding: '11px', background: uploading ? '#9ca3af' : 'var(--red)', color: 'white', border: 'none', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, cursor: uploading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                  {uploading ? '⏳ Uploading design...' : <><ShoppingCart size={15} /> Add to Cart — ₦{price.toLocaleString()}</>}
+                <button onClick={addCart}
+                  style={{ flex: 2, padding: '11px', background: 'var(--red)', color: 'white', border: 'none', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  <ShoppingCart size={15} /> Add to Cart — ₦{(calcPrice || price).toLocaleString()}
                 </button>
               </div>
 
