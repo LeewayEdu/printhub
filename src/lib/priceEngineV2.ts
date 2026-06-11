@@ -11,6 +11,7 @@ export interface SpecOption {
   modifier_type: string
   is_active: boolean
   sort_order: number
+  is_default?: boolean
 }
 
 export interface QtyTier {
@@ -208,12 +209,15 @@ export function calculate(params: {
 }
 
 // ── DEFAULT SELECTION ─────────────────────────────────────────
-// Returns the first option from each spec group as the default selection
+// Uses is_default flag if set, otherwise falls back to first option (sort_order 0)
 
 export function getDefaultSelection(groups: Record<string, SpecOption[]>): SpecSelection {
   const selection: SpecSelection = {}
   for (const [group, options] of Object.entries(groups)) {
-    if (options.length > 0) selection[group] = options[0]
+    if (options.length === 0) continue
+    // Prefer the option marked as default, fall back to first by sort_order
+    const defaultOpt = options.find((o: any) => o.is_default) || options[0]
+    selection[group] = defaultOpt
   }
   return selection
 }

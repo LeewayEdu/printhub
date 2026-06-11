@@ -27,9 +27,10 @@ interface Product {
 }
 
 const CATEGORIES = [
-  'All Products', 'Banners & Large Format', 'Business Cards', 'Papers & Stationery',
-  'Stickers & Labels', 'Branded Souvenirs', 'Signage & Installation', 'Book Publishing',
-  'Campaign Materials', 'Graphic Design', 'Shirts & Uniforms', 'Frames & Canvas',
+  'All Products', 'Banners & Large Format', 'Business Cards', 'Flyers & Leaflets',
+  'Papers & Stationery', 'Stickers & Labels', 'Branded Apparel', 'Branded Souvenirs',
+  'Shirts & Uniforms', 'Signage & Installation', 'Book Publishing', 'Magazines & Journals',
+  'Campaign Materials', 'Graphic Design', 'Frames & Canvas',
   'Gift Items', 'Vehicle Branding', 'Event Materials',
 ]
 
@@ -444,6 +445,7 @@ function ShopContent() {
                               const val = Number(e.target.value)
                               if (val >= moq) setQty(val)
                             }}
+                           className="no-spinners"
                            style={{ width: 70, textAlign: 'center' as const, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 16, border: '1px solid #e8e8e5', borderRadius: 8, padding: '6px', background: '#f7f7f5', color: '#1A1A1A', outline: 'none' }}
                           />
                           <button onClick={() => { if (!selected.max_qty || qty + inc <= selected.max_qty) setQty(qty + inc) }}
