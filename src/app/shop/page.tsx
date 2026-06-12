@@ -15,6 +15,14 @@ import toast from 'react-hot-toast'
 interface SpecOption { label: string; price: number }
 interface SpecGroup { name: string; options: SpecOption[] }
 interface QtyTier { qty: number; multiplier: number }
+interface ProductPreset {
+  label: string
+  badge?: string
+  selections: {
+    specs?: Record<string, string>
+    addons?: string[]
+  }
+}
 interface Product {
   id: string; name: string; description: string; category: string
   pricing_model: string; price: number; moq: number; increment: number
@@ -24,14 +32,17 @@ interface Product {
   images: string[]; image_url: string; is_active: boolean; created_at: string
   display_price?: number
   is_fixed_price?: boolean
+  sort_order: number | null
+  product_type?: string
+  presets?: ProductPreset[]
 }
 
 const CATEGORIES = [
   'All Products', 'Banners & Large Format', 'Business Cards', 'Flyers & Leaflets',
-  'Papers & Stationery', 'Stickers & Labels', 'Branded Apparel', 'Branded Souvenirs',
+  'Office & Business Stationery', 'Stickers & Labels', 'Promotional Items & Gifts',
   'Shirts & Uniforms', 'Signage & Installation', 'Book Publishing', 'Magazines & Journals',
   'Campaign Materials', 'Graphic Design', 'Frames & Canvas',
-  'Gift Items', 'Vehicle Branding', 'Event Materials',
+  'Custom Packaging', 'Vehicle Branding', 'Event Materials',
 ]
 
 function calculatePrice(p: Product, qty: number, specs: Record<string, SpecOption>, w?: number, h?: number): number {
@@ -66,9 +77,9 @@ function ShopContent() {
   const searchParams = useSearchParams()
   const [search, setSearch] = useState(searchParams.get('search') || '')
   const [cat, setCat] = useState(searchParams.get('cat') || 'All Products')
-  const [sort, setSort] = useState('newest')
+  const [sort, setSort] = useState('default')
   const [selected, setSelected] = useState<Product | null>(null)
-  
+
 
   // Product config state
   const [qty, setQty] = useState(1)
@@ -90,7 +101,10 @@ function ShopContent() {
   const [calcPrice, setCalcPrice] = useState<number | null>(null)
   const [calcSpecs, setCalcSpecs] = useState<Record<string, string>>({})
   const [calcSummary, setCalcSummary] = useState<string>('')
-  
+  // Quick Pick preset selection passed down to the Live Calculator
+  const [appliedPreset, setAppliedPreset] = useState<{ specs?: Record<string, string>; addons?: string[] } | null>(null)
+  const [activePresetLabel, setActivePresetLabel] = useState<string | null>(null)
+
   useEffect(() => {
     // Wishlist
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -99,7 +113,9 @@ function ShopContent() {
           .then(({ data }) => { if (data) setWishlistIds(data.map((w: any) => w.product_id)) })
       }
     })
-    supabase.from('products').select('*').eq('is_active', true).order('created_at', { ascending: false })
+    // Order by admin-defined sort_order by default (nulls last so legacy rows still show)
+    supabase.from('products').select('*').eq('is_active', true)
+      .order('sort_order', { ascending: true, nullsFirst: false })
       .then(({ data }) => { if (data) setProducts(data as Product[]); setLoading(false) })
     supabase.from('hero_banners').select('*').eq('is_active', true).order('sort_order')
       .then(({ data }) => { if (data && data.length > 0) setHeroBanners(data) })
@@ -121,7 +137,9 @@ function ShopContent() {
       if (sort === 'price-asc') return (a.price || a.area_rate || 0) - (b.price || b.area_rate || 0)
       if (sort === 'price-desc') return (b.price || b.area_rate || 0) - (a.price || a.area_rate || 0)
       if (sort === 'name') return a.name.localeCompare(b.name)
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      if (sort === 'newest') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      // 'default' — preserve the sort_order ordering from the initial fetch
+      return 0
     })
 
   const open = (p: Product) => {
@@ -135,6 +153,18 @@ function ShopContent() {
     setDesignFile(null)
     setDesignLink('')
     setDesignBrief({})
+    setAppliedPreset(null)
+    setActivePresetLabel(null)
+    setCalcPrice(null)
+    setCalcSpecs({})
+    setCalcSummary('')
+  }
+
+  const choosePreset = (preset: ProductPreset) => {
+    // New object reference each click so the calculator's effect re-fires
+    // even if the same preset is clicked again.
+    setAppliedPreset({ ...preset.selections })
+    setActivePresetLabel(preset.label)
   }
 
   const addCart = () => {
@@ -265,6 +295,7 @@ function ShopContent() {
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search products..." className="form-input" style={{ paddingLeft: 36, fontSize: 13 }} />
           </div>
           <select value={sort} onChange={e => setSort(e.target.value)} className="form-input" style={{ maxWidth: 160, cursor: 'pointer', fontSize: 13 }}>
+            <option value="default">Recommended</option>
             <option value="newest">Newest first</option>
             <option value="price-asc">Price: Low to high</option>
             <option value="price-desc">Price: High to low</option>
@@ -301,7 +332,7 @@ function ShopContent() {
               <SharedProductCard
                 key={p.id}
                 product={p as any}
-                onOpen={(prod: any) => { setSelected(prod as any); setQty((prod as any).moq || 1); setCalcPrice(null); setCalcSpecs({}); setCalcSummary('') }}
+                onOpen={(prod: any) => open(prod as Product)}
                 wishlistIds={wishlistIds}
               />
             ))}
@@ -375,6 +406,41 @@ function ShopContent() {
 
                   {/* Right: config */}
                   <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 14, background: '#ffffff' }}>
+
+                    {/* Quick Pick presets — for customers who just want a common config */}
+                    {selected.presets && selected.presets.length > 0 && (
+                      <div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 7 }}>
+                          Quick Pick
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
+                          {selected.presets.map((preset, i) => {
+                            const isActive = activePresetLabel === preset.label
+                            return (
+                              <button key={i}
+                                onClick={() => choosePreset(preset)}
+                                style={{
+                                  display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 9,
+                                  border: `1.5px solid ${isActive ? 'var(--red)' : '#e8e8e5'}`,
+                                  background: isActive ? 'rgba(192,57,43,0.08)' : 'white',
+                                  color: isActive ? 'var(--red)' : '#555',
+                                  fontFamily: 'Montserrat', fontWeight: 700, fontSize: 12, cursor: 'pointer',
+                                }}>
+                                {preset.label}
+                                {preset.badge && (
+                                  <span style={{ fontSize: 9, background: 'var(--red)', color: 'white', padding: '1px 6px', borderRadius: 10 }}>
+                                    {preset.badge}
+                                  </span>
+                                )}
+                              </button>
+                            )
+                          })}
+                        </div>
+                        <div style={{ fontSize: 11, color: '#888', marginTop: 6 }}>
+                          Pick a common configuration, or customise manually below.
+                        </div>
+                      </div>
+                    )}
 
                     {/* Area pricing dimensions */}
                     {selected.pricing_model === 'area' && (
@@ -514,12 +580,13 @@ function ShopContent() {
 
                     {/* Live Price Calculator V2 — shown for non-fixed products */}
                     {!selected.is_fixed_price && <LiveCalculatorV2
-                      category={selected.category}
+                      category={selected.product_type || selected.category}
                       productName={selected.name}
                       qty={qty}
                       widthFt={w}
                       heightFt={h}
                       isAreaBased={selected.pricing_model === 'area'}
+                      applyPreset={appliedPreset}
                       onPriceUpdate={(total: number, specSummary: Record<string, string>, summaryText: string) => {
                         setCalcPrice(total)
                         setCalcSpecs(specSummary)

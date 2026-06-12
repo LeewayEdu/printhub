@@ -14,13 +14,14 @@ interface LiveCalculatorV2Props {
   widthFt?: number
   heightFt?: number
   isAreaBased?: boolean
+  applyPreset?: { specs?: Record<string, string>; addons?: string[] } | null
   onPriceUpdate: (total: number, specs: Record<string, string>, summaryText: string) => void
   onSpecsUpdate?: (specs: SpecSelection) => void
 }
 
 export default function LiveCalculatorV2({
   category, productName, qty, widthFt = 1, heightFt = 1, isAreaBased = false,
-  onPriceUpdate, onSpecsUpdate
+  applyPreset, onPriceUpdate, onSpecsUpdate
 }: LiveCalculatorV2Props) {
 
   const [groups, setGroups] = useState<Record<string, SpecOption[]>>({})
@@ -62,6 +63,33 @@ export default function LiveCalculatorV2({
     load()
     return () => { cancelled = true }
   }, [category])
+
+  // Apply an externally-selected Quick Pick preset once groups/add-ons are loaded
+  useEffect(() => {
+    if (!applyPreset || loading) return
+
+    if (applyPreset.specs) {
+      setSelection(prev => {
+        const next = { ...prev }
+        for (const [group, label] of Object.entries(applyPreset.specs!)) {
+          const opt = groups[group]?.find(o => o.option_label === label)
+          if (opt) next[group] = opt
+        }
+        return next
+      })
+    }
+
+    if (applyPreset.addons) {
+      setAddonQtys(prev => {
+        const next = { ...prev }
+        for (const label of applyPreset.addons!) {
+          const opt = addonOptions.find(o => o.option_label === label)
+          if (opt) next[opt.id] = 1
+        }
+        return next
+      })
+    }
+  }, [applyPreset, groups, addonOptions, loading])
 
   // Recalculate whenever anything changes
   useEffect(() => {
