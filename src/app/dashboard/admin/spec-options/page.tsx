@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { Plus, Trash2, RefreshCw, GripVertical, Check, X, Pencil, Save, RotateCcw, Star } from 'lucide-react'
+import { Plus, Trash2, RefreshCw, GripVertical, Check, X, Pencil, Save, RotateCcw, Star, Copy } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { invalidateCache } from '@/lib/priceEngineV2'
 import { invalidateCategoriesCache, CategoryRow } from '@/lib/categories'
@@ -73,7 +73,7 @@ export default function SpecOptionsPage() {
     const { data } = await supabase.from('categories').select('*').order('sort_order')
     if (data && data.length) {
       setCategories(data as CategoryRow[])
-      if (!activeCat) setActiveCat(data[0].label)
+      if (!activeCat) setActiveCat((data[0] as any).slug || data[0].label)
     }
   }
 
@@ -205,12 +205,15 @@ export default function SpecOptionsPage() {
       {/* Category tabs — hidden on categories tab */}
       {(tab === 'specs' || tab === 'tiers') && (
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, marginBottom: 16 }}>
-          {categories.map(cat => (
-            <button key={cat.label} onClick={() => setActiveCat(cat.label)}
-              style={{ padding: '5px 12px', borderRadius: 20, border: `1px solid ${activeCat === cat.label ? 'var(--red)' : 'var(--border)'}`, background: activeCat === cat.label ? 'rgba(192,57,43,0.08)' : 'white', color: activeCat === cat.label ? 'var(--red)' : 'var(--gray)', fontSize: 11, fontWeight: activeCat === cat.label ? 700 : 400, fontFamily: 'Montserrat', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
-              {cat.icon} {cat.label}
-            </button>
-          ))}
+          {categories.map(cat => {
+            const key = (cat as any).slug || cat.label
+            return (
+              <button key={key} onClick={() => setActiveCat(key)}
+                style={{ padding: '5px 12px', borderRadius: 20, border: `1px solid ${activeCat === key ? 'var(--red)' : 'var(--border)'}`, background: activeCat === key ? 'rgba(192,57,43,0.08)' : 'white', color: activeCat === key ? 'var(--red)' : 'var(--gray)', fontSize: 11, fontWeight: activeCat === key ? 700 : 400, fontFamily: 'Montserrat', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
+                {cat.icon} {cat.label}
+              </button>
+            )
+          })}
         </div>
       )}
 
@@ -445,6 +448,57 @@ function CategoriesTab({ categories, onChanged }: { categories: CategoryRow[]; o
     onChanged()
   }
 
+  // ── Duplicate a pricing category, copying its spec_options and qty_tiers
+  // to a new category so you don't have to re-enter shared specs ──
+  const duplicateCategory = async (cat: CategoryRow) => {
+    const suggested = `${cat.label} Copy`
+    const newLabel = prompt(`Name for the new category (duplicating "${cat.label}"):`, suggested)
+    if (!newLabel?.trim()) return
+    const trimmedLabel = newLabel.trim()
+
+    if (categories.some(c => c.label === trimmedLabel)) {
+      toast.error(`A category named "${trimmedLabel}" already exists`)
+      return
+    }
+
+    const newSlug = slugify(trimmedLabel)
+    if (categories.some((c: any) => c.slug === newSlug)) {
+      toast.error(`A category with slug "${newSlug}" already exists — choose a more distinct name`)
+      return
+    }
+
+    const { data: newCat, error } = await supabase.from('categories').insert({
+      label: trimmedLabel,
+      slug: newSlug,
+      icon: cat.icon,
+      price_model: cat.price_model,
+      sort_order: categories.length + 1,
+      is_active: true,
+    }).select().single()
+    if (error || !newCat) { toast.error(error?.message || 'Failed to create category'); return }
+
+    // The "key" used by spec_options.category — slug if present, else label
+    const oldKey = (cat as any).slug || cat.label
+
+    const { data: specs } = await supabase.from('spec_options').select('*').eq('category', oldKey)
+    if (specs && specs.length > 0) {
+      const copies = specs.map(({ id, ...rest }: any) => ({ ...rest, category: newSlug }))
+      const { error: specErr } = await supabase.from('spec_options').insert(copies)
+      if (specErr) toast.error(`Category created, but copying spec options failed: ${specErr.message}`)
+    }
+
+    const { data: tiers } = await supabase.from('qty_tiers').select('*').eq('category', oldKey)
+    if (tiers && tiers.length > 0) {
+      const copies = tiers.map(({ id, ...rest }: any) => ({ ...rest, category: newSlug }))
+      const { error: tierErr } = await supabase.from('qty_tiers').insert(copies)
+      if (tierErr) toast.error(`Category created, but copying qty tiers failed: ${tierErr.message}`)
+    }
+
+    toast.success(`Duplicated "${cat.label}" → "${trimmedLabel}" (${specs?.length || 0} spec options, ${tiers?.length || 0} tiers copied) ✅`)
+    invalidateCache()
+    onChanged()
+  }
+
   return (
     <div>
       <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '12px 16px', marginBottom: 20, fontSize: 12, color: '#1d4ed8' }}>
@@ -482,14 +536,15 @@ function CategoriesTab({ categories, onChanged }: { categories: CategoryRow[]; o
 
       {/* List */}
       <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '50px 2fr 2fr 80px 80px 80px', padding: '10px 20px', background: 'var(--light)', borderBottom: '1px solid var(--border)', fontSize: 11, fontWeight: 700, color: 'var(--gray)', textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>
-          <div>Icon</div><div>Category</div><div>Price Model</div><div>Order</div><div>Active</div><div></div>
+        <div style={{ display: 'grid', gridTemplateColumns: '50px 2fr 2fr 80px 80px 70px 36px', padding: '10px 20px', background: 'var(--light)', borderBottom: '1px solid var(--border)', fontSize: 11, fontWeight: 700, color: 'var(--gray)', textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>
+          <div>Icon</div><div>Category</div><div>Price Model</div><div>Order</div><div>Active</div><div></div><div></div>
         </div>
         {categories.map((cat, i) => (
           <CategoryRowEdit key={cat.id} cat={cat} last={i === categories.length - 1}
             onUpdate={(patch) => updateCategory(cat.id, patch)}
             onDelete={() => deleteCategory(cat.id, cat.label)}
             onRename={renameCategory}
+            onDuplicate={() => duplicateCategory(cat)}
           />
         ))}
       </div>
@@ -497,11 +552,12 @@ function CategoriesTab({ categories, onChanged }: { categories: CategoryRow[]; o
   )
 }
 
-function CategoryRowEdit({ cat, last, onUpdate, onDelete, onRename }: {
+function CategoryRowEdit({ cat, last, onUpdate, onDelete, onRename, onDuplicate }: {
   cat: CategoryRow; last: boolean
   onUpdate: (patch: Record<string, any>) => void
   onDelete: () => void
   onRename: (cat: CategoryRow, newLabel: string) => void
+  onDuplicate: () => void
 }) {
   const [icon, setIcon] = useState(cat.icon)
   const [label, setLabel] = useState(cat.label)
@@ -523,7 +579,7 @@ function CategoryRowEdit({ cat, last, onUpdate, onDelete, onRename }: {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '50px 2fr 2fr 80px 80px 80px', padding: '10px 20px', borderBottom: last ? 'none' : '1px solid var(--border)', alignItems: 'center', gap: 8 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '50px 2fr 2fr 80px 80px 70px 36px', padding: '10px 20px', borderBottom: last ? 'none' : '1px solid var(--border)', alignItems: 'center', gap: 8 }}>
       <input value={icon} onChange={e => setIcon(e.target.value)} onBlur={() => onUpdate({ icon })} style={{ ...miniInp, textAlign: 'center' as const }} />
       <input
         value={label}
@@ -540,6 +596,10 @@ function CategoryRowEdit({ cat, last, onUpdate, onDelete, onRename }: {
       <button onClick={() => onUpdate({ is_active: !cat.is_active })}
         style={{ padding: '4px 8px', borderRadius: 20, border: `1px solid ${cat.is_active ? '#10b981' : 'var(--border)'}`, background: cat.is_active ? '#10b98115' : 'transparent', color: cat.is_active ? '#10b981' : 'var(--gray)', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'Montserrat' }}>
         {cat.is_active ? 'Yes' : 'No'}
+      </button>
+      <button onClick={onDuplicate} title="Duplicate this category, including its spec options and qty tiers"
+        style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', cursor: 'pointer', color: '#3b82f6' }}>
+        <Copy size={13} />
       </button>
       <button onClick={onDelete}
         style={{ background: 'none', border: '1px solid #fca5a5', borderRadius: 7, padding: '5px 8px', cursor: 'pointer', color: 'var(--red)' }}>
