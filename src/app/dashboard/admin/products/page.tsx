@@ -624,12 +624,12 @@ export default function AdminProductsPage() {
                       </td>
 
                       {/* MOQ — inline editable */}
-                      <td style={{ padding: '10px 14px', minWidth: 70 }}>
+                      <td style={{ padding: '10px 14px', minWidth: 110 }}>
                         <input
                           type="number"
                           value={product.moq ?? ''}
                           onChange={e => stage(product.id, { moq: Number(e.target.value) })}
-                          style={hasPending && pending[product.id]?.moq !== undefined ? miniInp : { ...miniInp, border: '1px solid var(--border-color)', background: 'white' }}
+                          style={hasPending && pending[product.id]?.moq !== undefined ? { ...miniInp, width: 90 } : { ...miniInp, width: 90, border: '1px solid var(--border-color)', background: 'white' }}
                         />
                       </td>
 
