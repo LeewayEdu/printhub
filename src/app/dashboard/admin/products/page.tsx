@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { Plus, Pencil, Trash2, X, Upload, LayoutGrid, List, Star } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, Upload, LayoutGrid, List, Star, GripVertical, Download, Save, RotateCcw } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { getCategories, CategoryRow } from '@/lib/categories'
 
@@ -52,6 +52,7 @@ interface Product {
   image_url: string
   is_active: boolean
   created_at: string
+  sort_order: number | null
 }
 
 // Fallback categories — replaced by dynamic fetch from `categories` table on mount
@@ -120,8 +121,31 @@ const inputStyle = {
   boxSizing: 'border-box' as const,
 }
 
+const miniInp: React.CSSProperties = {
+  padding: '6px 8px',
+  border: '1px solid #fbbf24',
+  borderRadius: 7,
+  fontSize: 12,
+  fontFamily: 'Open Sans',
+  outline: 'none',
+  background: '#fffbeb',
+  color: '#1A1A1A',
+  width: '100%',
+  boxSizing: 'border-box' as const,
+}
+
 type ViewMode = 'grid' | 'list'
+type SortKey = 'custom' | 'name' | 'price_asc' | 'price_desc' | 'category' | 'newest' | 'featured'
 const VIEW_MODE_KEY = 'printhub_admin_products_view'
+const SORT_KEY_STORAGE = 'printhub_admin_products_sort'
+
+// CSV export helper — escapes commas/quotes/newlines
+function toCsvValue(val: any): string {
+  if (val === null || val === undefined) return ''
+  const str = Array.isArray(val) ? val.join('|') : String(val)
+  if (/[",\n]/.test(str)) return `"${str.replace(/"/g, '""')}"`
+  return str
+}
 
 export default function AdminProductsPage() {
   const router = useRouter()
@@ -135,6 +159,12 @@ export default function AdminProductsPage() {
   const [selectedCat, setSelectedCat] = useState('All')
   const [categories, setCategories] = useState<string[]>(FALLBACK_CATEGORIES)
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
+  const [sortKey, setSortKey] = useState<SortKey>('custom')
+  const [dragOverId, setDragOverId] = useState<string | null>(null)
+
+  // ── Inline list-edit batch state (mirrors Spec Options pattern) ──
+  const [pending, setPending] = useState<Record<string, Record<string, any>>>({})
+  const [savingInline, setSavingInline] = useState(false)
 
   useEffect(() => {
     const check = async () => {
@@ -150,14 +180,25 @@ export default function AdminProductsPage() {
     getCategories().then(cats => {
       if (cats?.length) setCategories(cats.map(c => c.label))
     })
-    // Restore preferred view mode
-    const saved = typeof window !== 'undefined' ? window.localStorage.getItem(VIEW_MODE_KEY) : null
-    if (saved === 'grid' || saved === 'list') setViewMode(saved)
+    // Restore preferred view mode + sort
+    if (typeof window !== 'undefined') {
+      const savedView = window.localStorage.getItem(VIEW_MODE_KEY)
+      if (savedView === 'grid' || savedView === 'list') setViewMode(savedView)
+      const savedSort = window.localStorage.getItem(SORT_KEY_STORAGE) as SortKey | null
+      if (savedSort) setSortKey(savedSort)
+    }
   }, [])
 
   const changeViewMode = (mode: ViewMode) => {
+    if (Object.keys(pending).length > 0 && !confirm('You have unsaved inline edits. Switch view and discard them?')) return
+    setPending({})
     setViewMode(mode)
     if (typeof window !== 'undefined') window.localStorage.setItem(VIEW_MODE_KEY, mode)
+  }
+
+  const changeSortKey = (key: SortKey) => {
+    setSortKey(key)
+    if (typeof window !== 'undefined') window.localStorage.setItem(SORT_KEY_STORAGE, key)
   }
 
   const fetchProducts = async () => {
@@ -205,7 +246,7 @@ export default function AdminProductsPage() {
     setIsLoading(true)
     const newImageUrls = form.images.length > 0 ? await uploadImages(form.images) : []
     const allImages = [...form.existing_images, ...newImageUrls]
-    const payload = {
+    const payload: Record<string, any> = {
       name: form.name,
       description: form.description,
       category: form.category,
@@ -233,6 +274,9 @@ export default function AdminProductsPage() {
       if (error) { toast.error(error.message); setIsLoading(false); return }
       toast.success('Product updated!')
     } else {
+      // New products go to the end of the custom order
+      const maxSort = products.reduce((max, p) => Math.max(max, p.sort_order ?? 0), 0)
+      payload.sort_order = maxSort + 1
       const { data, error } = await supabase.from('products').insert(payload).select().single()
       if (error) { toast.error(error.message); setIsLoading(false); return }
       savedId = data.id
@@ -255,16 +299,127 @@ export default function AdminProductsPage() {
 
   // Spec options and qty tiers are now managed globally via Admin → Spec Options
 
-  const filtered = products.filter(p => {
-    const ms = p.name?.toLowerCase().includes(search.toLowerCase())
-    const mc = selectedCat === 'All' || p.category === selectedCat
-    return ms && mc
-  })
+  // ── Inline edit helpers ──
+  const stage = (id: string, patch: Record<string, any>) => {
+    setPending(prev => ({ ...prev, [id]: { ...(prev[id] || {}), ...patch } }))
+  }
+
+  const discardInlineChanges = () => {
+    setPending({})
+    toast('Changes discarded', { icon: '↩️' })
+  }
+
+  const saveInlineChanges = async () => {
+    const ids = Object.keys(pending)
+    if (ids.length === 0) return
+    setSavingInline(true)
+    let errors = 0
+    for (const id of ids) {
+      const patch = { ...pending[id] }
+      // Keep price/display_price/legacy price column in sync
+      if (patch.display_price !== undefined) patch.price = patch.display_price
+      const { error } = await supabase.from('products').update(patch).eq('id', id)
+      if (error) errors++
+    }
+    setPending({})
+    setSavingInline(false)
+    if (errors > 0) toast.error(`${errors} update(s) failed`)
+    else toast.success(`Saved ${ids.length} change${ids.length !== 1 ? 's' : ''} ✅`)
+    fetchProducts()
+  }
+
+  // ── CSV export ──
+  const exportCsv = () => {
+    const rows = filtered.length > 0 ? filtered : products
+    if (rows.length === 0) { toast.error('No products to export'); return }
+    const cols: (keyof Product)[] = [
+      'name', 'category', 'pricing_model', 'price', 'display_price', 'area_rate', 'area_unit',
+      'moq', 'increment', 'max_qty', 'badge', 'featured', 'discount_type', 'discount_value',
+      'rating', 'review_count', 'is_active', 'sort_order', 'image_url', 'created_at',
+    ]
+    const header = cols.join(',')
+    const lines = rows.map(p => cols.map(c => toCsvValue((p as any)[c])).join(','))
+    const csv = [header, ...lines].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    const stamp = new Date().toISOString().slice(0, 10)
+    a.href = url
+    a.download = `printhub-products-${stamp}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    toast.success(`Exported ${rows.length} product${rows.length !== 1 ? 's' : ''}`)
+  }
+
+  const filtered = products
+    .filter(p => {
+      const ms = p.name?.toLowerCase().includes(search.toLowerCase())
+      const mc = selectedCat === 'All' || p.category === selectedCat
+      return ms && mc
+    })
+    .sort((a, b) => {
+      switch (sortKey) {
+        case 'name':
+          return a.name.localeCompare(b.name)
+        case 'price_asc':
+          return (Number(a.display_price || a.price) || 0) - (Number(b.display_price || b.price) || 0)
+        case 'price_desc':
+          return (Number(b.display_price || b.price) || 0) - (Number(a.display_price || a.price) || 0)
+        case 'category':
+          return a.category.localeCompare(b.category) || a.name.localeCompare(b.name)
+        case 'newest':
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        case 'featured':
+          return (b.featured ? 1 : 0) - (a.featured ? 1 : 0) || (a.sort_order ?? 0) - (b.sort_order ?? 0)
+        case 'custom':
+        default:
+          return (a.sort_order ?? 0) - (b.sort_order ?? 0)
+      }
+    })
+    // Apply pending edits for display
+    .map(p => pending[p.id] ? { ...p, ...pending[p.id] } : p)
 
   const priceLabel = (product: Product) =>
     product.pricing_model === 'area'
       ? `₦${Number(product.area_rate).toLocaleString()}/${product.area_unit}`
       : `₦${Number(product.display_price || product.price).toLocaleString()}`
+
+  // Drag-and-drop reorder — only meaningful when sortKey === 'custom'
+  const handleDrop = async (draggedId: string, targetId: string) => {
+    setDragOverId(null)
+    if (draggedId === targetId) return
+    if (Object.keys(pending).length > 0) {
+      toast.error('Save or discard your unsaved edits before reordering')
+      return
+    }
+    const current = [...filtered]
+    const fromIdx = current.findIndex(p => p.id === draggedId)
+    const toIdx = current.findIndex(p => p.id === targetId)
+    if (fromIdx === -1 || toIdx === -1) return
+    const [moved] = current.splice(fromIdx, 1)
+    current.splice(toIdx, 0, moved)
+
+    const updates = current.map((p, i) => ({ id: p.id, sort_order: i }))
+
+    // Optimistic local update
+    setProducts(prev => prev.map(p => {
+      const u = updates.find(x => x.id === p.id)
+      return u ? { ...p, sort_order: u.sort_order } : p
+    }))
+
+    // Persist
+    const results = await Promise.all(
+      updates.map(u => supabase.from('products').update({ sort_order: u.sort_order }).eq('id', u.id))
+    )
+    if (results.some(r => r.error)) {
+      toast.error('Some items failed to reorder — refreshing')
+      fetchProducts()
+    }
+  }
+
+  const pendingCount = Object.keys(pending).length
 
   if (!isAdmin) return null
 
@@ -275,16 +430,31 @@ export default function AdminProductsPage() {
           <h1 style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 22, marginBottom: 4, color: 'var(--text-primary)' }}>Products</h1>
           <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{products.length} products in store</p>
         </div>
-        <button onClick={openAdd} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', background: 'var(--red)', color: 'white', border: 'none', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
-          <Plus size={16} /> Add Product
-        </button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={exportCsv} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+            <Download size={16} /> Export CSV
+          </button>
+          <button onClick={openAdd} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', background: 'var(--red)', color: 'white', border: 'none', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+            <Plus size={16} /> Add Product
+          </button>
+        </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap' as const, alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: 12, marginBottom: 12, flexWrap: 'wrap' as const, alignItems: 'center' }}>
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search products..." className="form-input" style={{ maxWidth: 280 }} />
         <select value={selectedCat} onChange={e => setSelectedCat(e.target.value)} className="form-input" style={{ maxWidth: 220, cursor: 'pointer' }}>
           <option value="All">All Categories</option>
           {categories.map(c => <option key={c}>{c}</option>)}
+        </select>
+
+        <select value={sortKey} onChange={e => changeSortKey(e.target.value as SortKey)} className="form-input" style={{ maxWidth: 200, cursor: 'pointer' }}>
+          <option value="custom">My Order (drag to sort)</option>
+          <option value="name">Name (A–Z)</option>
+          <option value="price_asc">Price (Low → High)</option>
+          <option value="price_desc">Price (High → Low)</option>
+          <option value="category">Category</option>
+          <option value="newest">Newest First</option>
+          <option value="featured">Featured First</option>
         </select>
 
         {/* View mode toggle */}
@@ -314,6 +484,33 @@ export default function AdminProductsPage() {
           </button>
         </div>
       </div>
+
+      {sortKey === 'custom' && (
+        <div style={{ marginBottom: 16, padding: '8px 14px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 9, fontSize: 12, color: '#1d4ed8' }}>
+          {viewMode === 'list'
+            ? 'Drag rows by the handle (⠿) to reorder. This order is what customers see in this category.'
+            : 'Switch to List view to drag and reorder products. This order is what customers see in this category.'}
+        </div>
+      )}
+
+      {/* ── INLINE EDIT BATCH SAVE BAR ── */}
+      {viewMode === 'list' && pendingCount > 0 && (
+        <div style={{ position: 'sticky' as const, top: 8, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fffbeb', border: '1.5px solid #fbbf24', borderRadius: 10, padding: '10px 16px', marginBottom: 16, boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#92400e', fontFamily: 'Montserrat' }}>
+            {pendingCount} unsaved change{pendingCount !== 1 ? 's' : ''}
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={discardInlineChanges}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', background: 'white', border: '1px solid #fbbf24', borderRadius: 8, fontSize: 12, fontWeight: 600, fontFamily: 'Montserrat', cursor: 'pointer', color: '#92400e' }}>
+              <RotateCcw size={13} /> Discard
+            </button>
+            <button onClick={saveInlineChanges} disabled={savingInline}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 16px', background: savingInline ? '#a7f3d0' : '#10b981', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, fontFamily: 'Montserrat', cursor: savingInline ? 'not-allowed' : 'pointer', color: 'white' }}>
+              <Save size={13} /> {savingInline ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {isLoading && !showModal ? (
         <div style={{ textAlign: 'center' as const, padding: 60, color: 'var(--text-secondary)' }}>Loading...</div>
@@ -352,54 +549,135 @@ export default function AdminProductsPage() {
           ))}
         </div>
       ) : (
-        /* LIST VIEW */
+        /* LIST VIEW — inline-editable */
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, overflow: 'hidden' }}>
           <div style={{ overflowX: 'auto' as const }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' as const, fontSize: 13 }}>
               <thead>
                 <tr style={{ background: 'var(--bg-secondary)' }}>
-                  {['', 'Name', 'Category', 'Price', 'MOQ', 'Badge', 'Featured', 'Status', ''].map(h => (
-                    <th key={h} style={{ padding: '10px 14px', textAlign: 'left' as const, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', whiteSpace: 'nowrap' as const, borderBottom: '1px solid var(--border-color)' }}>{h}</th>
+                  {(sortKey === 'custom' ? [''] : []).concat(['', 'Name', 'Category', 'Price (₦)', 'MOQ', 'Badge', 'Featured', 'Active', '']).map((h, i) => (
+                    <th key={i} style={{ padding: '10px 14px', textAlign: 'left' as const, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', whiteSpace: 'nowrap' as const, borderBottom: '1px solid var(--border-color)' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {filtered.map(product => (
-                  <tr key={product.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                    <td style={{ padding: '10px 14px', width: 48 }}>
-                      <div style={{ width: 40, height: 40, borderRadius: 8, overflow: 'hidden', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        {(product.images?.[0] || product.image_url)
-                          ? <img src={product.images?.[0] || product.image_url} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          : <span style={{ fontSize: 16 }}>🖼️</span>}
-                      </div>
-                    </td>
-                    <td style={{ padding: '10px 14px', fontFamily: 'Montserrat', fontWeight: 600, color: 'var(--text-primary)', maxWidth: 320 }}>{product.name}</td>
-                    <td style={{ padding: '10px 14px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' as const }}>{product.category}</td>
-                    <td style={{ padding: '10px 14px', fontFamily: 'Montserrat', fontWeight: 700, color: 'var(--red)', whiteSpace: 'nowrap' as const }}>{priceLabel(product)}</td>
-                    <td style={{ padding: '10px 14px', color: 'var(--text-secondary)' }}>{product.moq || '—'}</td>
-                    <td style={{ padding: '10px 14px', color: 'var(--text-secondary)' }}>{product.badge || '—'}</td>
-                    <td style={{ padding: '10px 14px' }}>
-                      {product.featured ? <Star size={14} color="var(--red)" fill="var(--red)" /> : ''}
-                    </td>
-                    <td style={{ padding: '10px 14px' }}>
-                      <span style={{
-                        padding: '2px 8px', borderRadius: 20, fontWeight: 700, fontSize: 11,
-                        background: product.is_active ? '#d1fae5' : '#fee2e2',
-                        color: product.is_active ? '#059669' : '#dc2626',
-                      }}>{product.is_active ? 'Active' : 'Inactive'}</span>
-                    </td>
-                    <td style={{ padding: '10px 14px' }}>
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <button onClick={() => openEdit(product)} title="Edit" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '7px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 7, cursor: 'pointer', color: 'var(--text-primary)' }}>
-                          <Pencil size={13} />
+                {filtered.map(product => {
+                  const isDragOver = dragOverId === product.id
+                  const hasPending = !!pending[product.id]
+                  const priceVal = product.display_price ?? product.price ?? 0
+                  return (
+                    <tr
+                      key={product.id}
+                      draggable={sortKey === 'custom'}
+                      onDragStart={e => {
+                        e.dataTransfer.setData('text/plain', product.id)
+                        e.dataTransfer.effectAllowed = 'move'
+                      }}
+                      onDragOver={e => {
+                        if (sortKey !== 'custom') return
+                        e.preventDefault()
+                        if (dragOverId !== product.id) setDragOverId(product.id)
+                      }}
+                      onDragLeave={() => { if (dragOverId === product.id) setDragOverId(null) }}
+                      onDrop={e => {
+                        if (sortKey !== 'custom') return
+                        e.preventDefault()
+                        const draggedId = e.dataTransfer.getData('text/plain')
+                        handleDrop(draggedId, product.id)
+                      }}
+                      style={{
+                        borderBottom: '1px solid var(--border-color)',
+                        cursor: sortKey === 'custom' ? 'grab' : 'default',
+                        background: isDragOver ? '#eff6ff' : hasPending ? '#fefce8' : 'transparent',
+                        transition: 'background 0.15s',
+                      }}
+                    >
+                      {sortKey === 'custom' && (
+                        <td style={{ padding: '10px 6px', width: 28, color: 'var(--text-secondary)', textAlign: 'center' as const }}>
+                          <GripVertical size={15} />
+                        </td>
+                      )}
+                      <td style={{ padding: '10px 14px', width: 48 }}>
+                        <div style={{ width: 40, height: 40, borderRadius: 8, overflow: 'hidden', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          {(product.images?.[0] || product.image_url)
+                            ? <img src={product.images?.[0] || product.image_url} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            : <span style={{ fontSize: 16 }}>🖼️</span>}
+                        </div>
+                      </td>
+                      <td style={{ padding: '10px 14px', fontFamily: 'Montserrat', fontWeight: 600, color: 'var(--text-primary)', maxWidth: 280 }}>
+                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{product.name}</div>
+                      </td>
+                      <td style={{ padding: '10px 14px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' as const }}>{product.category}</td>
+
+                      {/* Price — inline editable (disabled for area pricing, edit via modal) */}
+                      <td style={{ padding: '10px 14px', minWidth: 110 }}>
+                        {product.pricing_model === 'area' ? (
+                          <span style={{ fontFamily: 'Montserrat', fontWeight: 700, color: 'var(--red)', whiteSpace: 'nowrap' as const }}>{priceLabel(product)}</span>
+                        ) : (
+                          <input
+                            type="number"
+                            value={priceVal}
+                            onChange={e => stage(product.id, { display_price: Number(e.target.value) })}
+                            style={hasPending && pending[product.id]?.display_price !== undefined ? miniInp : { ...miniInp, border: '1px solid var(--border-color)', background: 'white' }}
+                          />
+                        )}
+                      </td>
+
+                      {/* MOQ — inline editable */}
+                      <td style={{ padding: '10px 14px', minWidth: 70 }}>
+                        <input
+                          type="number"
+                          value={product.moq ?? ''}
+                          onChange={e => stage(product.id, { moq: Number(e.target.value) })}
+                          style={hasPending && pending[product.id]?.moq !== undefined ? miniInp : { ...miniInp, border: '1px solid var(--border-color)', background: 'white' }}
+                        />
+                      </td>
+
+                      {/* Badge — inline editable */}
+                      <td style={{ padding: '10px 14px', minWidth: 110 }}>
+                        <input
+                          type="text"
+                          value={product.badge ?? ''}
+                          placeholder="—"
+                          onChange={e => stage(product.id, { badge: e.target.value })}
+                          style={hasPending && pending[product.id]?.badge !== undefined ? miniInp : { ...miniInp, border: '1px solid var(--border-color)', background: 'white' }}
+                        />
+                      </td>
+
+                      {/* Featured — inline toggle */}
+                      <td style={{ padding: '10px 14px' }}>
+                        <button
+                          onClick={() => stage(product.id, { featured: !product.featured })}
+                          title={product.featured ? 'Featured — click to unfeature' : 'Click to feature'}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                          <Star size={16} color="var(--red)" fill={product.featured ? 'var(--red)' : 'none'} />
                         </button>
-                        <button onClick={() => handleDelete(product.id)} title="Delete" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '7px', background: 'var(--red-pale)', border: '1px solid var(--red-light)', borderRadius: 7, cursor: 'pointer', color: 'var(--red)' }}>
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+
+                      {/* Active — inline toggle */}
+                      <td style={{ padding: '10px 14px' }}>
+                        <button
+                          onClick={() => stage(product.id, { is_active: !product.is_active })}
+                          style={{
+                            padding: '2px 8px', borderRadius: 20, fontWeight: 700, fontSize: 11, border: 'none', cursor: 'pointer',
+                            background: product.is_active ? '#d1fae5' : '#fee2e2',
+                            color: product.is_active ? '#059669' : '#dc2626',
+                          }}>{product.is_active ? 'Active' : 'Inactive'}</button>
+                      </td>
+
+                      <td style={{ padding: '10px 14px' }}>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button onClick={() => openEdit(product)} title="Edit full product" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '7px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 7, cursor: 'pointer', color: 'var(--text-primary)' }}>
+                            <Pencil size={13} />
+                          </button>
+                          <button onClick={() => handleDelete(product.id)} title="Delete" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '7px', background: 'var(--red-pale)', border: '1px solid var(--red-light)', borderRadius: 7, cursor: 'pointer', color: 'var(--red)' }}>
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>

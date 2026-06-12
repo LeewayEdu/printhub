@@ -408,10 +408,41 @@ function CategoriesTab({ categories, onChanged }: { categories: CategoryRow[]; o
     onChanged()
   }
 
+  // ── Rename a category, cascading the new label to products & spec_options
+  // so nothing using the old category name becomes orphaned ──
+  const renameCategory = async (cat: CategoryRow, newLabel: string) => {
+    const oldLabel = cat.label
+    if (newLabel === oldLabel) return
+
+    // Prevent collisions with an existing category name
+    if (categories.some(c => c.id !== cat.id && c.label === newLabel)) {
+      toast.error(`A category named "${newLabel}" already exists`)
+      return
+    }
+
+    const { error } = await supabase.from('categories').update({ label: newLabel }).eq('id', cat.id)
+    if (error) { toast.error(error.message); return }
+
+    // Cascade rename to products and spec_options so nothing references the old label
+    const [productsRes, specsRes] = await Promise.all([
+      supabase.from('products').update({ category: newLabel }).eq('category', oldLabel).select('id'),
+      supabase.from('spec_options').update({ category: newLabel }).eq('category', oldLabel).select('id'),
+    ])
+
+    if (productsRes.error || specsRes.error) {
+      toast.error('Category renamed, but cascading to products/spec options failed — please check manually')
+    } else {
+      toast.success(`Renamed "${oldLabel}" → "${newLabel}" (${productsRes.count ?? 0} products, ${specsRes.count ?? 0} spec options updated) ✅`)
+    }
+
+    invalidateCache()
+    onChanged()
+  }
+
   return (
     <div>
       <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '12px 16px', marginBottom: 20, fontSize: 12, color: '#1d4ed8' }}>
-        💡 Categories here are shared between <strong>Spec Options</strong> and <strong>Products</strong>. The <strong>price model</strong> determines how the calculator computes price for products in this category.
+        💡 Categories here are shared between <strong>Spec Options</strong> and <strong>Products</strong>. The <strong>price model</strong> determines how the calculator computes price for products in this category. Renaming a category automatically updates all products and spec options using the old name.
       </div>
 
       {/* Add new category */}
@@ -452,6 +483,7 @@ function CategoriesTab({ categories, onChanged }: { categories: CategoryRow[]; o
           <CategoryRowEdit key={cat.id} cat={cat} last={i === categories.length - 1}
             onUpdate={(patch) => updateCategory(cat.id, patch)}
             onDelete={() => deleteCategory(cat.id, cat.label)}
+            onRename={renameCategory}
           />
         ))}
       </div>
@@ -459,24 +491,42 @@ function CategoriesTab({ categories, onChanged }: { categories: CategoryRow[]; o
   )
 }
 
-function CategoryRowEdit({ cat, last, onUpdate, onDelete }: {
+function CategoryRowEdit({ cat, last, onUpdate, onDelete, onRename }: {
   cat: CategoryRow; last: boolean
   onUpdate: (patch: Record<string, any>) => void
   onDelete: () => void
+  onRename: (cat: CategoryRow, newLabel: string) => void
 }) {
   const [icon, setIcon] = useState(cat.icon)
+  const [label, setLabel] = useState(cat.label)
   const [priceModel, setPriceModel] = useState(cat.price_model)
   const [sortOrder, setSortOrder] = useState(String(cat.sort_order))
+
+  // Keep local label in sync if it changes elsewhere (e.g. after a rename completes)
+  useEffect(() => { setLabel(cat.label) }, [cat.label])
 
   const miniInp: React.CSSProperties = {
     padding: '5px 8px', border: '1px solid var(--border)', borderRadius: 7,
     fontSize: 12, fontFamily: 'Open Sans', outline: 'none', background: 'white', width: '100%',
   }
 
+  const commitLabel = () => {
+    const trimmed = label.trim()
+    if (!trimmed || trimmed === cat.label) { setLabel(cat.label); return }
+    onRename(cat, trimmed)
+  }
+
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '50px 2fr 2fr 80px 80px 80px', padding: '10px 20px', borderBottom: last ? 'none' : '1px solid var(--border)', alignItems: 'center', gap: 8 }}>
       <input value={icon} onChange={e => setIcon(e.target.value)} onBlur={() => onUpdate({ icon })} style={{ ...miniInp, textAlign: 'center' as const }} />
-      <div style={{ fontFamily: 'Montserrat', fontWeight: 600, fontSize: 13 }}>{cat.label}</div>
+      <input
+        value={label}
+        onChange={e => setLabel(e.target.value)}
+        onBlur={commitLabel}
+        onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+        style={{ ...miniInp, fontFamily: 'Montserrat', fontWeight: 600, fontSize: 13 }}
+        title="Renaming updates this category everywhere — products and spec options using the old name will be moved to the new name"
+      />
       <select value={priceModel} onChange={e => { setPriceModel(e.target.value); onUpdate({ price_model: e.target.value }) }} style={{ ...miniInp, cursor: 'pointer' }}>
         {PRICE_MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
       </select>
