@@ -49,10 +49,11 @@ export default function SpecOptionsPage() {
   // ── BATCH SAVE STATE ──────────────────────────────────────
   const [pending, setPending] = useState<Record<string, Record<string, any>>>({})
 
-  const [newSpec, setNewSpec] = useState({
+  const emptySpecRow = () => ({
     spec_group: '', option_label: '', price_modifier: '0',
     modifier_type: 'base_rate', sort_order: '0', is_default: false, is_addon: false,
   })
+  const [newSpecRows, setNewSpecRows] = useState([emptySpecRow()])
 
   const [newTier, setNewTier] = useState({
     min_qty: '', max_qty: '', discount_pct: '0', label: ''
@@ -120,24 +121,34 @@ export default function SpecOptionsPage() {
     load()
   }
 
-  const addSpec = async () => {
-    if (!newSpec.spec_group.trim() || !newSpec.option_label.trim()) {
-      toast.error('Fill in spec group and option label'); return
-    }
-    const { error } = await supabase.from('spec_options').insert({
+  const updateNewRow = (i: number, patch: Record<string, any>) => {
+    setNewSpecRows(prev => prev.map((r, idx) => idx === i ? { ...r, ...patch } : r))
+  }
+  const addNewRow = () => setNewSpecRows(prev => [...prev, emptySpecRow()])
+  const removeNewRow = (i: number) => setNewSpecRows(prev => prev.length === 1 ? prev : prev.filter((_, idx) => idx !== i))
+
+  const saveAllNewSpecs = async () => {
+    const valid = newSpecRows.filter(r => r.spec_group.trim() && r.option_label.trim())
+    if (valid.length === 0) { toast.error('Fill in at least one row with spec group and option label'); return }
+    const invalidCount = newSpecRows.length - valid.length
+    if (invalidCount > 0 && !confirm(`${invalidCount} row(s) are incomplete and will be skipped. Continue?`)) return
+
+    const payload = valid.map(r => ({
       category: activeCat,
-      spec_group: newSpec.spec_group.toLowerCase().replace(/\s+/g, '_'),
-      option_label: newSpec.option_label,
-      price_modifier: Number(newSpec.price_modifier),
-      modifier_type: newSpec.modifier_type,
-      sort_order: Number(newSpec.sort_order),
+      spec_group: r.spec_group.toLowerCase().replace(/\s+/g, '_'),
+      option_label: r.option_label,
+      price_modifier: Number(r.price_modifier),
+      modifier_type: r.modifier_type,
+      sort_order: Number(r.sort_order),
       is_active: true,
-      is_default: newSpec.is_default,
-      is_addon: newSpec.is_addon,
-    })
+      is_default: r.is_default,
+      is_addon: r.is_addon,
+    }))
+
+    const { error } = await supabase.from('spec_options').insert(payload)
     if (error) { toast.error(error.message); return }
-    toast.success('Spec option added ✅')
-    setNewSpec({ spec_group: '', option_label: '', price_modifier: '0', modifier_type: 'base_rate', sort_order: '0', is_default: false, is_addon: false })
+    toast.success(`Added ${payload.length} option${payload.length !== 1 ? 's' : ''} ✅`)
+    setNewSpecRows([emptySpecRow()])
     invalidateCache(); load()
   }
 
@@ -176,6 +187,8 @@ export default function SpecOptionsPage() {
     if (!specsByGroup[s.spec_group]) specsByGroup[s.spec_group] = []
     specsByGroup[s.spec_group].push(s)
   }
+
+  const existingGroupNames = Array.from(new Set(specs.map(s => s.spec_group))).sort()
 
   const pendingCount = Object.keys(pending).length
 
@@ -239,55 +252,80 @@ export default function SpecOptionsPage() {
       {/* ── SPEC OPTIONS ── */}
       {tab === 'specs' && (
         <div>
-          {/* Add form */}
+          {/* Add form — multiple rows, save all at once */}
           <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: 12, padding: '20px 24px', marginBottom: 24 }}>
-            <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, marginBottom: 14 }}>Add New Spec Option</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.5fr 110px 70px', gap: 10, marginBottom: 12 }}>
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--gray)', display: 'block', marginBottom: 4 }}>Spec Group</label>
-                <input value={newSpec.spec_group} onChange={e => setNewSpec(p => ({ ...p, spec_group: e.target.value }))}
-                  placeholder="e.g. lamination / eyelet_addon" style={inp} />
-              </div>
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--gray)', display: 'block', marginBottom: 4 }}>Option Label</label>
-                <input value={newSpec.option_label} onChange={e => setNewSpec(p => ({ ...p, option_label: e.target.value }))}
-                  placeholder="e.g. Matt Lamination" style={inp} />
-              </div>
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--gray)', display: 'block', marginBottom: 4 }}>Modifier Type</label>
-                <select value={newSpec.modifier_type} onChange={e => setNewSpec(p => ({ ...p, modifier_type: e.target.value }))}
-                  style={{ ...inp, cursor: 'pointer' }}>
-                  {MODIFIER_TYPES.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--gray)', display: 'block', marginBottom: 4 }}>Price (₦)</label>
-                <input type="number" value={newSpec.price_modifier} onChange={e => setNewSpec(p => ({ ...p, price_modifier: e.target.value }))} style={inp} />
-              </div>
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--gray)', display: 'block', marginBottom: 4 }}>Order</label>
-                <input type="number" value={newSpec.sort_order} onChange={e => setNewSpec(p => ({ ...p, sort_order: e.target.value }))} style={inp} />
-              </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14 }}>Add New Spec Options</div>
+              <div style={{ fontSize: 11, color: 'var(--gray)' }}>Add as many rows as you need, then save them all together</div>
             </div>
-            {/* Toggles */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 24, marginBottom: 14, flexWrap: 'wrap' as const }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
-                <input type="checkbox" checked={newSpec.is_default}
-                  onChange={e => setNewSpec(p => ({ ...p, is_default: e.target.checked }))}
-                  style={{ accentColor: 'var(--red)', width: 15, height: 15 }} />
-                <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>Set as default selection</span>
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
-                <input type="checkbox" checked={newSpec.is_addon}
-                  onChange={e => setNewSpec(p => ({ ...p, is_addon: e.target.checked }))}
-                  style={{ accentColor: '#8b5cf6', width: 15, height: 15 }} />
-                <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>⭐ Add-on (customer picks quantity, e.g. Eyelets ×4)</span>
-              </label>
+
+            <datalist id="spec-group-suggestions">
+              {existingGroupNames.map(g => <option key={g} value={g} />)}
+            </datalist>
+
+            {newSpecRows.map((row, i) => (
+              <div key={i} style={{ marginBottom: 14, paddingBottom: 14, borderBottom: i < newSpecRows.length - 1 ? '1px dashed var(--border)' : 'none' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.5fr 110px 70px 36px', gap: 10, marginBottom: 10 }}>
+                  <div>
+                    {i === 0 && <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--gray)', display: 'block', marginBottom: 4 }}>Spec Group</label>}
+                    <input value={row.spec_group} onChange={e => updateNewRow(i, { spec_group: e.target.value })}
+                      list="spec-group-suggestions"
+                      placeholder="e.g. lamination / size" style={inp} />
+                  </div>
+                  <div>
+                    {i === 0 && <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--gray)', display: 'block', marginBottom: 4 }}>Option Label</label>}
+                    <input value={row.option_label} onChange={e => updateNewRow(i, { option_label: e.target.value })}
+                      placeholder="e.g. Matt Lamination" style={inp} />
+                  </div>
+                  <div>
+                    {i === 0 && <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--gray)', display: 'block', marginBottom: 4 }}>Modifier Type</label>}
+                    <select value={row.modifier_type} onChange={e => updateNewRow(i, { modifier_type: e.target.value })}
+                      style={{ ...inp, cursor: 'pointer' }}>
+                      {MODIFIER_TYPES.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    {i === 0 && <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--gray)', display: 'block', marginBottom: 4 }}>Price (₦ / %)</label>}
+                    <input type="number" value={row.price_modifier} onChange={e => updateNewRow(i, { price_modifier: e.target.value })} style={inp} />
+                  </div>
+                  <div>
+                    {i === 0 && <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--gray)', display: 'block', marginBottom: 4 }}>Order</label>}
+                    <input type="number" value={row.sort_order} onChange={e => updateNewRow(i, { sort_order: e.target.value })} style={inp} />
+                  </div>
+                  <div style={{ display: 'flex', alignItems: i === 0 ? 'flex-end' : 'center', paddingBottom: i === 0 ? 1 : 0 }}>
+                    <button onClick={() => removeNewRow(i)} disabled={newSpecRows.length === 1}
+                      style={{ width: '100%', height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: '1px solid #fca5a5', borderRadius: 7, cursor: newSpecRows.length === 1 ? 'not-allowed' : 'pointer', color: 'var(--red)', opacity: newSpecRows.length === 1 ? 0.35 : 1 }}>
+                      <X size={13} />
+                    </button>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' as const }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
+                    <input type="checkbox" checked={row.is_default}
+                      onChange={e => updateNewRow(i, { is_default: e.target.checked })}
+                      style={{ accentColor: 'var(--red)', width: 15, height: 15 }} />
+                    <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>Set as default selection</span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
+                    <input type="checkbox" checked={row.is_addon}
+                      onChange={e => updateNewRow(i, { is_addon: e.target.checked })}
+                      style={{ accentColor: '#8b5cf6', width: 15, height: 15 }} />
+                    <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>⭐ Add-on (customer picks quantity, e.g. Eyelets ×4)</span>
+                  </label>
+                </div>
+              </div>
+            ))}
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={addNewRow}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', background: 'var(--light)', border: '1px solid var(--border)', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 600, fontSize: 13, cursor: 'pointer', color: 'var(--text-primary)' }}>
+                <Plus size={14} /> Add Another Row
+              </button>
+              <button onClick={saveAllNewSpecs}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 20px', background: 'var(--red)', color: 'white', border: 'none', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                <Save size={14} /> Save {newSpecRows.length > 1 ? `All (${newSpecRows.length})` : 'Option'}
+              </button>
             </div>
-            <button onClick={addSpec}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 20px', background: 'var(--red)', color: 'white', border: 'none', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
-              <Plus size={14} /> Add Option
-            </button>
           </div>
 
           {/* Existing specs */}
