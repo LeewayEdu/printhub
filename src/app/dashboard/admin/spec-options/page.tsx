@@ -38,7 +38,7 @@ const inp: React.CSSProperties = {
 
 export default function SpecOptionsPage() {
   const router = useRouter()
-  const [tab, setTab] = useState<'specs' | 'tiers' | 'categories'>('specs')
+  const [tab, setTab] = useState<'specs' | 'tiers' | 'categories' | 'marketing'>('specs')
   const [categories, setCategories] = useState<CategoryRow[]>([])
   const [activeCat, setActiveCat] = useState('')
   const [specs, setSpecs] = useState<any[]>([])
@@ -193,7 +193,7 @@ export default function SpecOptionsPage() {
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 0, marginBottom: 20, background: 'var(--light)', borderRadius: 10, padding: 4, width: 'fit-content' }}>
-        {[['specs', 'Spec Options'], ['tiers', 'Qty Discount Tiers'], ['categories', 'Categories']].map(([val, label]) => (
+        {[['specs', 'Spec Options'], ['tiers', 'Qty Discount Tiers'], ['categories', 'Pricing Categories'], ['marketing', 'Marketing Categories']].map(([val, label]) => (
           <button key={val} onClick={() => setTab(val as any)}
             style={{ padding: '7px 18px', borderRadius: 8, border: 'none', fontFamily: 'Montserrat', fontWeight: 600, fontSize: 13, cursor: 'pointer', background: tab === val ? 'white' : 'transparent', color: tab === val ? 'var(--red)' : 'var(--gray)', boxShadow: tab === val ? '0 1px 4px rgba(0,0,0,0.1)' : 'none' }}>
             {label}
@@ -202,7 +202,7 @@ export default function SpecOptionsPage() {
       </div>
 
       {/* Category tabs — hidden on categories tab */}
-      {tab !== 'categories' && (
+      {(tab === 'specs' || tab === 'tiers') && (
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, marginBottom: 16 }}>
           {categories.map(cat => (
             <button key={cat.label} onClick={() => setActiveCat(cat.label)}
@@ -373,6 +373,11 @@ export default function SpecOptionsPage() {
       {tab === 'categories' && (
         <CategoriesTab categories={categories} onChanged={() => { loadCategories(); invalidateCategoriesCache() }} />
       )}
+
+      {/* ── MARKETING CATEGORIES ── */}
+      {tab === 'marketing' && (
+        <MarketingCategoriesTab />
+      )}
     </div>
   )
 }
@@ -432,7 +437,7 @@ function CategoriesTab({ categories, onChanged }: { categories: CategoryRow[]; o
     if (productsRes.error || specsRes.error) {
       toast.error('Category renamed, but cascading to products/spec options failed — please check manually')
     } else {
-      toast.success(`Renamed "${oldLabel}" → "${newLabel}" (${productsRes.count ?? 0} products, ${specsRes.count ?? 0} spec options updated) ✅`)
+      toast.success(`Renamed "${oldLabel}" → "${newLabel}" (${productsRes.data?.length ?? 0} products, ${specsRes.data?.length ?? 0} spec options updated) ✅`)
     }
 
     invalidateCache()
@@ -769,6 +774,179 @@ function TierRow({ tier, last, onDelete, onUpdate }: {
           <Trash2 size={13} />
         </button>
       </div>
+    </div>
+  )
+}
+
+// ── MARKETING CATEGORIES TAB ────────────────────────────────────
+interface MarketingCategory {
+  id: string
+  label: string
+  slug: string
+  icon: string
+  description: string | null
+  seo_title: string | null
+  seo_description: string | null
+  sort_order: number
+  is_active: boolean
+}
+
+function slugify(label: string) {
+  return label.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+}
+
+function MarketingCategoriesTab() {
+  const [cats, setCats] = useState<MarketingCategory[]>([])
+  const [loading, setLoading] = useState(true)
+  const [newCat, setNewCat] = useState({ label: '', icon: '🏷️', description: '', sort_order: '0' })
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+
+  const load = async () => {
+    setLoading(true)
+    const { data } = await supabase.from('marketing_categories').select('*').order('sort_order')
+    setCats((data as MarketingCategory[]) || [])
+    setLoading(false)
+  }
+
+  useEffect(() => { load() }, [])
+
+  const addCategory = async () => {
+    if (!newCat.label.trim()) { toast.error('Category name is required'); return }
+    const slug = slugify(newCat.label)
+    if (cats.some(c => c.slug === slug)) { toast.error(`A category with slug "${slug}" already exists`); return }
+    const { error } = await supabase.from('marketing_categories').insert({
+      label: newCat.label.trim(),
+      slug,
+      icon: newCat.icon || '🏷️',
+      description: newCat.description || null,
+      sort_order: Number(newCat.sort_order) || cats.length + 1,
+      is_active: true,
+    })
+    if (error) { toast.error(error.message); return }
+    toast.success('Marketing category added ✅')
+    setNewCat({ label: '', icon: '🏷️', description: '', sort_order: '0' })
+    load()
+  }
+
+  const updateCategory = async (id: string, patch: Record<string, any>) => {
+    await supabase.from('marketing_categories').update(patch).eq('id', id)
+    load()
+  }
+
+  // Renaming the label does NOT change the slug — slug is the stable key
+  // used by product_marketing_categories, so links never break.
+  const renameLabel = async (cat: MarketingCategory, newLabel: string) => {
+    const trimmed = newLabel.trim()
+    if (!trimmed || trimmed === cat.label) return
+    await supabase.from('marketing_categories').update({ label: trimmed }).eq('id', cat.id)
+    toast.success(`Renamed to "${trimmed}"`)
+    load()
+  }
+
+  const deleteCategory = async (id: string, label: string) => {
+    if (!confirm(`Delete marketing category "${label}"? Products tagged with it will lose this tag (their pricing/specs are unaffected).`)) return
+    await supabase.from('marketing_categories').delete().eq('id', id)
+    toast.success('Deleted')
+    load()
+  }
+
+  return (
+    <div>
+      <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '12px 16px', marginBottom: 20, fontSize: 12, color: '#1d4ed8' }}>
+        💡 Marketing categories are for <strong>browsing & SEO</strong> — a product can belong to several of these (e.g. "A4 Flyers" can sit under both "Office & Business Stationery" and "Campaign Materials"). They don't affect pricing — that's controlled by <strong>Pricing Categories</strong>. Assign products to these from the Products page.
+      </div>
+
+      {/* Add new */}
+      <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: 12, padding: '20px 24px', marginBottom: 24 }}>
+        <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, marginBottom: 14 }}>Add Marketing Category</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '80px 2fr 3fr 100px', gap: 10, marginBottom: 12 }}>
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--gray)', display: 'block', marginBottom: 4 }}>Icon</label>
+            <input value={newCat.icon} onChange={e => setNewCat(p => ({ ...p, icon: e.target.value }))} style={inp} placeholder="🏷️" />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--gray)', display: 'block', marginBottom: 4 }}>Category Name</label>
+            <input value={newCat.label} onChange={e => setNewCat(p => ({ ...p, label: e.target.value }))} style={inp} placeholder="e.g. Church Printing" />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--gray)', display: 'block', marginBottom: 4 }}>Description (landing page intro)</label>
+            <input value={newCat.description} onChange={e => setNewCat(p => ({ ...p, description: e.target.value }))} style={inp} placeholder="Optional" />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--gray)', display: 'block', marginBottom: 4 }}>Order</label>
+            <input type="number" value={newCat.sort_order} onChange={e => setNewCat(p => ({ ...p, sort_order: e.target.value }))} style={inp} />
+          </div>
+        </div>
+        {newCat.label.trim() && (
+          <div style={{ fontSize: 11, color: 'var(--gray)', marginBottom: 12 }}>
+            Slug: <code>{slugify(newCat.label)}</code>
+          </div>
+        )}
+        <button onClick={addCategory}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 20px', background: 'var(--red)', color: 'white', border: 'none', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+          <Plus size={14} /> Add Category
+        </button>
+      </div>
+
+      {/* List */}
+      {loading ? (
+        <div style={{ textAlign: 'center' as const, padding: 40, color: 'var(--gray)' }}>Loading...</div>
+      ) : cats.length === 0 ? (
+        <div style={{ textAlign: 'center' as const, padding: 40, color: 'var(--gray)' }}>No marketing categories yet.</div>
+      ) : (
+        <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '50px 2fr 1fr 70px 70px 80px', padding: '10px 20px', background: 'var(--light)', borderBottom: '1px solid var(--border)', fontSize: 11, fontWeight: 700, color: 'var(--gray)', textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>
+            <div>Icon</div><div>Category</div><div>Slug</div><div>Order</div><div>Active</div><div></div>
+          </div>
+          {cats.map((cat, i) => {
+            const miniInp: React.CSSProperties = {
+              padding: '5px 8px', border: '1px solid var(--border)', borderRadius: 7,
+              fontSize: 12, fontFamily: 'Open Sans', outline: 'none', background: 'white', width: '100%',
+            }
+            const expanded = expandedId === cat.id
+            return (
+              <div key={cat.id} style={{ borderBottom: i === cats.length - 1 ? 'none' : '1px solid var(--border)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '50px 2fr 1fr 70px 70px 80px', padding: '10px 20px', alignItems: 'center', gap: 8 }}>
+                  <input defaultValue={cat.icon} onBlur={e => updateCategory(cat.id, { icon: e.target.value })} style={{ ...miniInp, textAlign: 'center' as const }} />
+                  <input defaultValue={cat.label} onBlur={e => renameLabel(cat, e.target.value)} style={{ ...miniInp, fontFamily: 'Montserrat', fontWeight: 600, fontSize: 13 }} />
+                  <code style={{ fontSize: 11, color: 'var(--gray)' }}>{cat.slug}</code>
+                  <input type="number" defaultValue={cat.sort_order} onBlur={e => updateCategory(cat.id, { sort_order: Number(e.target.value) })} style={miniInp} />
+                  <button onClick={() => updateCategory(cat.id, { is_active: !cat.is_active })}
+                    style={{ padding: '4px 8px', borderRadius: 20, border: `1px solid ${cat.is_active ? '#10b981' : 'var(--border)'}`, background: cat.is_active ? '#10b98115' : 'transparent', color: cat.is_active ? '#10b981' : 'var(--gray)', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'Montserrat' }}>
+                    {cat.is_active ? 'Yes' : 'No'}
+                  </button>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    <button onClick={() => setExpandedId(expanded ? null : cat.id)}
+                      style={{ padding: '5px 8px', background: 'none', border: '1px solid var(--border)', borderRadius: 7, cursor: 'pointer', color: '#3b82f6' }}>
+                      <Pencil size={13} />
+                    </button>
+                    <button onClick={() => deleteCategory(cat.id, cat.label)}
+                      style={{ background: 'none', border: '1px solid #fca5a5', borderRadius: 7, padding: '5px 8px', cursor: 'pointer', color: 'var(--red)' }}>
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </div>
+                {expanded && (
+                  <div style={{ padding: '0 20px 16px 20px', display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--gray)', display: 'block', marginBottom: 4 }}>SEO Title</label>
+                      <input defaultValue={cat.seo_title || ''} onBlur={e => updateCategory(cat.id, { seo_title: e.target.value || null })} style={miniInp} placeholder={`${cat.label} — Print & Branding | PrintHub`} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--gray)', display: 'block', marginBottom: 4 }}>SEO Description</label>
+                      <input defaultValue={cat.seo_description || ''} onBlur={e => updateCategory(cat.id, { seo_description: e.target.value || null })} style={miniInp} placeholder="Meta description for this category page" />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--gray)', display: 'block', marginBottom: 4 }}>Landing Page Intro</label>
+                      <input defaultValue={cat.description || ''} onBlur={e => updateCategory(cat.id, { description: e.target.value || null })} style={miniInp} placeholder="Short intro copy shown at the top of this category's page" />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

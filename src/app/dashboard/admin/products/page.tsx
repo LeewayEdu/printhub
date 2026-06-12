@@ -25,6 +25,7 @@ interface ProductForm {
   discount_value: number | ''
   images: File[]
   existing_images: string[]
+  marketing_category_ids: string[]
 }
 
 interface Product {
@@ -78,6 +79,7 @@ const emptyForm: ProductForm = {
   rating: 0, review_count: 0,
   discount_type: '', discount_value: '',
   images: [], existing_images: [],
+  marketing_category_ids: [],
 }
 
 const sectionStyle = {
@@ -158,6 +160,7 @@ export default function AdminProductsPage() {
   const [search, setSearch] = useState('')
   const [selectedCat, setSelectedCat] = useState('All')
   const [categories, setCategories] = useState<string[]>(FALLBACK_CATEGORIES)
+  const [marketingCats, setMarketingCats] = useState<{ id: string; label: string; icon: string }[]>([])
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const [sortKey, setSortKey] = useState<SortKey>('custom')
   const [dragOverId, setDragOverId] = useState<string | null>(null)
@@ -180,6 +183,9 @@ export default function AdminProductsPage() {
     getCategories().then(cats => {
       if (cats?.length) setCategories(cats.map(c => c.label))
     })
+    // Marketing categories — for product tagging
+    supabase.from('marketing_categories').select('id, label, icon').eq('is_active', true).order('sort_order')
+      .then(({ data }) => { if (data) setMarketingCats(data as any) })
     // Restore preferred view mode + sort
     if (typeof window !== 'undefined') {
       const savedView = window.localStorage.getItem(VIEW_MODE_KEY)
@@ -210,8 +216,9 @@ export default function AdminProductsPage() {
 
   const openAdd = () => { setEditing(null); setForm(emptyForm); setShowModal(true) }
 
-  const openEdit = (p: Product) => {
+  const openEdit = async (p: Product) => {
     setEditing(p)
+    const { data: tags } = await supabase.from('product_marketing_categories').select('marketing_category_id').eq('product_id', p.id)
     setForm({
       name: p.name || '', description: p.description || '', category: p.category || '',
       display_price: p.display_price || p.price || '',
@@ -222,6 +229,7 @@ export default function AdminProductsPage() {
       discount_type: (p.discount_type as any) || '', discount_value: p.discount_value || '',
       rating: Number(p.rating) || 0, review_count: Number(p.review_count) || 0,
       images: [], existing_images: p.images || (p.image_url ? [p.image_url] : []),
+      marketing_category_ids: (tags || []).map((t: any) => t.marketing_category_id),
     })
     setShowModal(true)
   }
@@ -285,6 +293,15 @@ export default function AdminProductsPage() {
     if (form.collection && savedId) {
       const { data: col } = await supabase.from('collections').select('id').eq('slug', form.collection).single()
       if (col) await supabase.from('collection_products').upsert({ collection_id: col.id, product_id: savedId, sort_order: 0 })
+    }
+    // Sync marketing category tags (many-to-many)
+    if (savedId) {
+      await supabase.from('product_marketing_categories').delete().eq('product_id', savedId)
+      if (form.marketing_category_ids.length > 0) {
+        await supabase.from('product_marketing_categories').insert(
+          form.marketing_category_ids.map(mcId => ({ product_id: savedId, marketing_category_id: mcId }))
+        )
+      }
     }
     setShowModal(false); fetchProducts(); setIsLoading(false)
   }
@@ -741,6 +758,35 @@ export default function AdminProductsPage() {
                       </label>
                     </div>
                   </div>
+
+                  {/* Marketing categories — multi-select, for browsing/SEO (doesn't affect pricing) */}
+                  {marketingCats.length > 0 && (
+                    <div>
+                      <label style={labelStyle}>Marketing Categories <span style={{ textTransform: 'none' as const, fontWeight: 400, color: '#888' }}>(browsing & SEO — pick all that apply)</span></label>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, marginTop: 6 }}>
+                        {marketingCats.map(mc => {
+                          const selected = form.marketing_category_ids.includes(mc.id)
+                          return (
+                            <button
+                              key={mc.id}
+                              type="button"
+                              onClick={() => setF('marketing_category_ids', selected
+                                ? form.marketing_category_ids.filter(id => id !== mc.id)
+                                : [...form.marketing_category_ids, mc.id])}
+                              style={{
+                                padding: '6px 12px', borderRadius: 20, fontSize: 12, fontFamily: 'Montserrat', fontWeight: selected ? 700 : 500,
+                                border: `1.5px solid ${selected ? '#C0392B' : '#e8e8e5'}`,
+                                background: selected ? 'rgba(192,57,43,0.08)' : '#fafafa',
+                                color: selected ? '#C0392B' : '#666',
+                                cursor: 'pointer',
+                              }}>
+                              {mc.icon} {mc.label}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
