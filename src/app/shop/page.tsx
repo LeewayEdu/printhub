@@ -37,13 +37,12 @@ interface Product {
   presets?: ProductPreset[]
 }
 
-const CATEGORIES = [
-  'All Products', 'Banners & Large Format', 'Business Cards', 'Flyers & Leaflets',
-  'Office & Business Stationery', 'Stickers & Labels', 'Promotional Items & Gifts',
-  'Shirts & Uniforms', 'Signage & Installation', 'Book Publishing', 'Magazines & Journals',
-  'Campaign Materials', 'Graphic Design', 'Frames & Canvas',
-  'Custom Packaging', 'Vehicle Branding', 'Event Materials',
-]
+interface MarketingCategory {
+  id: string
+  label: string
+  slug: string
+  icon: string
+}
 
 function calculatePrice(p: Product, qty: number, specs: Record<string, SpecOption>, w?: number, h?: number): number {
   const specTotal = Object.values(specs).reduce((s, o) => s + (o?.price || 0), 0)
@@ -105,6 +104,10 @@ function ShopContent() {
   const [appliedPreset, setAppliedPreset] = useState<{ specs?: Record<string, string>; addons?: string[] } | null>(null)
   const [activePresetLabel, setActivePresetLabel] = useState<string | null>(null)
 
+  // Marketing categories — customer-facing browsing/SEO tags (independent of pricing category)
+  const [marketingCategories, setMarketingCategories] = useState<MarketingCategory[]>([])
+  const [productTags, setProductTags] = useState<Record<string, string[]>>({}) // product_id -> [marketing category labels]
+
   useEffect(() => {
     // Wishlist
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -119,6 +122,24 @@ function ShopContent() {
       .then(({ data }) => { if (data) setProducts(data as Product[]); setLoading(false) })
     supabase.from('hero_banners').select('*').eq('is_active', true).order('sort_order')
       .then(({ data }) => { if (data && data.length > 0) setHeroBanners(data) })
+
+    // Marketing categories — customer-facing tags for browsing/SEO
+    supabase.from('marketing_categories').select('id, label, slug, icon').eq('is_active', true).order('sort_order')
+      .then(({ data }) => { if (data) setMarketingCategories(data as MarketingCategory[]) })
+
+    // Product -> marketing category labels map (a product can have several)
+    supabase.from('product_marketing_categories').select('product_id, marketing_categories(label)')
+      .then(({ data }) => {
+        if (!data) return
+        const map: Record<string, string[]> = {}
+        data.forEach((row: any) => {
+          const label = row.marketing_categories?.label
+          if (!label) return
+          if (!map[row.product_id]) map[row.product_id] = []
+          map[row.product_id].push(label)
+        })
+        setProductTags(map)
+      })
   }, [])
 
   useEffect(() => {
@@ -130,7 +151,8 @@ function ShopContent() {
   const filtered = products
     .filter(p => {
       const ms = p.name?.toLowerCase().includes(search.toLowerCase()) || p.description?.toLowerCase().includes(search.toLowerCase())
-      const mc = cat === 'All Products' || p.category === cat
+      const tags = productTags[p.id] || []
+      const mc = cat === 'All Products' || tags.includes(cat)
       return ms && mc
     })
     .sort((a, b) => {
@@ -141,6 +163,18 @@ function ShopContent() {
       // 'default' — preserve the sort_order ordering from the initial fetch
       return 0
     })
+
+  // Counts per marketing category, for the sidebar
+  useEffect(() => {
+    if (marketingCategories.length === 0 || products.length === 0) return
+    const counts: Record<string, number> = {}
+    marketingCategories.forEach(mc => { counts[mc.label] = 0 })
+    products.forEach(p => {
+      const tags = productTags[p.id] || []
+      tags.forEach(label => { if (counts[label] !== undefined) counts[label]++ })
+    })
+    setCatCounts(counts)
+  }, [marketingCategories, products, productTags])
 
   const open = (p: Product) => {
     setSelected(p)
@@ -331,8 +365,8 @@ function ShopContent() {
             {filtered.map(p => (
               <SharedProductCard
                 key={p.id}
-                product={p as any}
-                onOpen={(prod: any) => open(prod as Product)}
+                product={{ ...p, category: (productTags[p.id] || [])[0] || p.category } as any}
+                onOpen={(prod: any) => open(p)}
                 wishlistIds={wishlistIds}
               />
             ))}
@@ -358,7 +392,13 @@ function ShopContent() {
               {/* Modal header */}
               <div style={{ padding: '18px 24px', borderBottom: '1px solid #e8e8e5', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, background: '#ffffff', borderRadius: '16px 16px 0 0' }}>
                 <div>
-                  <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 2 }}>{selected.category}</div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, marginBottom: 4 }}>
+                    {(productTags[selected.id] || []).length > 0
+                      ? (productTags[selected.id] || []).map(label => (
+                          <span key={label} style={{ fontSize: 11, color: 'var(--text-secondary)', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 20, padding: '1px 8px' }}>{label}</span>
+                        ))
+                      : <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{selected.category}</span>}
+                  </div>
                   <h3 style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 17, color: 'var(--text-primary)' }}>{selected.name}</h3>
                 </div>
                 <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}>
