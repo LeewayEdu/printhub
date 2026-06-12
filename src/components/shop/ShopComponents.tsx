@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation'
 import { Heart, Star, ShoppingCart } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { CATEGORIES } from '@/lib/constants'
+import { getCategories, CategoryRow } from '@/lib/categories'
 import toast from 'react-hot-toast'
 
 // ─── TYPES ────────────────────────────────────────────────────
@@ -84,7 +85,7 @@ export function StarDisplay({ rating, count, size = 12 }: { rating: number; coun
   )
 }
 
-// ─── CARD IMAGE (hover carousel) ─────────────────────────────
+// ─── CARD IMAGE (hover carousel, square 1:1) ─────────────────
 function CardImage({ imgs, name }: { imgs: string[]; name: string }) {
   const [idx, setIdx] = useState(0)
   const [hovering, setHovering] = useState(false)
@@ -110,7 +111,7 @@ function CardImage({ imgs, name }: { imgs: string[]; name: string }) {
               src={imgs[idx]}
               alt={name}
               fill
-              sizes="(max-width: 480px) 45vw, (max-width: 1024px) 30vw, 20vw"
+              sizes="(max-width: 480px) 45vw, (max-width: 1024px) 25vw, 22vw"
               style={{ objectFit: 'cover', transition: 'opacity 0.35s' }}
               unoptimized={imgs[idx]?.includes('unsplash') || imgs[idx]?.includes('blob:')}
             />
@@ -185,8 +186,8 @@ export function ProductCard({
       onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 24px rgba(0,0,0,0.1)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)' }}
       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = 'none'; (e.currentTarget as HTMLElement).style.transform = 'none' }}>
 
-      {/* Image */}
-      <div style={{ height: 170, background: 'var(--bg-secondary)', position: 'relative' as const, overflow: 'hidden', cursor: 'pointer' }}
+      {/* Image — square 1:1 */}
+      <div className="card-img" style={{ width: '100%', aspectRatio: '1 / 1', background: 'var(--bg-secondary)', position: 'relative' as const, overflow: 'hidden', cursor: 'pointer' }}
         onClick={() => onOpen(product)}>
         <CardImage imgs={imgs} name={product.name} />
 
@@ -209,14 +210,14 @@ export function ProductCard({
       </div>
 
       {/* Info */}
-      <div style={{ padding: '12px 14px', flex: 1, display: 'flex', flexDirection: 'column' as const, gap: 4 }}>
+      <div className="card-info" style={{ padding: '12px 14px', flex: 1, display: 'flex', flexDirection: 'column' as const, gap: 4 }}>
         {/* Category */}
-        <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', fontWeight: 600 }}>
+        <div className="card-category" style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', fontWeight: 600 }}>
           {product.category}
         </div>
 
         {/* Name */}
-        <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.4, flex: 1 }}>
+        <div className="card-name" style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.4, flex: 1 }}>
           {product.name}
         </div>
 
@@ -273,7 +274,7 @@ export function ProductCard({
   )
 }
 
-// ─── SIDEBAR ──────────────────────────────────────────────────
+// ─── SIDEBAR — dynamic categories from DB ────────────────────
 export function ShopSidebar({
   categoryMap,
   activeCategory,
@@ -287,9 +288,18 @@ export function ShopSidebar({
 }) {
   const total = Object.values(categoryMap).reduce((a, b) => a + b, 0)
 
+  // Fallback to static constants while DB categories load
+  const [dynamicCats, setDynamicCats] = useState<CategoryRow[] | null>(null)
+
+  useEffect(() => {
+    getCategories().then(cats => { if (cats?.length) setDynamicCats(cats) })
+  }, [])
+
+  const sourceCats = dynamicCats || CATEGORIES.map((c, i) => ({ id: c.id, label: c.label, icon: c.icon, price_model: 'unit', sort_order: i, is_active: true }))
+
   const cats = [
     { id: 'All Products', label: 'All Products', icon: '🛒' },
-    ...CATEGORIES.map(c => ({ id: c.label, label: c.label, icon: c.icon })),
+    ...sourceCats.map(c => ({ id: c.label, label: c.label, icon: c.icon })),
   ]
 
   return (

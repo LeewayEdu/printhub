@@ -12,6 +12,7 @@ export interface SpecOption {
   is_active: boolean
   sort_order: number
   is_default?: boolean
+  is_addon?: boolean
 }
 
 export interface QtyTier {
@@ -25,6 +26,11 @@ export interface QtyTier {
 
 export interface SpecSelection {
   [spec_group: string]: SpecOption
+}
+
+export interface AddonSelection {
+  option: SpecOption
+  qty: number
 }
 
 export interface CalcResult {
@@ -73,17 +79,26 @@ async function getCache(): Promise<Cache> {
 
 export function invalidateCache() { _cache = null }
 
-// ── SPEC GROUPS FOR A CATEGORY ────────────────────────────────
+// ── SPEC GROUPS FOR A CATEGORY (excludes add-ons) ─────────────
 
 export async function getSpecGroups(category: string): Promise<Record<string, SpecOption[]>> {
   const cache = await getCache()
-  const specs = cache.specs[category] || []
+  const specs = (cache.specs[category] || []).filter(s => !s.is_addon)
   const groups: Record<string, SpecOption[]> = {}
   for (const s of specs) {
     if (!groups[s.spec_group]) groups[s.spec_group] = []
     groups[s.spec_group].push(s)
   }
   return groups
+}
+
+// ── ADD-ON OPTIONS FOR A CATEGORY ─────────────────────────────
+// Each add-on has its own selectable quantity, independent of the
+// main product quantity (e.g. "Eyelets" — customer picks 2, 4, 6, 8...)
+
+export async function getAddonOptions(category: string): Promise<SpecOption[]> {
+  const cache = await getCache()
+  return (cache.specs[category] || []).filter(s => s.is_addon)
 }
 
 export async function getQtyTiers(category: string): Promise<QtyTier[]> {
@@ -95,16 +110,18 @@ export async function getQtyTiers(category: string): Promise<QtyTier[]> {
 
 export function calculate(params: {
   category: string
-  specs: SpecSelection        // user's selected spec options
+  priceModel: string           // 'area' | 'per_100' | 'per_piece' | 'per_page' | 'fixed' | 'unit'
+  specs: SpecSelection          // user's selected spec options (single-select groups)
+  addons?: AddonSelection[]     // add-ons with independent quantities
   qty: number
-  widthFt?: number            // for area-based products
+  widthFt?: number              // for area-based products
   heightFt?: number
-  pages?: number              // for books/magazines
+  pages?: number                // for books/magazines
   tiers: QtyTier[]
   vatRate?: number
 }): CalcResult {
 
-  const { specs, qty, widthFt = 1, heightFt = 1, pages = 0, tiers, vatRate = 7.5 } = params
+  const { specs, qty, widthFt = 1, heightFt = 1, pages = 0, tiers, vatRate = 7.5, addons = [], priceModel } = params
 
   const area = widthFt * heightFt
   const minArea = 5  // minimum sqft for area-based products
@@ -112,73 +129,64 @@ export function calculate(params: {
 
   let subtotal = 0
 
-  // Get all selected spec options as flat array
   const selectedOptions = Object.values(specs)
 
-  // Find base rate
   const baseOption = selectedOptions.find(s => s.modifier_type === 'base_rate')
   const baseRate = baseOption ? Number(baseOption.price_modifier) : 0
 
-  // ── Calculate by modifier type ────────────────────────────
+  // ── Calculate by category price model ─────────────────────
 
-  // 1. base_rate × area (banners, stickers, signage)
-  const areaCategories = ['Banners & Large Format', 'Stickers & Labels', 'Signage & Installation']
-  if (areaCategories.includes(params.category) && baseRate > 0) {
+  if (priceModel === 'area' && baseRate > 0) {
     subtotal += baseRate * effectiveArea * qty
   }
 
-  // 2. base_rate × (qty/100) (cards, flyers, stationery, posters)
-  const per100Categories = ['Business Cards', 'Flyers & Leaflets', 'Papers & Stationery', 'Campaign Materials']
-  if (per100Categories.includes(params.category) && baseRate > 0) {
+  if (priceModel === 'per_100' && baseRate > 0) {
     subtotal += baseRate * (qty / 100)
   }
 
-  // 3. fixed_per_piece (blank item cost — apparel, souvenirs)
+  if (priceModel === 'fixed' && baseRate > 0) {
+    subtotal += baseRate * qty
+  }
+
+  if (priceModel === 'per_piece' && baseRate > 0) {
+    subtotal += baseRate * qty
+  }
+
+  // fixed_per_piece (blank item cost — apparel, souvenirs)
   const blankOptions = selectedOptions.filter(s => s.modifier_type === 'fixed_per_piece')
-  for (const opt of blankOptions) {
-    subtotal += Number(opt.price_modifier) * qty
-  }
+  for (const opt of blankOptions) subtotal += Number(opt.price_modifier) * qty
 
-  // 4. print_per_piece (branding cost — apparel, souvenirs)
+  // print_per_piece (branding cost)
   const printOptions = selectedOptions.filter(s => s.modifier_type === 'print_per_piece')
-  for (const opt of printOptions) {
-    subtotal += Number(opt.price_modifier) * qty
-  }
+  for (const opt of printOptions) subtotal += Number(opt.price_modifier) * qty
 
-  // 5. fixed_per_100 (lamination, finishing on cards/flyers)
+  // fixed_per_100 (lamination, finishing)
   const per100Options = selectedOptions.filter(s => s.modifier_type === 'fixed_per_100')
-  for (const opt of per100Options) {
-    subtotal += Number(opt.price_modifier) * (qty / 100)
-  }
+  for (const opt of per100Options) subtotal += Number(opt.price_modifier) * (qty / 100)
 
-  // 6. per_sqft_extra (material upgrades on area products)
+  // per_sqft_extra (material upgrades on area products)
   const sqftExtraOptions = selectedOptions.filter(s => s.modifier_type === 'per_sqft_extra')
-  for (const opt of sqftExtraOptions) {
-    subtotal += Number(opt.price_modifier) * effectiveArea * qty
-  }
+  for (const opt of sqftExtraOptions) subtotal += Number(opt.price_modifier) * effectiveArea * qty
 
-  // 7. per_page (books/magazines/journals)
+  // per_page (books/magazines/journals)
   const perPageOptions = selectedOptions.filter(s => s.modifier_type === 'per_page')
-  for (const opt of perPageOptions) {
-    subtotal += Number(opt.price_modifier) * pages * qty
-  }
+  for (const opt of perPageOptions) subtotal += Number(opt.price_modifier) * pages * qty
 
-  // 8. fixed_per_unit (binding, cover, per book)
+  // fixed_per_unit (binding, cover, per finished item)
   const perUnitOptions = selectedOptions.filter(s => s.modifier_type === 'fixed_per_unit')
-  for (const opt of perUnitOptions) {
-    subtotal += Number(opt.price_modifier) * qty
-  }
+  for (const opt of perUnitOptions) subtotal += Number(opt.price_modifier) * qty
 
-  // 9. fixed_flat (one-time fees — eyelets, rope, LED)
-  const flatOptions = selectedOptions.filter(s => s.modifier_type === 'fixed_flat' && Number(s.price_modifier) > 0)
-  for (const opt of flatOptions) {
-    subtotal += Number(opt.price_modifier)
-  }
+  // fixed_flat (one-time fees — non add-on)
+  const flatOptions = selectedOptions.filter(s => s.modifier_type === 'fixed_flat' && Number(s.price_modifier) !== 0)
+  for (const opt of flatOptions) subtotal += Number(opt.price_modifier)
 
-  // 10. percentage modifiers (applied to current subtotal)
+  // percentage modifiers (applied to current subtotal)
   const pctOptions = selectedOptions.filter(s => s.modifier_type === 'percentage' && Number(s.price_modifier) !== 0)
-  for (const opt of pctOptions) {
-    subtotal += subtotal * (Number(opt.price_modifier) / 100)
+  for (const opt of pctOptions) subtotal += subtotal * (Number(opt.price_modifier) / 100)
+
+  // ADD-ONS — independent quantity, price × addon qty
+  for (const a of addons) {
+    if (a.qty > 0) subtotal += Number(a.option.price_modifier) * a.qty
   }
 
   // ── Quantity tier discount ────────────────────────────────
@@ -195,12 +203,13 @@ export function calculate(params: {
   const specLabels = selectedOptions
     .filter(s => s.modifier_type !== 'base_rate')
     .map(s => s.option_label)
-    .join(', ')
-  const summaryText = `${qty} ${params.category}${specLabels ? ` — ${specLabels}` : ''}`
+  const addonLabels = addons.filter(a => a.qty > 0).map(a => `${a.option.option_label} ×${a.qty}`)
+  const allLabels = [...specLabels, ...addonLabels].join(', ')
+  const summaryText = `${qty} ${params.category}${allLabels ? ` — ${allLabels}` : ''}`
 
   return {
     total,
-    minPrice: total, // same here, product table sets the visual minimum
+    minPrice: total,
     discountPct,
     discountAmount,
     tierLabel: tier?.label || null,
@@ -209,13 +218,11 @@ export function calculate(params: {
 }
 
 // ── DEFAULT SELECTION ─────────────────────────────────────────
-// Uses is_default flag if set, otherwise falls back to first option (sort_order 0)
 
 export function getDefaultSelection(groups: Record<string, SpecOption[]>): SpecSelection {
   const selection: SpecSelection = {}
   for (const [group, options] of Object.entries(groups)) {
     if (options.length === 0) continue
-    // Prefer the option marked as default, fall back to first by sort_order
     const defaultOpt = options.find((o: any) => o.is_default) || options[0]
     selection[group] = defaultOpt
   }
@@ -224,17 +231,26 @@ export function getDefaultSelection(groups: Record<string, SpecOption[]>): SpecS
 
 // ── SPEC SUMMARY FOR ORDER ────────────────────────────────────
 
-export function buildSpecSummary(specs: SpecSelection, qty: number, widthFt?: number, heightFt?: number, pages?: number): Record<string, string> {
+export function buildSpecSummary(
+  specs: SpecSelection,
+  qty: number,
+  widthFt?: number,
+  heightFt?: number,
+  pages?: number,
+  addons?: AddonSelection[]
+): Record<string, string> {
   const summary: Record<string, string> = { Quantity: String(qty) }
-  if (widthFt && heightFt) {
-    summary['Dimensions'] = `${widthFt}ft × ${heightFt}ft`
-  }
-  if (pages) {
-    summary['Pages'] = String(pages)
-  }
+  if (widthFt && heightFt) summary['Dimensions'] = `${widthFt}ft × ${heightFt}ft`
+  if (pages) summary['Pages'] = String(pages)
   for (const [group, option] of Object.entries(specs)) {
     const label = group.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
     summary[label] = option.option_label
+  }
+  for (const a of addons || []) {
+    if (a.qty > 0) {
+      const label = a.option.spec_group.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+      summary[label] = `${a.option.option_label} ×${a.qty}`
+    }
   }
   return summary
 }

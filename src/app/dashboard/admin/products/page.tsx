@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Plus, Pencil, Trash2, X, Upload } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { getCategories, CategoryRow } from '@/lib/categories'
 
 interface ProductForm {
   name: string
@@ -53,12 +54,12 @@ interface Product {
   created_at: string
 }
 
-const CATEGORIES = [
-  'Banners & Large Format', 'Business Cards', 'Papers & Stationery',
-  'Stickers & Labels', 'Branded Souvenirs', 'Signage & Installation',
-  'Book Publishing', 'Magazines & Journals', 'Campaign Materials', 'Graphic Design',
-  'Shirts & Uniforms', 'Frames & Canvas', 'Gift Items',
-  'Vehicle Branding', 'Event Materials',
+// Fallback categories — replaced by dynamic fetch from `categories` table on mount
+const FALLBACK_CATEGORIES = [
+  'Banners & Large Format', 'Business Cards', 'Flyers & Leaflets', 'Papers & Stationery',
+  'Stickers & Labels', 'Branded Apparel', 'Branded Souvenirs', 'Shirts & Uniforms',
+  'Signage & Installation', 'Book Publishing', 'Magazines & Journals', 'Campaign Materials',
+  'Graphic Design', 'Frames & Canvas', 'Gift Items', 'Vehicle Branding', 'Event Materials',
 ]
 
 const COLLECTIONS = [
@@ -129,6 +130,7 @@ export default function AdminProductsPage() {
   const [form, setForm] = useState<ProductForm>(emptyForm)
   const [search, setSearch] = useState('')
   const [selectedCat, setSelectedCat] = useState('All')
+  const [categories, setCategories] = useState<string[]>(FALLBACK_CATEGORIES)
 
   useEffect(() => {
     const check = async () => {
@@ -140,6 +142,10 @@ export default function AdminProductsPage() {
       fetchProducts()
     }
     check()
+    // Dynamic categories — shared with Spec Options admin
+    getCategories().then(cats => {
+      if (cats?.length) setCategories(cats.map(c => c.label))
+    })
   }, [])
 
   const fetchProducts = async () => {
@@ -261,7 +267,7 @@ export default function AdminProductsPage() {
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search products..." className="form-input" style={{ maxWidth: 280 }} />
         <select value={selectedCat} onChange={e => setSelectedCat(e.target.value)} className="form-input" style={{ maxWidth: 220, cursor: 'pointer' }}>
           <option value="All">All Categories</option>
-          {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+          {categories.map(c => <option key={c}>{c}</option>)}
         </select>
       </div>
 
@@ -277,7 +283,7 @@ export default function AdminProductsPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }} className="products-grid">
           {filtered.map(product => (
             <div key={product.id} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, overflow: 'hidden' }}>
-              <div style={{ height: 150, background: 'var(--bg-secondary)', position: 'relative' as const, overflow: 'hidden' }}>
+              <div style={{ aspectRatio: '1 / 1', width: '100%', background: 'var(--bg-secondary)', position: 'relative' as const, overflow: 'hidden' }}>
                 {(product.images?.[0] || product.image_url)
                   ? <img src={product.images?.[0] || product.image_url} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 }}>🖼️</div>}
@@ -338,7 +344,7 @@ export default function AdminProductsPage() {
                       <label style={labelStyle}>Category *</label>
                       <select value={form.category} onChange={e => setF('category', e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
                         <option value="">Select category</option>
-                        {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                        {categories.map(c => <option key={c}>{c}</option>)}
                       </select>
                     </div>
                     <div>

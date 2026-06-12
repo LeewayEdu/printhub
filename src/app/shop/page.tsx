@@ -278,10 +278,10 @@ function ShopContent() {
         </div>
 
         {loading ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }} className="pg">
-            {[...Array(6)].map((_, i) => (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }} className="pg">
+            {[...Array(8)].map((_, i) => (
               <div key={i} style={{ background: 'var(--bg-card)', borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border-color)' }}>
-                <div className="skeleton" style={{ height: 160 }} />
+                <div className="skeleton" style={{ aspectRatio: '1 / 1' }} />
                 <div style={{ padding: 14 }}><div className="skeleton" style={{ height: 12, borderRadius: 4, marginBottom: 8 }} /></div>
               </div>
             ))}
@@ -296,7 +296,7 @@ function ShopContent() {
             </button>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }} className="pg">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }} className="pg">
             {filtered.map(p => (
               <SharedProductCard
                 key={p.id}
@@ -341,7 +341,7 @@ function ShopContent() {
 
                   {/* Left: images */}
                   <div>
-                    <div style={{ borderRadius: 12, overflow: 'hidden', background: 'var(--bg-secondary)', height: 200, position: 'relative' as const }}>
+                    <div style={{ borderRadius: 12, overflow: 'hidden', background: 'var(--bg-secondary)', aspectRatio: '1 / 1', width: '100%', position: 'relative' as const }}>
                       {imgs[imgIdx]
                         ? <img src={imgs[imgIdx]} alt={selected.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 56 }}>🖨️</div>}
@@ -433,8 +433,8 @@ function ShopContent() {
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <button onClick={() => { if (qty - inc >= moq) setQty(qty - inc) }}
-                            style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', cursor: qty <= moq ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: qty <= moq ? 0.4 : 1 }}>
-                            <Minus size={13} color="var(--text-primary)" />
+                            style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid #e8e8e5', background: '#f7f7f5', cursor: qty <= moq ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: qty <= moq ? 0.4 : 1 }}>
+                            <Minus size={13} color="#1A1A1A" />
                           </button>
                           <input
                             type="number"
@@ -449,8 +449,8 @@ function ShopContent() {
                            style={{ width: 70, textAlign: 'center' as const, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 16, border: '1px solid #e8e8e5', borderRadius: 8, padding: '6px', background: '#f7f7f5', color: '#1A1A1A', outline: 'none' }}
                           />
                           <button onClick={() => { if (!selected.max_qty || qty + inc <= selected.max_qty) setQty(qty + inc) }}
-                            style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Plus size={13} color="var(--text-primary)" />
+                            style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid #e8e8e5', background: '#f7f7f5', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Plus size={13} color="#1A1A1A" />
                           </button>
                           <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>pcs</span>
                         </div>
@@ -573,7 +573,7 @@ function ShopContent() {
           .shop-layout { grid-template-columns: 1fr !important; }
           .shop-layout > div:first-child { display: none !important; }
           .shop-layout > div:last-child { width: 100% !important; padding: 16px !important; box-sizing: border-box !important; }
-          .pg { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+          .pg { grid-template-columns: repeat(3, 1fr) !important; gap: 10px !important; }
           .mg { grid-template-columns: 1fr !important; }
         }
         @media (max-width: 600px) {
@@ -581,15 +581,14 @@ function ShopContent() {
           .shop-search-row > * { width: 100% !important; max-width: 100% !important; }
         }
         @media (max-width: 480px) {
-          .pg { gap: 8px !important; }
-          .card-img { height: 130px !important; }
+          .pg { gap: 8px !important; grid-template-columns: repeat(2, 1fr) !important; }
           .card-info { padding: 8px !important; }
           .card-name { font-size: 11px !important; -webkit-line-clamp: 2 !important; }
           .card-category { font-size: 9px !important; }
           .shop-layout > div:last-child { padding: 10px !important; }
         }
-        @media (max-width: 360px) {
-          .pg { grid-template-columns: 1fr !important; }
+        @media (max-width: 600px) {
+          .pg { grid-template-columns: repeat(2, 1fr) !important; }
         }
         .no-spinners::-webkit-outer-spin-button,
         .no-spinners::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
