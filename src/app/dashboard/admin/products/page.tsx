@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { Plus, Pencil, Trash2, X, Upload } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, Upload, LayoutGrid, List, Star } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { getCategories, CategoryRow } from '@/lib/categories'
 
@@ -120,6 +120,9 @@ const inputStyle = {
   boxSizing: 'border-box' as const,
 }
 
+type ViewMode = 'grid' | 'list'
+const VIEW_MODE_KEY = 'printhub_admin_products_view'
+
 export default function AdminProductsPage() {
   const router = useRouter()
   const [isAdmin, setIsAdmin] = useState(false)
@@ -131,6 +134,7 @@ export default function AdminProductsPage() {
   const [search, setSearch] = useState('')
   const [selectedCat, setSelectedCat] = useState('All')
   const [categories, setCategories] = useState<string[]>(FALLBACK_CATEGORIES)
+  const [viewMode, setViewMode] = useState<ViewMode>('grid')
 
   useEffect(() => {
     const check = async () => {
@@ -146,7 +150,15 @@ export default function AdminProductsPage() {
     getCategories().then(cats => {
       if (cats?.length) setCategories(cats.map(c => c.label))
     })
+    // Restore preferred view mode
+    const saved = typeof window !== 'undefined' ? window.localStorage.getItem(VIEW_MODE_KEY) : null
+    if (saved === 'grid' || saved === 'list') setViewMode(saved)
   }, [])
+
+  const changeViewMode = (mode: ViewMode) => {
+    setViewMode(mode)
+    if (typeof window !== 'undefined') window.localStorage.setItem(VIEW_MODE_KEY, mode)
+  }
 
   const fetchProducts = async () => {
     setIsLoading(true)
@@ -249,6 +261,11 @@ export default function AdminProductsPage() {
     return ms && mc
   })
 
+  const priceLabel = (product: Product) =>
+    product.pricing_model === 'area'
+      ? `₦${Number(product.area_rate).toLocaleString()}/${product.area_unit}`
+      : `₦${Number(product.display_price || product.price).toLocaleString()}`
+
   if (!isAdmin) return null
 
   return (
@@ -263,12 +280,39 @@ export default function AdminProductsPage() {
         </button>
       </div>
 
-      <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap' as const }}>
+      <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap' as const, alignItems: 'center' }}>
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search products..." className="form-input" style={{ maxWidth: 280 }} />
         <select value={selectedCat} onChange={e => setSelectedCat(e.target.value)} className="form-input" style={{ maxWidth: 220, cursor: 'pointer' }}>
           <option value="All">All Categories</option>
           {categories.map(c => <option key={c}>{c}</option>)}
         </select>
+
+        {/* View mode toggle */}
+        <div style={{ display: 'flex', marginLeft: 'auto', border: '1px solid var(--border-color)', borderRadius: 9, overflow: 'hidden' }}>
+          <button
+            onClick={() => changeViewMode('grid')}
+            title="Grid view"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6, padding: '9px 14px', border: 'none', cursor: 'pointer',
+              background: viewMode === 'grid' ? 'var(--red)' : 'var(--bg-card)',
+              color: viewMode === 'grid' ? '#fff' : 'var(--text-secondary)',
+              fontFamily: 'Montserrat', fontWeight: 600, fontSize: 12,
+            }}>
+            <LayoutGrid size={14} /> Grid
+          </button>
+          <button
+            onClick={() => changeViewMode('list')}
+            title="List view"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6, padding: '9px 14px', border: 'none', cursor: 'pointer',
+              background: viewMode === 'list' ? 'var(--red)' : 'var(--bg-card)',
+              color: viewMode === 'list' ? '#fff' : 'var(--text-secondary)',
+              fontFamily: 'Montserrat', fontWeight: 600, fontSize: 12,
+              borderLeft: '1px solid var(--border-color)',
+            }}>
+            <List size={14} /> List
+          </button>
+        </div>
       </div>
 
       {isLoading && !showModal ? (
@@ -279,7 +323,7 @@ export default function AdminProductsPage() {
           <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 18, marginBottom: 8, color: 'var(--text-primary)' }}>No products yet</div>
           <button onClick={openAdd} style={{ background: 'var(--red)', color: 'white', border: 'none', borderRadius: 9, padding: '10px 24px', fontFamily: 'Montserrat', fontWeight: 700, cursor: 'pointer' }}>Add Product</button>
         </div>
-      ) : (
+      ) : viewMode === 'grid' ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }} className="products-grid">
           {filtered.map(product => (
             <div key={product.id} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, overflow: 'hidden' }}>
@@ -306,6 +350,59 @@ export default function AdminProductsPage() {
               </div>
             </div>
           ))}
+        </div>
+      ) : (
+        /* LIST VIEW */
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, overflow: 'hidden' }}>
+          <div style={{ overflowX: 'auto' as const }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' as const, fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: 'var(--bg-secondary)' }}>
+                  {['', 'Name', 'Category', 'Price', 'MOQ', 'Badge', 'Featured', 'Status', ''].map(h => (
+                    <th key={h} style={{ padding: '10px 14px', textAlign: 'left' as const, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', whiteSpace: 'nowrap' as const, borderBottom: '1px solid var(--border-color)' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(product => (
+                  <tr key={product.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                    <td style={{ padding: '10px 14px', width: 48 }}>
+                      <div style={{ width: 40, height: 40, borderRadius: 8, overflow: 'hidden', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        {(product.images?.[0] || product.image_url)
+                          ? <img src={product.images?.[0] || product.image_url} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          : <span style={{ fontSize: 16 }}>🖼️</span>}
+                      </div>
+                    </td>
+                    <td style={{ padding: '10px 14px', fontFamily: 'Montserrat', fontWeight: 600, color: 'var(--text-primary)', maxWidth: 320 }}>{product.name}</td>
+                    <td style={{ padding: '10px 14px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' as const }}>{product.category}</td>
+                    <td style={{ padding: '10px 14px', fontFamily: 'Montserrat', fontWeight: 700, color: 'var(--red)', whiteSpace: 'nowrap' as const }}>{priceLabel(product)}</td>
+                    <td style={{ padding: '10px 14px', color: 'var(--text-secondary)' }}>{product.moq || '—'}</td>
+                    <td style={{ padding: '10px 14px', color: 'var(--text-secondary)' }}>{product.badge || '—'}</td>
+                    <td style={{ padding: '10px 14px' }}>
+                      {product.featured ? <Star size={14} color="var(--red)" fill="var(--red)" /> : ''}
+                    </td>
+                    <td style={{ padding: '10px 14px' }}>
+                      <span style={{
+                        padding: '2px 8px', borderRadius: 20, fontWeight: 700, fontSize: 11,
+                        background: product.is_active ? '#d1fae5' : '#fee2e2',
+                        color: product.is_active ? '#059669' : '#dc2626',
+                      }}>{product.is_active ? 'Active' : 'Inactive'}</span>
+                    </td>
+                    <td style={{ padding: '10px 14px' }}>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button onClick={() => openEdit(product)} title="Edit" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '7px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 7, cursor: 'pointer', color: 'var(--text-primary)' }}>
+                          <Pencil size={13} />
+                        </button>
+                        <button onClick={() => handleDelete(product.id)} title="Delete" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '7px', background: 'var(--red-pale)', border: '1px solid var(--red-light)', borderRadius: 7, cursor: 'pointer', color: 'var(--red)' }}>
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
