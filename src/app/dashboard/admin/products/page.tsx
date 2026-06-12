@@ -160,6 +160,7 @@ export default function AdminProductsPage() {
   const [search, setSearch] = useState('')
   const [selectedCat, setSelectedCat] = useState('All')
   const [categories, setCategories] = useState<string[]>(FALLBACK_CATEGORIES)
+  const [categorySlugMap, setCategorySlugMap] = useState<Record<string, string>>({})
   const [marketingCats, setMarketingCats] = useState<{ id: string; label: string; icon: string }[]>([])
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const [sortKey, setSortKey] = useState<SortKey>('custom')
@@ -179,9 +180,15 @@ export default function AdminProductsPage() {
       fetchProducts()
     }
     check()
-    // Dynamic categories — shared with Spec Options admin
+    // Dynamic categories — shared with Spec Options admin (these are the
+    // PRICING categories: drive product_type/spec_options/calculator)
     getCategories().then(cats => {
-      if (cats?.length) setCategories(cats.map(c => c.label))
+      if (cats?.length) {
+        setCategories(cats.map(c => c.label))
+        const map: Record<string, string> = {}
+        cats.forEach((c: any) => { if (c.slug) map[c.label] = c.slug })
+        setCategorySlugMap(map)
+      }
     })
     // Marketing categories — for product tagging
     supabase.from('marketing_categories').select('id, label, icon').eq('is_active', true).order('sort_order')
@@ -258,6 +265,7 @@ export default function AdminProductsPage() {
       name: form.name,
       description: form.description,
       category: form.category,
+      product_type: categorySlugMap[form.category] || form.category,
       display_price: Number(form.display_price) || 0,
       price: Number(form.display_price) || 0, // keep price in sync for backwards compat
       is_fixed_price: form.is_fixed_price,
@@ -733,11 +741,14 @@ export default function AdminProductsPage() {
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                     <div>
-                      <label style={labelStyle}>Category *</label>
+                      <label style={labelStyle}>Pricing Category *</label>
                       <select value={form.category} onChange={e => setF('category', e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
-                        <option value="">Select category</option>
+                        <option value="">Select pricing category</option>
                         {categories.map(c => <option key={c}>{c}</option>)}
                       </select>
+                      <div style={{ fontSize: 10, color: '#888', marginTop: 4 }}>
+                        Determines which spec options & pricing rules apply in the calculator. Not shown to customers.
+                      </div>
                     </div>
                     <div>
                       <label style={labelStyle}>Badge</label>
@@ -854,7 +865,7 @@ export default function AdminProductsPage() {
                     <div style={{ padding: '12px 16px', background: '#eff6ff', borderRadius: 10, border: '1px solid #bfdbfe' }}>
                       <div style={{ fontSize: 12, fontWeight: 600, color: '#1d4ed8', marginBottom: 4 }}>💡 Live Calculator Active</div>
                       <div style={{ fontSize: 11, color: '#3730a3' }}>
-                        Spec options for <strong>{form.category}</strong> are managed in{' '}
+                        Spec options for pricing category <strong>{form.category}</strong> are managed in{' '}
                         <a href="/dashboard/admin/spec-options" target="_blank" style={{ color: '#1d4ed8', textDecoration: 'underline' }}>
                           Admin → Spec Options
                         </a>. Add new paper types, laminations, materials and pricing there.
