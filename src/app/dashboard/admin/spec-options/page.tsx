@@ -22,7 +22,8 @@ const MODIFIER_TYPES = [
 ]
 
 const PRICE_MODELS = [
-  { value: 'area',      label: 'Area-based (₦/sqft × width × height)' },
+  { value: 'area',      label: 'Area-based — ₦/sqft × width × height (banners, signage)' },
+  { value: 'area_sqin', label: 'Area-based — ₦/sqin × width × height (labels, small stickers)' },
   { value: 'per_100',   label: 'Per 100 units (cards, flyers)' },
   { value: 'per_piece', label: 'Per piece (apparel, souvenirs)' },
   { value: 'per_page',  label: 'Per page (books, magazines)' },
