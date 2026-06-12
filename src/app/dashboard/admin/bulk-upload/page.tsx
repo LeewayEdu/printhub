@@ -13,6 +13,7 @@ interface ParsedRow {
   data: Record<string, any>
   errors: string[]
   warnings: string[]
+  action: 'new' | 'update'
 }
 
 // ── Constants ──────────────────────────────────────────────────
@@ -27,7 +28,7 @@ const VALID_CATEGORIES = [
 const REQUIRED_COLS = ['name', 'category', 'pricing_model', 'price']
 
 // ── Row parser ─────────────────────────────────────────────────
-function parseRow(raw: Record<string, any>, rowNum: number): ParsedRow {
+function parseRow(raw: Record<string, any>, rowNum: number): Omit<ParsedRow, 'action'> {
   const errors: string[] = []
   const warnings: string[] = []
 
@@ -61,6 +62,16 @@ function parseRow(raw: Record<string, any>, rowNum: number): ParsedRow {
     }
   }
 
+  // Images — only build if image_urls was actually provided.
+  // If left blank (common for bulk re-exports), we leave these keys
+  // OUT of the payload entirely so an update doesn't wipe existing images.
+  const hasImageUrls = r.image_urls && r.image_urls.toString().trim() !== ''
+  let imagePayload: { images?: string[]; image_url?: string | null } = {}
+  if (hasImageUrls) {
+    const imgs = r.image_urls.toString().split(',').map((u: string) => u.trim()).filter(Boolean)
+    imagePayload = { images: imgs, image_url: imgs[0] || null }
+  }
+
   // Build the clean payload
   const data: Record<string, any> = {
     name: r.name?.toString().trim() || '',
@@ -81,14 +92,9 @@ function parseRow(raw: Record<string, any>, rowNum: number): ParsedRow {
     collection: r.collection?.toString().trim() || null,
     discount_type: r.discount_type?.toString().trim() || null,
     discount_value: r.discount_value ? Number(r.discount_value) : null,
-    images: r.image_urls
-      ? r.image_urls.toString().split(',').map((u: string) => u.trim()).filter(Boolean)
-      : [],
-    image_url: r.image_urls
-      ? r.image_urls.toString().split(',')[0]?.trim() || null
-      : null,
     is_active: r.is_active?.toString().toUpperCase() !== 'FALSE',
     spec_groups: [],
+    ...imagePayload, // only present if image_urls was filled in
   }
 
   return { rowNum, data, errors, warnings }
@@ -101,8 +107,9 @@ export default function BulkUploadPage() {
   const [parsed, setParsed] = useState<ParsedRow[]>([])
   const [fileName, setFileName] = useState('')
   const [importing, setImporting] = useState(false)
-  const [imported, setImported] = useState<{ success: number; failed: number } | null>(null)
+  const [imported, setImported] = useState<{ success: number; updated: number; failed: number } | null>(null)
   const [expandedRow, setExpandedRow] = useState<number | null>(null)
+  const [existingNames, setExistingNames] = useState<Map<string, string>>(new Map())
 
   useEffect(() => {
     const check = async () => {
@@ -114,6 +121,25 @@ export default function BulkUploadPage() {
     check()
   }, [])
 
+  // Fetch existing product names → id map, used for duplicate detection by name
+  const loadExistingNames = async (): Promise<Map<string, string>> => {
+    const map = new Map<string, string>()
+    let from = 0
+    const pageSize = 1000
+    while (true) {
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, name')
+        .range(from, from + pageSize - 1)
+      if (error || !data) break
+      data.forEach(p => map.set(p.name.trim().toLowerCase(), p.id))
+      if (data.length < pageSize) break
+      from += pageSize
+    }
+    setExistingNames(map)
+    return map
+  }
+
   const handleFile = (file: File) => {
     if (!file) return
     setFileName(file.name)
@@ -121,7 +147,7 @@ export default function BulkUploadPage() {
     setImported(null)
 
     const reader = new FileReader()
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const data = new Uint8Array(e.target?.result as ArrayBuffer)
         const wb = XLSX.read(data, { type: 'array' })
@@ -144,9 +170,20 @@ export default function BulkUploadPage() {
           return
         }
 
-        const result = dataRows.map((row, i) => parseRow(row, i + 1))
+        // Load existing product names so we can flag new vs update
+        const nameMap = await loadExistingNames()
+
+        const result: ParsedRow[] = dataRows.map((row, i) => {
+          const parsedRow = parseRow(row, i + 1)
+          const key = parsedRow.data.name.trim().toLowerCase()
+          const action: 'new' | 'update' = nameMap.has(key) ? 'update' : 'new'
+          return { ...parsedRow, action }
+        })
+
         setParsed(result)
-        toast.success(`Parsed ${result.length} rows — review before importing`)
+        const newCount = result.filter(r => r.action === 'new').length
+        const updateCount = result.filter(r => r.action === 'update').length
+        toast.success(`Parsed ${result.length} rows — ${newCount} new, ${updateCount} match existing products`)
       } catch (err: any) {
         toast.error('Failed to read file: ' + err.message)
       }
@@ -157,33 +194,64 @@ export default function BulkUploadPage() {
   const handleImport = async () => {
     const valid = parsed.filter(r => r.errors.length === 0)
     if (valid.length === 0) { toast.error('No valid rows to import'); return }
-    if (!confirm(`Import ${valid.length} valid products? Rows with errors will be skipped.`)) return
+
+    const newCount = valid.filter(r => r.action === 'new').length
+    const updateCount = valid.filter(r => r.action === 'update').length
+    if (!confirm(`Import ${valid.length} products — ${newCount} new, ${updateCount} updates to existing products (matched by name)? Rows with errors will be skipped.`)) return
 
     setImporting(true)
     let success = 0
+    let updated = 0
     let failed = 0
 
     for (const row of valid) {
       try {
-        const { data: product, error } = await supabase.from('products').insert(row.data).select().single()
-        if (error) { failed++; continue }
+        const key = row.data.name.trim().toLowerCase()
+        const existingId = existingNames.get(key)
+        let product: any = null
+
+        if (existingId) {
+          const { data, error } = await supabase
+            .from('products')
+            .update(row.data)
+            .eq('id', existingId)
+            .select()
+            .single()
+          if (error) { failed++; continue }
+          product = data
+          updated++
+        } else {
+          const { data, error } = await supabase
+            .from('products')
+            .insert(row.data)
+            .select()
+            .single()
+          if (error) { failed++; continue }
+          product = data
+          success++
+          // Track newly-inserted product so subsequent duplicate rows in the
+          // same file (same name) are treated as updates, not double-inserts.
+          existingNames.set(key, product.id)
+        }
+
         // Handle collection linking
         if (row.data.collection && product) {
           const { data: col } = await supabase.from('collections').select('id').eq('slug', row.data.collection).single()
           if (col) await supabase.from('collection_products').upsert({ collection_id: col.id, product_id: product.id, sort_order: 0 })
         }
-        success++
       } catch { failed++ }
     }
 
     setImporting(false)
-    setImported({ success, failed })
-    toast.success(`Import complete: ${success} products added${failed > 0 ? `, ${failed} failed` : ''}`)
+    setImported({ success, updated, failed })
+    toast.success(`Import complete: ${success} added, ${updated} updated${failed > 0 ? `, ${failed} failed` : ''}`)
   }
 
   const validCount = parsed.filter(r => r.errors.length === 0).length
   const errorCount = parsed.filter(r => r.errors.length > 0).length
   const warnCount = parsed.filter(r => r.errors.length === 0 && r.warnings.length > 0).length
+  const newCount = parsed.filter(r => r.errors.length === 0 && r.action === 'new').length
+  const updateCount = parsed.filter(r => r.errors.length === 0 && r.action === 'update').length
 
   return (
     <div style={{ maxWidth: 1100 }}>
@@ -192,7 +260,8 @@ export default function BulkUploadPage() {
         <div>
           <h1 style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 22, marginBottom: 4, color: 'var(--text-primary)' }}>Bulk Product Upload</h1>
           <p style={{ fontSize: 14, color: 'var(--text-secondary)', maxWidth: 560 }}>
-            Upload multiple products at once using the Excel template. Download the template, fill it in, then upload here to preview and import.
+            Upload multiple products at once using the Excel template. Products are matched by <b>name</b> —
+            existing products will be updated, new names will be added.
           </p>
         </div>
         <a href="/printhub-product-template.xlsx" download
@@ -229,6 +298,12 @@ export default function BulkUploadPage() {
             <CheckCircle size={16} color="#059669" />
             <span style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13, color: '#065f46' }}>{validCount} ready to import</span>
           </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#ede9fe', border: '1px solid #c4b5fd', borderRadius: 9, padding: '10px 16px' }}>
+            <span style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13, color: '#6d28d9' }}>{newCount} new</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#dbeafe', border: '1px solid #93c5fd', borderRadius: 9, padding: '10px 16px' }}>
+            <span style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13, color: '#1d4ed8' }}>{updateCount} will update existing</span>
+          </div>
           {errorCount > 0 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fee2e2', border: '1px solid #f87171', borderRadius: 9, padding: '10px 16px' }}>
               <XCircle size={16} color="#dc2626" />
@@ -255,7 +330,8 @@ export default function BulkUploadPage() {
             ✅ Import complete!
           </div>
           <div style={{ fontSize: 14, color: '#065f46' }}>
-            {imported.success} products added successfully{imported.failed > 0 ? ` · ${imported.failed} failed` : ''}.
+            {imported.success} new product{imported.success === 1 ? '' : 's'} added · {imported.updated} existing product{imported.updated === 1 ? '' : 's'} updated
+            {imported.failed > 0 ? ` · ${imported.failed} failed` : ''}.
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
             <button onClick={() => router.push('/dashboard/admin/products')}
@@ -280,7 +356,7 @@ export default function BulkUploadPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse' as const, fontSize: 12 }}>
               <thead>
                 <tr style={{ background: 'var(--bg-secondary)' }}>
-                  {['#', 'Status', 'Name', 'Category', 'Model', 'Price', 'MOQ', 'Badge', 'Featured', 'Issues'].map(h => (
+                  {['#', 'Status', 'New/Update', 'Name', 'Category', 'Model', 'Price', 'MOQ', 'Badge', 'Featured', 'Issues'].map(h => (
                     <th key={h} style={{ padding: '10px 12px', textAlign: 'left' as const, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', whiteSpace: 'nowrap' as const, borderBottom: '1px solid var(--border-color)' }}>{h}</th>
                   ))}
                 </tr>
@@ -303,6 +379,11 @@ export default function BulkUploadPage() {
                               ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#fef9c3', color: '#d97706', padding: '2px 8px', borderRadius: 20, fontWeight: 700, fontSize: 11 }}><AlertCircle size={11} /> Warning</span>
                               : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#d1fae5', color: '#059669', padding: '2px 8px', borderRadius: 20, fontWeight: 700, fontSize: 11 }}><CheckCircle size={11} /> OK</span>
                           }
+                        </td>
+                        <td style={{ padding: '10px 12px' }}>
+                          {row.action === 'update'
+                            ? <span style={{ background: '#dbeafe', color: '#1d4ed8', padding: '2px 8px', borderRadius: 20, fontWeight: 700, fontSize: 11 }}>Update</span>
+                            : <span style={{ background: '#ede9fe', color: '#7c3aed', padding: '2px 8px', borderRadius: 20, fontWeight: 700, fontSize: 11 }}>New</span>}
                         </td>
                         <td style={{ padding: '10px 12px', fontWeight: 600, color: 'var(--text-primary)', maxWidth: 200 }}>{row.data.name || <span style={{ color: '#dc2626' }}>MISSING</span>}</td>
                         <td style={{ padding: '10px 12px', color: 'var(--text-secondary)' }}>{row.data.category || '—'}</td>
@@ -331,7 +412,7 @@ export default function BulkUploadPage() {
                       </tr>
                       {isExpanded && (row.errors.length + row.warnings.length > 0) && (
                         <tr key={`${row.rowNum}-expanded`} style={{ background: hasError ? '#fff5f5' : '#fffbeb' }}>
-                          <td colSpan={10} style={{ padding: '8px 12px 12px 44px' }}>
+                          <td colSpan={11} style={{ padding: '8px 12px 12px 44px' }}>
                             {row.errors.map((e, i) => (
                               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#dc2626', marginBottom: 4 }}>
                                 <XCircle size={12} /> {e}
@@ -360,7 +441,7 @@ export default function BulkUploadPage() {
           {[
             { icon: '📥', title: 'Download Template', desc: 'Get the Excel template above. It includes dropdown validation, example rows, and an instructions sheet.' },
             { icon: '✏️', title: 'Fill in Your Products', desc: 'Add one product per row from row 10 onwards. Required fields are marked with ★. Examples are in rows 5–8.' },
-            { icon: '🚀', title: 'Upload & Import', desc: 'Upload the filled file here. Preview all rows, check for errors, then click Import to save to the database.' },
+            { icon: '🚀', title: 'Upload & Import', desc: 'Upload the filled file here. Products are matched by name — existing products are updated, new names are added. Preview all rows, check for errors, then click Import.' },
           ].map((step, i) => (
             <div key={i} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 12, padding: 24 }}>
               <div style={{ fontSize: 28, marginBottom: 12 }}>{step.icon}</div>
