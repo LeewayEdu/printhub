@@ -155,8 +155,7 @@ export default function BulkUploadPage() {
         // Use the "Products" sheet if it exists, else first sheet
         const sheetName = wb.SheetNames.includes('Products') ? 'Products' : wb.SheetNames[0]
         const ws = wb.Sheets[sheetName]
-        const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(ws, { defval: '' })
-
+const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(ws, { defval: '', range: 2 })
         // Skip rows that are part of the template header (rows 1-8 of template = first 3 rows of JSON output)
         // Detect by checking if "name" or "name ★" column is missing or is a header/example
         const headerKeywords = ['product name', 'notes', 'example', '←', 'ℹ️', '★ = required']
