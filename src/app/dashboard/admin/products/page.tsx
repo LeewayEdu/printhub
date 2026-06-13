@@ -450,11 +450,8 @@ export default function AdminProductsPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap' as const, gap: 12 }}>
-        <div>
-          <h1 style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 22, marginBottom: 4, color: 'var(--text-primary)' }}>Products</h1>
-          <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{products.length} products in store</p>
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 24, flexWrap: 'wrap' as const, gap: 12 }}>
+        <div style={{ marginRight: 'auto', fontSize: 14, color: 'var(--text-secondary)' }}>{products.length} products in store</div>
         <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={exportCsv} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
             <Download size={16} /> Export CSV
