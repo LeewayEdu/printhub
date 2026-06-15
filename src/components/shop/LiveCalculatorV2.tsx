@@ -17,11 +17,12 @@ interface LiveCalculatorV2Props {
   applyPreset?: { specs?: Record<string, string>; addons?: string[] } | null
   onPriceUpdate: (total: number, specs: Record<string, string>, summaryText: string) => void
   onSpecsUpdate?: (specs: SpecSelection) => void
+  onDimensionChange?: (axis: 'width' | 'height', value: number) => void
 }
 
 export default function LiveCalculatorV2({
   category, productName, qty, widthFt = 1, heightFt = 1, isAreaBased = false,
-  applyPreset, onPriceUpdate, onSpecsUpdate
+  applyPreset, onPriceUpdate, onSpecsUpdate, onDimensionChange
 }: LiveCalculatorV2Props) {
 
   const [groups, setGroups] = useState<Record<string, SpecOption[]>>({})
@@ -37,6 +38,7 @@ export default function LiveCalculatorV2({
   const [discountPct, setDiscountPct] = useState(0)
 
   const isBookCategory = priceModel === 'per_page'
+  const isAreaCategory = priceModel === 'area' || priceModel === 'area_sqin'
   const hasSpecs = Object.keys(groups).length > 0 || addonOptions.length > 0
 
   // Load spec groups, add-ons, tiers, price model
@@ -119,15 +121,15 @@ export default function LiveCalculatorV2({
 
     const specSummary = buildSpecSummary(
       selection, qty,
-      isAreaBased ? widthFt : undefined,
-      isAreaBased ? heightFt : undefined,
+      isAreaCategory ? widthFt : undefined,
+      isAreaCategory ? heightFt : undefined,
       isBookCategory ? pages : undefined,
       addonSelections
     )
     onPriceUpdate(result.total, specSummary, result.summaryText)
     onSpecsUpdate?.(selection)
 
-  }, [selection, addonQtys, qty, widthFt, heightFt, pages, tiers, loading, priceModel])
+  }, [selection, addonQtys, qty, widthFt, heightFt, pages, tiers, loading, priceModel, isAreaCategory, isBookCategory])
 
   const selectOption = useCallback((group: string, option: SpecOption) => {
     setSelection(prev => ({ ...prev, [group]: option }))
@@ -190,6 +192,46 @@ export default function LiveCalculatorV2({
           </div>
         </div>
       ))}
+
+      {/* Width × Height for area-based products (large format, stickers) */}
+      {isAreaCategory && (
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 7 }}>
+            Dimensions {priceModel === 'area_sqin' ? '(inches)' : '(feet)'}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 3 }}>
+              <label style={{ fontSize: 10, color: '#888', fontWeight: 600 }}>WIDTH</label>
+              <input
+                type="number"
+                value={widthFt}
+                min={0.1}
+                step={0.5}
+                onChange={e => onDimensionChange?.('width', Number(e.target.value))}
+                style={{ width: 70, textAlign: 'center' as const, padding: '6px', border: '1px solid #e8e8e5', borderRadius: 8, fontSize: 14, fontFamily: 'Montserrat', fontWeight: 700, outline: 'none' }}
+              />
+            </div>
+            <div style={{ fontSize: 18, color: '#888', marginTop: 18 }}>×</div>
+            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 3 }}>
+              <label style={{ fontSize: 10, color: '#888', fontWeight: 600 }}>HEIGHT</label>
+              <input
+                type="number"
+                value={heightFt}
+                min={0.1}
+                step={0.5}
+                onChange={e => onDimensionChange?.('height', Number(e.target.value))}
+                style={{ width: 70, textAlign: 'center' as const, padding: '6px', border: '1px solid #e8e8e5', borderRadius: 8, fontSize: 14, fontFamily: 'Montserrat', fontWeight: 700, outline: 'none' }}
+              />
+            </div>
+            <div style={{ fontSize: 12, color: '#888', marginTop: 18 }}>
+              {priceModel === 'area_sqin' ? 'in' : 'ft'}
+            </div>
+            <div style={{ marginTop: 18, fontSize: 12, color: 'var(--red)', fontWeight: 700, fontFamily: 'Montserrat' }}>
+              = {(widthFt * heightFt).toFixed(2)} {priceModel === 'area_sqin' ? 'sq.in' : 'sq.ft'}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Pages input for books/magazines */}
       {isBookCategory && (
@@ -259,7 +301,7 @@ export default function LiveCalculatorV2({
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
               <div style={{ fontSize: 11, color: '#888', fontFamily: 'Montserrat', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 2 }}>
-                {qty} {isAreaBased ? `(${widthFt}ft × ${heightFt}ft)` : 'pcs'} · VAT inclusive
+                {qty} {isAreaCategory ? `(${widthFt}${priceModel === 'area_sqin' ? 'in' : 'ft'} × ${heightFt}${priceModel === 'area_sqin' ? 'in' : 'ft'})` : 'pcs'} · VAT inclusive
               </div>
               {discountPct > 0 && tierLabel && (
                 <div style={{ fontSize: 11, color: '#10b981', fontWeight: 600, marginBottom: 2 }}>

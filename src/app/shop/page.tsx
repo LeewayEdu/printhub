@@ -58,11 +58,6 @@ function calculatePrice(p: Product, qty: number, specs: Record<string, SpecOptio
   return Math.round(base * mult)
 }
 
-function displayPrice(p: Product): string {
-  if (p.pricing_model === 'area') return `₦${Number(p.area_rate).toLocaleString()}/${p.area_unit}`
-  return `From ₦${Number(p.price).toLocaleString()}`
-}
-
 function getImages(p: Product): string[] {
   if (p.images?.length) return p.images
   if (p.image_url) return [p.image_url]
@@ -79,7 +74,6 @@ function ShopContent() {
   const [sort, setSort] = useState('default')
   const [selected, setSelected] = useState<Product | null>(null)
 
-
   // Product config state
   const [qty, setQty] = useState(1)
   const [specs, setSpecs] = useState<Record<string, SpecOption>>({})
@@ -93,41 +87,33 @@ function ShopContent() {
   const [designLink, setDesignLink] = useState('')
   const [designBrief, setDesignBrief] = useState<Record<string, string>>({})
   const [wishlistIds, setWishlistIds] = useState<string[]>([])
-  const [sidebarCategory, setSidebarCategory] = useState('All Products')
   const [catCounts, setCatCounts] = useState<Record<string, number>>({})
   const [heroBanners, setHeroBanners] = useState<any[]>([])
   const [heroIdx, setHeroIdx] = useState(0)
   const [calcPrice, setCalcPrice] = useState<number | null>(null)
   const [calcSpecs, setCalcSpecs] = useState<Record<string, string>>({})
   const [calcSummary, setCalcSummary] = useState<string>('')
-  // Quick Pick preset selection passed down to the Live Calculator
   const [appliedPreset, setAppliedPreset] = useState<{ specs?: Record<string, string>; addons?: string[] } | null>(null)
   const [activePresetLabel, setActivePresetLabel] = useState<string | null>(null)
 
-  // Marketing categories — customer-facing browsing/SEO tags (independent of pricing category)
+  // Marketing categories
   const [marketingCategories, setMarketingCategories] = useState<MarketingCategory[]>([])
-  const [productTags, setProductTags] = useState<Record<string, string[]>>({}) // product_id -> [marketing category labels]
+  const [productTags, setProductTags] = useState<Record<string, string[]>>({})
 
   useEffect(() => {
-    // Wishlist
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         supabase.from('wishlists').select('product_id').eq('user_id', session.user.id)
           .then(({ data }) => { if (data) setWishlistIds(data.map((w: any) => w.product_id)) })
       }
     })
-    // Order by admin-defined sort_order by default (nulls last so legacy rows still show)
     supabase.from('products').select('*').eq('is_active', true)
       .order('sort_order', { ascending: true, nullsFirst: false })
       .then(({ data }) => { if (data) setProducts(data as Product[]); setLoading(false) })
     supabase.from('hero_banners').select('*').eq('is_active', true).order('sort_order')
       .then(({ data }) => { if (data && data.length > 0) setHeroBanners(data) })
-
-    // Marketing categories — customer-facing tags for browsing/SEO
     supabase.from('marketing_categories').select('id, label, slug, icon').eq('is_active', true).order('sort_order')
       .then(({ data }) => { if (data) setMarketingCategories(data as MarketingCategory[]) })
-
-    // Product -> marketing category labels map (a product can have several)
     supabase.from('product_marketing_categories').select('product_id, marketing_categories(label)')
       .then(({ data }) => {
         if (!data) return
@@ -143,9 +129,9 @@ function ShopContent() {
   }, [])
 
   useEffect(() => {
-  if (heroBanners.length <= 1) return
-  const timer = setInterval(() => setHeroIdx(i => (i + 1) % heroBanners.length), 4000)
-  return () => clearInterval(timer)
+    if (heroBanners.length <= 1) return
+    const timer = setInterval(() => setHeroIdx(i => (i + 1) % heroBanners.length), 4000)
+    return () => clearInterval(timer)
   }, [heroBanners])
 
   const filtered = products
@@ -160,11 +146,9 @@ function ShopContent() {
       if (sort === 'price-desc') return (b.price || b.area_rate || 0) - (a.price || a.area_rate || 0)
       if (sort === 'name') return a.name.localeCompare(b.name)
       if (sort === 'newest') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      // 'default' — preserve the sort_order ordering from the initial fetch
       return 0
     })
 
-  // Counts per marketing category, for the sidebar
   useEffect(() => {
     if (marketingCategories.length === 0 || products.length === 0) return
     const counts: Record<string, number> = {}
@@ -195,31 +179,17 @@ function ShopContent() {
   }
 
   const choosePreset = (preset: ProductPreset) => {
-    // New object reference each click so the calculator's effect re-fires
-    // even if the same preset is clicked again.
     setAppliedPreset({ ...preset.selections })
     setActivePresetLabel(preset.label)
   }
 
   const addCart = () => {
-  if (!selected) return
-  if (!designType) {
-    toast.error('Please select a design option before adding to cart')
-    return
-  }
-  if (designType === 'upload' && !designFile) {
-    toast.error('Please upload your design file')
-    return
-  }
-  if (designType === 'link' && !designLink.trim()) {
-    toast.error('Please enter your design link')
-    return
-  }
-  if (designType === 'request' && !designBrief.businessName) {
-    toast.error('Please enter at least your business name for the design brief')
-    return
-  }
-  // ... rest of existing addCart code
+    if (!selected) return
+    if (!designType) { toast.error('Please select a design option before adding to cart'); return }
+    if (designType === 'upload' && !designFile) { toast.error('Please upload your design file'); return }
+    if (designType === 'link' && !designLink.trim()) { toast.error('Please enter your design link'); return }
+    if (designType === 'request' && !designBrief.businessName) { toast.error('Please enter at least your business name for the design brief'); return }
+
     const price = calculatePrice(selected, qty, specs, w, h)
     const sl: Record<string, string> = {}
     Object.entries(specs).forEach(([k, v]) => { sl[k] = v.label })
@@ -234,12 +204,9 @@ function ShopContent() {
     }
 
     const finalPrice = calcPrice || price
-    const finalSpecs = calcSpecs && Object.keys(calcSpecs).length > 0
-      ? { ...sl, ...calcSpecs }
-      : sl
+    const finalSpecs = calcSpecs && Object.keys(calcSpecs).length > 0 ? { ...sl, ...calcSpecs } : sl
     addToCart(selected.id, selected.name, finalPrice, displayQty, finalSpecs)
 
-    // Store design in cart item
     if (designType) {
       const state = useCartStore.getState()
       const latest = state.items[state.items.length - 1]
@@ -252,7 +219,6 @@ function ShopContent() {
         })
       }
     }
-
     setSelected(null)
   }
 
@@ -262,119 +228,115 @@ function ShopContent() {
       <main>
 
         {/* Hero */}
-<section style={{ position: 'relative', overflow: 'hidden', height: 320 }}>
-  {heroBanners.length > 0 ? (
-    <>
-      {heroBanners.map((banner, i) => (
-        <div key={banner.id} style={{ position: 'absolute' as const, inset: 0, transition: 'opacity 0.8s ease', opacity: i === heroIdx ? 1 : 0, zIndex: i === heroIdx ? 1 : 0 }}>
-          <img src={banner.image_url} alt={banner.title || 'Banner'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          <div style={{ position: 'absolute' as const, inset: 0, background: 'rgba(0,0,0,0.45)' }} />
-          {(banner.title || banner.subtitle) && (
-            <div style={{ position: 'absolute' as const, inset: 0, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', padding: '0 clamp(16px, 4vw, 40px)', textAlign: 'center' as const, zIndex: 2 }}>
-              {banner.title && <h1 style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 'clamp(28px, 4vw, 48px)', color: 'white', lineHeight: 1.1, marginBottom: 10 }}>{banner.title}</h1>}
-              {banner.subtitle && <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.8)', marginBottom: 20 }}>{banner.subtitle}</p>}
-              {banner.link_url && <a href={banner.link_url} style={{ display: 'inline-block', padding: '10px 24px', background: 'var(--red)', color: 'white', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>Shop Now</a>}
-            </div>
+        <section style={{ position: 'relative', overflow: 'hidden', height: 320 }}>
+          {heroBanners.length > 0 ? (
+            <>
+              {heroBanners.map((banner, i) => (
+                <div key={banner.id} style={{ position: 'absolute' as const, inset: 0, transition: 'opacity 0.8s ease', opacity: i === heroIdx ? 1 : 0, zIndex: i === heroIdx ? 1 : 0 }}>
+                  <img src={banner.image_url} alt={banner.title || 'Banner'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <div style={{ position: 'absolute' as const, inset: 0, background: 'rgba(0,0,0,0.45)' }} />
+                  {(banner.title || banner.subtitle) && (
+                    <div style={{ position: 'absolute' as const, inset: 0, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', padding: '0 clamp(16px, 4vw, 40px)', textAlign: 'center' as const, zIndex: 2 }}>
+                      {banner.title && <h1 style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 'clamp(28px, 4vw, 48px)', color: 'white', lineHeight: 1.1, marginBottom: 10 }}>{banner.title}</h1>}
+                      {banner.subtitle && <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.8)', marginBottom: 20 }}>{banner.subtitle}</p>}
+                      {banner.link_url && <a href={banner.link_url} style={{ display: 'inline-block', padding: '10px 24px', background: 'var(--red)', color: 'white', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>Shop Now</a>}
+                    </div>
+                  )}
+                </div>
+              ))}
+              {heroBanners.length > 1 && (
+                <div style={{ position: 'absolute' as const, bottom: 16, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6, zIndex: 10 }}>
+                  {heroBanners.map((_, i) => (
+                    <button key={i} onClick={() => setHeroIdx(i)}
+                      style={{ width: i === heroIdx ? 24 : 8, height: 8, borderRadius: 4, background: i === heroIdx ? 'white' : 'rgba(255,255,255,0.4)', border: 'none', cursor: 'pointer', transition: 'all 0.3s', padding: 0 }} />
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <div style={{ position: 'absolute' as const, inset: 0, background: 'var(--black)' }} />
+              <div style={{ position: 'absolute' as const, inset: 0, backgroundImage: 'radial-gradient(circle at 15% 50%, rgba(192,57,43,0.15) 0%, transparent 50%)' }} />
+              <div style={{ position: 'absolute' as const, inset: 0, backgroundImage: 'linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
+              <div style={{ position: 'absolute' as const, inset: 0, display: 'flex', flexDirection: 'column' as const, justifyContent: 'center', padding: '0 clamp(16px, 4vw, 40px)', zIndex: 2 }}>
+                <div style={{ maxWidth: 1100, margin: '0 auto', width: '100%' }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.4)', marginBottom: 12 }}>Our services</div>
+                  <h1 style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 'clamp(32px, 5vw, 52px)', color: 'white', lineHeight: 1.05, marginBottom: 12 }}>
+                    Everything you need,<br /><span style={{ color: 'var(--red)' }}>printed with precision.</span>
+                  </h1>
+                  <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.5)', maxWidth: 480, lineHeight: 1.75 }}>Browse our catalogue. Choose specs, see live pricing, add to cart.</p>
+                </div>
+              </div>
+            </>
           )}
-        </div>
-      ))}
-      {heroBanners.length > 1 && (
-        <div style={{ position: 'absolute' as const, bottom: 16, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6, zIndex: 10 }}>
-          {heroBanners.map((_, i) => (
-            <button key={i} onClick={() => setHeroIdx(i)}
-              style={{ width: i === heroIdx ? 24 : 8, height: 8, borderRadius: 4, background: i === heroIdx ? 'white' : 'rgba(255,255,255,0.4)', border: 'none', cursor: 'pointer', transition: 'all 0.3s', padding: 0 }} />
-          ))}
-        </div>
-      )}
-    </>
-  ) : (
-    <>
-      <div style={{ position: 'absolute' as const, inset: 0, background: 'var(--black)' }} />
-      <div style={{ position: 'absolute' as const, inset: 0, backgroundImage: 'radial-gradient(circle at 15% 50%, rgba(192,57,43,0.15) 0%, transparent 50%)' }} />
-      <div style={{ position: 'absolute' as const, inset: 0, backgroundImage: 'linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
-      <div style={{ position: 'absolute' as const, inset: 0, display: 'flex', flexDirection: 'column' as const, justifyContent: 'center', padding: '0 clamp(16px, 4vw, 40px)', zIndex: 2 }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto', width: '100%' }}>
-          <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.4)', marginBottom: 12 }}>Our services</div>
-          <h1 style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 'clamp(32px, 5vw, 52px)', color: 'white', lineHeight: 1.05, marginBottom: 12 }}>
-            Everything you need,<br /><span style={{ color: 'var(--red)' }}>printed with precision.</span>
-          </h1>
-          <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.5)', maxWidth: 480, lineHeight: 1.75 }}>Browse our catalogue. Choose specs, see live pricing, add to cart.</p>
-        </div>
-      </div>
-    </>
-  )}
-</section>
+        </section>
 
         {/* Shop body */}
-{/* Shop body */}
-<section style={{ background: 'var(--bg-secondary)', minHeight: '60vh' }}>
-  <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: 0 }} className="shop-layout">
+        <section style={{ background: 'var(--bg-secondary)', minHeight: '60vh' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: 0 }} className="shop-layout">
 
-      {/* Category sidebar — shared component */}
-      <div style={{ borderRight: '1px solid var(--border-color)', background: 'var(--bg-card)', minHeight: '60vh' }}>
-        <ShopSidebar
-          categoryMap={catCounts}
-          activeCategory={cat}
-          onCategoryChange={setCat}
-          mode="filter"
-        />
-      </div>
-
-      {/* Main content */}
-      <div style={{ padding: 'clamp(16px, 3vw, 28px)' }}>
-        {/* Search + sort */}
-        <div className="shop-search-row" style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' as const, alignItems: 'center' }}>
-          <div style={{ position: 'relative' as const, flex: 1, minWidth: 200 }}>
-            <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search products..." className="form-input" style={{ paddingLeft: 36, fontSize: 13 }} />
-          </div>
-          <select value={sort} onChange={e => setSort(e.target.value)} className="form-input" style={{ maxWidth: 160, cursor: 'pointer', fontSize: 13 }}>
-            <option value="default">Recommended</option>
-            <option value="newest">Newest first</option>
-            <option value="price-asc">Price: Low to high</option>
-            <option value="price-desc">Price: High to low</option>
-            <option value="name">Name A-Z</option>
-          </select>
-        </div>
-
-        <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>
-          {loading ? 'Loading...' : `${filtered.length} product${filtered.length !== 1 ? 's' : ''} found`}
-          {cat !== 'All Products' && <span style={{ marginLeft: 8, color: 'var(--red)', fontWeight: 600 }}>in {cat}</span>}
-        </div>
-
-        {loading ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }} className="pg">
-            {[...Array(8)].map((_, i) => (
-              <div key={i} style={{ background: 'var(--bg-card)', borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border-color)' }}>
-                <div className="skeleton" style={{ aspectRatio: '1 / 1' }} />
-                <div style={{ padding: 14 }}><div className="skeleton" style={{ height: 12, borderRadius: 4, marginBottom: 8 }} /></div>
-              </div>
-            ))}
-          </div>
-        ) : filtered.length === 0 ? (
-          <div style={{ textAlign: 'center' as const, padding: '60px 20px' }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>🔍</div>
-            <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 18, marginBottom: 8, color: 'var(--text-primary)' }}>No products found</div>
-            <button onClick={() => { setSearch(''); setCat('All Products') }}
-              style={{ background: 'var(--red)', color: 'white', border: 'none', borderRadius: 9, padding: '10px 24px', fontFamily: 'Montserrat', fontWeight: 700, cursor: 'pointer' }}>
-              Clear filters
-            </button>
-          </div>
-        ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }} className="pg">
-            {filtered.map(p => (
-              <SharedProductCard
-                key={p.id}
-                product={{ ...p, category: (productTags[p.id] || [])[0] || p.category } as any}
-                onOpen={(prod: any) => open(p)}
-                wishlistIds={wishlistIds}
+            <div style={{ borderRight: '1px solid var(--border-color)', background: 'var(--bg-card)', minHeight: '60vh' }}>
+              <ShopSidebar
+                categoryMap={catCounts}
+                activeCategory={cat}
+                onCategoryChange={setCat}
+                mode="filter"
               />
-            ))}
+            </div>
+
+            <div style={{ padding: 'clamp(16px, 3vw, 28px)' }}>
+              <div className="shop-search-row" style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' as const, alignItems: 'center' }}>
+                <div style={{ position: 'relative' as const, flex: 1, minWidth: 200 }}>
+                  <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                  <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search products..." className="form-input" style={{ paddingLeft: 36, fontSize: 13 }} />
+                </div>
+                <select value={sort} onChange={e => setSort(e.target.value)} className="form-input" style={{ maxWidth: 160, cursor: 'pointer', fontSize: 13 }}>
+                  <option value="default">Recommended</option>
+                  <option value="newest">Newest first</option>
+                  <option value="price-asc">Price: Low to high</option>
+                  <option value="price-desc">Price: High to low</option>
+                  <option value="name">Name A-Z</option>
+                </select>
+              </div>
+
+              <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>
+                {loading ? 'Loading...' : `${filtered.length} product${filtered.length !== 1 ? 's' : ''} found`}
+                {cat !== 'All Products' && <span style={{ marginLeft: 8, color: 'var(--red)', fontWeight: 600 }}>in {cat}</span>}
+              </div>
+
+              {loading ? (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }} className="pg">
+                  {[...Array(8)].map((_, i) => (
+                    <div key={i} style={{ background: 'var(--bg-card)', borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+                      <div className="skeleton" style={{ aspectRatio: '1 / 1' }} />
+                      <div style={{ padding: 14 }}><div className="skeleton" style={{ height: 12, borderRadius: 4, marginBottom: 8 }} /></div>
+                    </div>
+                  ))}
+                </div>
+              ) : filtered.length === 0 ? (
+                <div style={{ textAlign: 'center' as const, padding: '60px 20px' }}>
+                  <div style={{ fontSize: 48, marginBottom: 16 }}>🔍</div>
+                  <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 18, marginBottom: 8, color: 'var(--text-primary)' }}>No products found</div>
+                  <button onClick={() => { setSearch(''); setCat('All Products') }}
+                    style={{ background: 'var(--red)', color: 'white', border: 'none', borderRadius: 9, padding: '10px 24px', fontFamily: 'Montserrat', fontWeight: 700, cursor: 'pointer' }}>
+                    Clear filters
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }} className="pg">
+                  {filtered.map(p => (
+                    <SharedProductCard
+                      key={p.id}
+                      product={{ ...p, category: (productTags[p.id] || [])[0] || p.category } as any}
+                      onOpen={() => open(p)}
+                      wishlistIds={wishlistIds}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        )}
-      </div>
-  </div>
-</section>
+        </section>
       </main>
       <Footer />
 
@@ -447,7 +409,7 @@ function ShopContent() {
                   {/* Right: config */}
                   <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 14, background: '#ffffff' }}>
 
-                    {/* Quick Pick presets — for customers who just want a common config */}
+                    {/* Quick Pick presets */}
                     {selected.presets && selected.presets.length > 0 && (
                       <div>
                         <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 7 }}>
@@ -457,80 +419,21 @@ function ShopContent() {
                           {selected.presets.map((preset, i) => {
                             const isActive = activePresetLabel === preset.label
                             return (
-                              <button key={i}
-                                onClick={() => choosePreset(preset)}
-                                style={{
-                                  display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 9,
-                                  border: `1.5px solid ${isActive ? 'var(--red)' : '#e8e8e5'}`,
-                                  background: isActive ? 'rgba(192,57,43,0.08)' : 'white',
-                                  color: isActive ? 'var(--red)' : '#555',
-                                  fontFamily: 'Montserrat', fontWeight: 700, fontSize: 12, cursor: 'pointer',
-                                }}>
+                              <button key={i} onClick={() => choosePreset(preset)}
+                                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 9, border: `1.5px solid ${isActive ? 'var(--red)' : '#e8e8e5'}`, background: isActive ? 'rgba(192,57,43,0.08)' : 'white', color: isActive ? 'var(--red)' : '#555', fontFamily: 'Montserrat', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
                                 {preset.label}
                                 {preset.badge && (
-                                  <span style={{ fontSize: 9, background: 'var(--red)', color: 'white', padding: '1px 6px', borderRadius: 10 }}>
-                                    {preset.badge}
-                                  </span>
+                                  <span style={{ fontSize: 9, background: 'var(--red)', color: 'white', padding: '1px 6px', borderRadius: 10 }}>{preset.badge}</span>
                                 )}
                               </button>
                             )
                           })}
                         </div>
-                        <div style={{ fontSize: 11, color: '#888', marginTop: 6 }}>
-                          Pick a common configuration, or customise manually below.
-                        </div>
+                        <div style={{ fontSize: 11, color: '#888', marginTop: 6 }}>Pick a common configuration, or customise manually below.</div>
                       </div>
                     )}
 
-                    {/* Area pricing dimensions */}
-                    {selected.pricing_model === 'area' && (
-                      <div>
-                        <div style={{ fontFamily: 'Montserrat', fontWeight: 600, fontSize: 13, marginBottom: 8, color: 'var(--text-primary)' }}>
-                          Dimensions ({selected.area_unit === 'sqft' ? 'feet' : 'metres'})
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                          <div>
-                            <label style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Width</label>
-                            <input type="number" step="0.5" min={selected.min_width || 1} value={w}
-                              onChange={e => setW(Math.max(selected.min_width || 1, Number(e.target.value)))}
-                              className="form-input" style={{ fontSize: 14 }} />
-                          </div>
-                          <div>
-                            <label style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Height</label>
-                            <input type="number" step="0.5" min={selected.min_height || 1} value={h}
-                              onChange={e => setH(Math.max(selected.min_height || 1, Number(e.target.value)))}
-                              className="form-input" style={{ fontSize: 14 }} />
-                          </div>
-                        </div>
-                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
-                          Area: {(w * h).toFixed(2)} {selected.area_unit}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Spec groups */}
-                    {selected.spec_groups?.map(group => (
-                      <div key={group.name}>
-                        <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 8, fontFamily: 'Montserrat', color: 'var(--text-primary)' }}>
-                          {group.name}
-                        </label>
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const }}>
-                          {group.options.map(opt => {
-                            const isSel = specs[group.name]?.label === opt.label
-                            return (
-                              <button key={opt.label}
-                                onClick={() => setSpecs(p => ({ ...p, [group.name]: opt }))}
-                                style={{ padding: '6px 12px', borderRadius: 8, border: `2px solid ${isSel ? 'var(--red)' : 'var(--border-color)'}`, background: isSel ? 'var(--red-pale)' : 'var(--bg-secondary)', color: isSel ? 'var(--red)' : 'var(--text-primary)', fontSize: 12, fontWeight: isSel ? 700 : 400, cursor: 'pointer', transition: 'all 0.15s' }}>
-                                {opt.label}
-                                {opt.price > 0 && <span style={{ fontSize: 10, marginLeft: 4, opacity: 0.7 }}>+₦{opt.price.toLocaleString()}</span>}
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    ))}
-
-                    {/* Quantity */}
+                    {/* Quantity — hidden for area-based products (dimensions drive qty instead) */}
                     {selected.pricing_model !== 'area' && (
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -542,17 +445,10 @@ function ShopContent() {
                             style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid #e8e8e5', background: '#f7f7f5', cursor: qty <= moq ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: qty <= moq ? 0.4 : 1 }}>
                             <Minus size={13} color="#1A1A1A" />
                           </button>
-                          <input
-                            type="number"
-                            value={qty}
-                            min={moq}
-                            step={inc}
-                            onChange={e => {
-                              const val = Number(e.target.value)
-                              if (val >= moq) setQty(val)
-                            }}
-                           className="no-spinners"
-                           style={{ width: 70, textAlign: 'center' as const, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 16, border: '1px solid #e8e8e5', borderRadius: 8, padding: '6px', background: '#f7f7f5', color: '#1A1A1A', outline: 'none' }}
+                          <input type="number" value={qty} min={moq} step={inc}
+                            onChange={e => { const val = Number(e.target.value); if (val >= moq) setQty(val) }}
+                            className="no-spinners"
+                            style={{ width: 70, textAlign: 'center' as const, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 16, border: '1px solid #e8e8e5', borderRadius: 8, padding: '6px', background: '#f7f7f5', color: '#1A1A1A', outline: 'none' }}
                           />
                           <button onClick={() => { if (!selected.max_qty || qty + inc <= selected.max_qty) setQty(qty + inc) }}
                             style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid #e8e8e5', background: '#f7f7f5', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -567,9 +463,7 @@ function ShopContent() {
                     <div>
                       <div style={{ fontFamily: 'Montserrat', fontWeight: 600, fontSize: 13, marginBottom: 6, color: 'var(--text-primary)' }}>
                         Your Design
-                        <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 400, marginLeft: 6 }}>
-                          (optional — can send via WhatsApp later)
-                        </span>
+                        <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 400, marginLeft: 6 }}>(optional — can send via WhatsApp later)</span>
                       </div>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 10 }}>
                         {[
@@ -584,24 +478,19 @@ function ShopContent() {
                           </button>
                         ))}
                       </div>
-
                       {designType === 'upload' && (
                         <label style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', border: '2px dashed #e8e8e5', borderRadius: 9, cursor: 'pointer', background: '#f7f7f5', fontSize: 12, color: '#6B6B6B' }}>
                           <Upload size={14} />
                           <input type="file" accept=".png,.jpg,.jpeg,.pdf,.ai,.psd,.cdr" style={{ display: 'none' }}
                             onChange={e => setDesignFile(e.target.files?.[0] || null)} />
-                          {designFile
-                            ? <span style={{ color: '#10b981', fontWeight: 600 }}>✓ {designFile.name}</span>
-                            : 'Click to upload (PNG, PDF, AI, PSD, CDR)'}
+                          {designFile ? <span style={{ color: '#10b981', fontWeight: 600 }}>✓ {designFile.name}</span> : 'Click to upload (PNG, PDF, AI, PSD, CDR)'}
                         </label>
                       )}
-
                       {designType === 'link' && (
                         <input value={designLink} onChange={e => setDesignLink(e.target.value)}
                           placeholder="Paste Google Drive, Dropbox or WeTransfer link..."
                           className="form-input" style={{ fontSize: 12 }} />
                       )}
-
                       {designType === 'request' && (
                         <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 7 }}>
                           {[
@@ -618,41 +507,44 @@ function ShopContent() {
                       )}
                     </div>
 
-                    {/* Live Price Calculator V2 — shown for non-fixed products */}
-                    {!selected.is_fixed_price && <LiveCalculatorV2
-                      category={selected.product_type || selected.category}
-                      productName={selected.name}
-                      qty={qty}
-                      widthFt={w}
-                      heightFt={h}
-                      isAreaBased={selected.pricing_model === 'area'}
-                      applyPreset={appliedPreset}
-                      onPriceUpdate={(total: number, specSummary: Record<string, string>, summaryText: string) => {
-                        setCalcPrice(total)
-                        setCalcSpecs(specSummary)
-                        setCalcSummary(summaryText)
-                      }}
-                    />}
+                    {/* Live Calculator V2
+                        - category: uses product_type (slug) so engine finds correct spec_options
+                        - width/height: passed from parent state, updated via onDimensionChange
+                        - dimension inputs now rendered INSIDE the calculator for area-based products
+                        - isAreaBased prop retained for backwards compat but no longer drives dimension inputs */}
+                    {!selected.is_fixed_price && (
+                      <LiveCalculatorV2
+                        category={selected.product_type || selected.category}
+                        productName={selected.name}
+                        qty={qty}
+                        widthFt={w}
+                        heightFt={h}
+                        applyPreset={appliedPreset}
+                        onDimensionChange={(axis, val) => {
+                          if (axis === 'width') setW(val)
+                          else setH(val)
+                        }}
+                        onPriceUpdate={(total, specSummary, summaryText) => {
+                          setCalcPrice(total)
+                          setCalcSpecs(specSummary)
+                          setCalcSummary(summaryText)
+                        }}
+                      />
+                    )}
 
-                    {/* Price display */}
-                    <div style={{ background: '#f7f7f5', borderRadius: 10, padding: '12px 14px', border: '1px solid #e8e8e5' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                        <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                          {selected.pricing_model === 'area' ? `${w}×${h} ${selected.area_unit}` : `${qty} pcs`}
-                        </span>
-                        <span style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 22, color: 'var(--red)' }}>
-                          ₦{(calcPrice || price).toLocaleString()}
-                        </span>
-                        {!calcPrice && selected.display_price && (
-                          <span style={{ fontSize: 11, color: '#888', display: 'block', marginTop: 2 }}>From ₦{Number(selected.display_price).toLocaleString()}</span>
-                        )}
-                      </div>
-                      {selected.pricing_model === 'unit' && qty > 0 && (
-                        <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-                          ₦{Math.round(price / qty).toLocaleString()} per piece
+                    {/* Price display — shown only when calculator is not active */}
+                    {selected.is_fixed_price && (
+                      <div style={{ background: '#f7f7f5', borderRadius: 10, padding: '12px 14px', border: '1px solid #e8e8e5' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                            {selected.pricing_model === 'area' ? `${w}×${h} ${selected.area_unit}` : `${qty} pcs`}
+                          </span>
+                          <span style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 22, color: 'var(--red)' }}>
+                            ₦{(calcPrice || price).toLocaleString()}
+                          </span>
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
 
                   </div>
                 </div>
