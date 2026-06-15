@@ -110,12 +110,19 @@ export async function getQtyTiers(category: string): Promise<QtyTier[]> {
 
 export function calculate(params: {
   category: string
-  priceModel: string           // 'area' | 'per_100' | 'per_piece' | 'per_page' | 'fixed' | 'unit'
+  priceModel: string
+  // 'area'      — ₦/sqft × width × height (banners, signage, large format)
+  // 'area_sqin' — ₦/sq.in × width × height (labels, stickers — values in inches)
+  // 'per_100'   — ₦ per 100 units (cards, flyers, sheet printing)
+  // 'per_piece' — ₦ per piece (apparel, souvenirs, promo merch)
+  // 'per_page'  — ₦ per page × page count (books, magazines)
+  // 'fixed'     — flat ₦ per order (design services)
+  // 'unit'      — no special calculation
   specs: SpecSelection          // user's selected spec options (single-select groups)
   addons?: AddonSelection[]     // add-ons with independent quantities
   qty: number
-  widthFt?: number              // for area-based products
-  heightFt?: number
+  widthFt?: number              // sqft mode: feet | sqin mode: inches
+  heightFt?: number             // sqft mode: feet | sqin mode: inches
   pages?: number                // for books/magazines
   tiers: QtyTier[]
   vatRate?: number
@@ -124,8 +131,13 @@ export function calculate(params: {
   const { specs, qty, widthFt = 1, heightFt = 1, pages = 0, tiers, vatRate = 7.5, addons = [], priceModel } = params
 
   const area = widthFt * heightFt
-  const minArea = 5  // minimum sqft for area-based products
-  const effectiveArea = Math.max(area, minArea)
+
+  // Large format (sqft): enforce a 5 sqft minimum so tiny inputs don't produce
+  // unrealistically cheap quotes. Labels/stickers (sqin) have no minimum —
+  // a 2×2 inch sticker is genuinely that small.
+  const effectiveArea = priceModel === 'area_sqin'
+    ? Math.max(area, 1)   // 1 sq.in minimum for stickers
+    : Math.max(area, 5)   // 5 sqft minimum for large format
 
   let subtotal = 0
 
@@ -136,18 +148,28 @@ export function calculate(params: {
 
   // ── Calculate by category price model ─────────────────────
 
+  // Area-based sqft (₦/sqft) — banners, signage, large format
   if (priceModel === 'area' && baseRate > 0) {
     subtotal += baseRate * effectiveArea * qty
   }
 
+  // Area-based sq.in (₦/sq.in) — labels, stickers
+  // widthFt/heightFt hold INCH values when priceModel === 'area_sqin'
+  if (priceModel === 'area_sqin' && baseRate > 0) {
+    subtotal += baseRate * effectiveArea * qty
+  }
+
+  // Per 100 units — cards, flyers, sheet printing
   if (priceModel === 'per_100' && baseRate > 0) {
     subtotal += baseRate * (qty / 100)
   }
 
+  // Fixed — services (design, etc.)
   if (priceModel === 'fixed' && baseRate > 0) {
     subtotal += baseRate * qty
   }
 
+  // Per piece — apparel, souvenirs, promo merch
   if (priceModel === 'per_piece' && baseRate > 0) {
     subtotal += baseRate * qty
   }
@@ -160,31 +182,38 @@ export function calculate(params: {
   const printOptions = selectedOptions.filter(s => s.modifier_type === 'print_per_piece')
   for (const opt of printOptions) subtotal += Number(opt.price_modifier) * qty
 
-  // fixed_per_100 (lamination, finishing)
+  // fixed_per_100 (lamination, finishing — flat amount per 100)
   const per100Options = selectedOptions.filter(s => s.modifier_type === 'fixed_per_100')
   for (const opt of per100Options) subtotal += Number(opt.price_modifier) * (qty / 100)
 
-  // per_sqft_extra (material upgrades on area products)
+  // per_sqft_extra (material upgrades on large format products — ₦/sqft)
   const sqftExtraOptions = selectedOptions.filter(s => s.modifier_type === 'per_sqft_extra')
   for (const opt of sqftExtraOptions) subtotal += Number(opt.price_modifier) * effectiveArea * qty
 
-  // per_page (books/magazines/journals)
+  // per_sqin_extra (material/finish upgrades on sticker/label products — ₦/sq.in)
+  // Use this modifier_type for stickers_labels material upgrades instead of per_sqft_extra
+  const sqinExtraOptions = selectedOptions.filter(s => s.modifier_type === 'per_sqin_extra')
+  for (const opt of sqinExtraOptions) subtotal += Number(opt.price_modifier) * effectiveArea * qty
+
+  // per_page (books/magazines/journals — ₦ per page per copy)
   const perPageOptions = selectedOptions.filter(s => s.modifier_type === 'per_page')
   for (const opt of perPageOptions) subtotal += Number(opt.price_modifier) * pages * qty
 
-  // fixed_per_unit (binding, cover, per finished item)
+  // fixed_per_unit (binding, cover — ₦ per finished copy regardless of pages)
   const perUnitOptions = selectedOptions.filter(s => s.modifier_type === 'fixed_per_unit')
   for (const opt of perUnitOptions) subtotal += Number(opt.price_modifier) * qty
 
-  // fixed_flat (one-time fees — non add-on)
+  // fixed_flat (one-time fee per order — e.g. design setup, pole pockets)
   const flatOptions = selectedOptions.filter(s => s.modifier_type === 'fixed_flat' && Number(s.price_modifier) !== 0)
   for (const opt of flatOptions) subtotal += Number(opt.price_modifier)
 
-  // percentage modifiers (applied to current subtotal)
+  // percentage modifiers — applied LAST to the running subtotal, compounding in sort_order
+  // This is what makes lamination/finish scale correctly with paper size:
+  // e.g. A5 base is already cheaper than A4, so 25% lamination is automatically cheaper too
   const pctOptions = selectedOptions.filter(s => s.modifier_type === 'percentage' && Number(s.price_modifier) !== 0)
   for (const opt of pctOptions) subtotal += subtotal * (Number(opt.price_modifier) / 100)
 
-  // ADD-ONS — independent quantity, price × addon qty
+  // ADD-ONS — independent quantity per add-on, added after all spec modifiers
   for (const a of addons) {
     if (a.qty > 0) subtotal += Number(a.option.price_modifier) * a.qty
   }

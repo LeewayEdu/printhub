@@ -195,11 +195,7 @@ export default function SpecOptionsPage() {
   return (
     <div>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap' as const, gap: 12 }}>
-        <div>
-          <h1 style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 22, marginBottom: 4 }}>Spec Options & Pricing</h1>
-          <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Manage product specifications, add-ons, categories and quantity tiers</p>
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 24 }}>
         <button onClick={load} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: 'var(--light)', border: '1px solid var(--border)', borderRadius: 9, fontSize: 13, fontFamily: 'Montserrat', fontWeight: 600, cursor: 'pointer' }}>
           <RefreshCw size={13} /> Refresh
         </button>
@@ -430,8 +426,10 @@ function CategoriesTab({ categories, onChanged }: { categories: CategoryRow[]; o
 
   const addCategory = async () => {
     if (!newCat.label.trim()) { toast.error('Category name is required'); return }
+    const slug = slugify(newCat.label)
     const { error } = await supabase.from('categories').insert({
       label: newCat.label.trim(),
+      slug,
       icon: newCat.icon || '📦',
       price_model: newCat.price_model,
       sort_order: Number(newCat.sort_order) || categories.length + 1,

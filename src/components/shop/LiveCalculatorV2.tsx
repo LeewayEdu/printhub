@@ -301,7 +301,11 @@ export default function LiveCalculatorV2({
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
               <div style={{ fontSize: 11, color: '#888', fontFamily: 'Montserrat', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 2 }}>
-                {qty} {isAreaCategory ? `(${widthFt}${priceModel === 'area_sqin' ? 'in' : 'ft'} × ${heightFt}${priceModel === 'area_sqin' ? 'in' : 'ft'})` : 'pcs'} · VAT inclusive
+                {isAreaCategory
+                  ? `${widthFt}${priceModel === 'area_sqin' ? 'in' : 'ft'} × ${heightFt}${priceModel === 'area_sqin' ? 'in' : 'ft'} · qty ${qty}`
+                  : isBookCategory
+                  ? `${qty} copies · ${pages} pages`
+                  : `${qty} pcs`} · VAT inclusive
               </div>
               {discountPct > 0 && tierLabel && (
                 <div style={{ fontSize: 11, color: '#10b981', fontWeight: 600, marginBottom: 2 }}>
