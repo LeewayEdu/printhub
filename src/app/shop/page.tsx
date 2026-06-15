@@ -165,7 +165,7 @@ function ShopContent() {
     setQty(p.moq || 1)
     setSpecs({})
     setW(p.min_width || 1)
-    setH(p.min_height || 1)
+    setH(p.min_height || 1)    
     setImgIdx(0)
     setDesignType(null)
     setDesignFile(null)
@@ -519,6 +519,8 @@ function ShopContent() {
                         qty={qty}
                         widthFt={w}
                         heightFt={h}
+                        minWidth={selected.min_width || 0}
+                        minHeight={selected.min_height || 0}
                         applyPreset={appliedPreset}
                         onDimensionChange={(axis, val) => {
                           if (axis === 'width') setW(val)

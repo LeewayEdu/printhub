@@ -13,6 +13,8 @@ interface LiveCalculatorV2Props {
   qty: number
   widthFt?: number
   heightFt?: number
+  minWidth?: number    // minimum width enforced on dimension inputs (ft or in)
+  minHeight?: number   // minimum height enforced on dimension inputs (ft or in)
   isAreaBased?: boolean
   applyPreset?: { specs?: Record<string, string>; addons?: string[] } | null
   onPriceUpdate: (total: number, specs: Record<string, string>, summaryText: string) => void
@@ -21,7 +23,9 @@ interface LiveCalculatorV2Props {
 }
 
 export default function LiveCalculatorV2({
-  category, productName, qty, widthFt = 1, heightFt = 1, isAreaBased = false,
+  category, productName, qty, widthFt = 1, heightFt = 1,
+  minWidth = 0.1, minHeight = 0.1,
+  isAreaBased = false,
   applyPreset, onPriceUpdate, onSpecsUpdate, onDimensionChange
 }: LiveCalculatorV2Props) {
 
@@ -111,6 +115,8 @@ export default function LiveCalculatorV2({
       qty,
       widthFt,
       heightFt,
+      minWidth,
+      minHeight,
       pages,
       tiers,
     })
@@ -193,7 +199,6 @@ export default function LiveCalculatorV2({
         </div>
       ))}
 
-      {/* Width × Height for area-based products (large format, stickers) */}
       {isAreaCategory && (
         <div>
           <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 7 }}>
@@ -201,26 +206,30 @@ export default function LiveCalculatorV2({
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 3 }}>
-              <label style={{ fontSize: 10, color: '#888', fontWeight: 600 }}>WIDTH</label>
+              <label style={{ fontSize: 10, color: '#888', fontWeight: 600 }}>
+                WIDTH {minWidth > 0.1 ? <span style={{ color: 'var(--red)' }}>min {minWidth}{priceModel === 'area_sqin' ? 'in' : 'ft'}</span> : ''}
+              </label>
               <input
                 type="number"
                 value={widthFt}
-                min={0.1}
-                step={0.5}
-                onChange={e => onDimensionChange?.('width', Number(e.target.value))}
-                style={{ width: 70, textAlign: 'center' as const, padding: '6px', border: '1px solid #e8e8e5', borderRadius: 8, fontSize: 14, fontFamily: 'Montserrat', fontWeight: 700, outline: 'none' }}
+                min={minWidth}
+                step={priceModel === 'area_sqin' ? 1 : 0.5}
+                onChange={e => onDimensionChange?.('width', Math.max(minWidth, Number(e.target.value)))}
+                style={{ width: 70, textAlign: 'center' as const, padding: '6px', border: `1px solid ${widthFt < minWidth ? '#ef4444' : '#e8e8e5'}`, borderRadius: 8, fontSize: 14, fontFamily: 'Montserrat', fontWeight: 700, outline: 'none' }}
               />
             </div>
             <div style={{ fontSize: 18, color: '#888', marginTop: 18 }}>×</div>
             <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 3 }}>
-              <label style={{ fontSize: 10, color: '#888', fontWeight: 600 }}>HEIGHT</label>
+              <label style={{ fontSize: 10, color: '#888', fontWeight: 600 }}>
+                HEIGHT {minHeight > 0.1 ? <span style={{ color: 'var(--red)' }}>min {minHeight}{priceModel === 'area_sqin' ? 'in' : 'ft'}</span> : ''}
+              </label>
               <input
                 type="number"
                 value={heightFt}
-                min={0.1}
-                step={0.5}
-                onChange={e => onDimensionChange?.('height', Number(e.target.value))}
-                style={{ width: 70, textAlign: 'center' as const, padding: '6px', border: '1px solid #e8e8e5', borderRadius: 8, fontSize: 14, fontFamily: 'Montserrat', fontWeight: 700, outline: 'none' }}
+                min={minHeight}
+                step={priceModel === 'area_sqin' ? 1 : 0.5}
+                onChange={e => onDimensionChange?.('height', Math.max(minHeight, Number(e.target.value)))}
+                style={{ width: 70, textAlign: 'center' as const, padding: '6px', border: `1px solid ${heightFt < minHeight ? '#ef4444' : '#e8e8e5'}`, borderRadius: 8, fontSize: 14, fontFamily: 'Montserrat', fontWeight: 700, outline: 'none' }}
               />
             </div>
             <div style={{ fontSize: 12, color: '#888', marginTop: 18 }}>
@@ -230,6 +239,11 @@ export default function LiveCalculatorV2({
               = {(widthFt * heightFt).toFixed(2)} {priceModel === 'area_sqin' ? 'sq.in' : 'sq.ft'}
             </div>
           </div>
+          {(widthFt < minWidth || heightFt < minHeight) && (
+            <div style={{ fontSize: 11, color: '#ef4444', marginTop: 6 }}>
+              ⚠️ Minimum size is {minWidth} × {minHeight} {priceModel === 'area_sqin' ? 'inches' : 'ft'}
+            </div>
+          )}
         </div>
       )}
 

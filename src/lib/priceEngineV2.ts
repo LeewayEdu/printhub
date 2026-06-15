@@ -111,33 +111,36 @@ export async function getQtyTiers(category: string): Promise<QtyTier[]> {
 export function calculate(params: {
   category: string
   priceModel: string
-  // 'area'      — ₦/sqft × width × height (banners, signage, large format)
-  // 'area_sqin' — ₦/sq.in × width × height (labels, stickers — values in inches)
-  // 'per_100'   — ₦ per 100 units (cards, flyers, sheet printing)
-  // 'per_piece' — ₦ per piece (apparel, souvenirs, promo merch)
-  // 'per_page'  — ₦ per page × page count (books, magazines)
-  // 'fixed'     — flat ₦ per order (design services)
-  // 'unit'      — no special calculation
-  specs: SpecSelection          // user's selected spec options (single-select groups)
-  addons?: AddonSelection[]     // add-ons with independent quantities
+  specs: SpecSelection
+  addons?: AddonSelection[]
   qty: number
-  widthFt?: number              // sqft mode: feet | sqin mode: inches
-  heightFt?: number             // sqft mode: feet | sqin mode: inches
-  pages?: number                // for books/magazines
+  widthFt?: number
+  heightFt?: number
+  minWidth?: number    // product-specific minimum width (ft or in)
+  minHeight?: number   // product-specific minimum height (ft or in)
+  pages?: number
   tiers: QtyTier[]
   vatRate?: number
 }): CalcResult {
 
-  const { specs, qty, widthFt = 1, heightFt = 1, pages = 0, tiers, vatRate = 7.5, addons = [], priceModel } = params
+  const {
+    specs, qty, widthFt = 1, heightFt = 1, pages = 0,
+    tiers, vatRate = 7.5, addons = [], priceModel,
+    minWidth = 0, minHeight = 0,
+  } = params
 
-  const area = widthFt * heightFt
+  // Clamp dimensions to product minimums before calculating
+  const effectiveWidth = Math.max(widthFt, minWidth)
+  const effectiveHeight = Math.max(heightFt, minHeight)
+  const area = effectiveWidth * effectiveHeight
 
-  // Large format (sqft): enforce a 5 sqft minimum so tiny inputs don't produce
-  // unrealistically cheap quotes. Labels/stickers (sqin) have no minimum —
-  // a 2×2 inch sticker is genuinely that small.
+  // Large format (sqft): also enforce a 5 sqft floor so tiny typos
+  // don't produce unrealistically cheap banner quotes.
+  // Stickers/labels (sqin): only enforce the product minimum — a
+  // 2×2 inch sticker is genuinely that small.
   const effectiveArea = priceModel === 'area_sqin'
-    ? Math.max(area, 1)   // 1 sq.in minimum for stickers
-    : Math.max(area, 5)   // 5 sqft minimum for large format
+    ? Math.max(area, 1)
+    : Math.max(area, minWidth * minHeight || 5)
 
   let subtotal = 0
 

@@ -4,7 +4,49 @@ import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
+import { Eye, EyeOff } from 'lucide-react'
 import toast from 'react-hot-toast'
+
+// ── Reusable password input with show/hide toggle ──────────────
+function PasswordInput({
+  value, onChange, placeholder = '••••••••', required = false, minLength,
+}: {
+  value: string
+  onChange: (val: string) => void
+  placeholder?: string
+  required?: boolean
+  minLength?: number
+}) {
+  const [show, setShow] = useState(false)
+  return (
+    <div style={{ position: 'relative' as const }}>
+      <input
+        type={show ? 'text' : 'password'}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        required={required}
+        minLength={minLength}
+        className="form-input"
+        style={{ paddingRight: 40 }}
+      />
+      <button
+        type="button"
+        onClick={() => setShow(s => !s)}
+        style={{
+          position: 'absolute' as const, right: 12, top: '50%',
+          transform: 'translateY(-50%)', background: 'none', border: 'none',
+          cursor: 'pointer', color: 'var(--gray)', display: 'flex',
+          alignItems: 'center', padding: 0,
+        }}
+        tabIndex={-1}
+        aria-label={show ? 'Hide password' : 'Show password'}
+      >
+        {show ? <EyeOff size={16} /> : <Eye size={16} />}
+      </button>
+    </div>
+  )
+}
 
 function AuthContent() {
   const searchParams = useSearchParams()
@@ -32,7 +74,10 @@ function AuthContent() {
         </div>
       </div>
       <style>{`
-        @media (max-width: 900px) { .auth-wrap { grid-template-columns: 1fr !important; } }
+        @media (max-width: 900px) {
+          .auth-wrap { grid-template-columns: 1fr !important; }
+          .auth-left { display: none !important; }
+        }
       `}</style>
     </div>
   )
@@ -85,7 +130,7 @@ function AuthLeft() {
 }
 
 function LoginForm() {
-  const { login, isLoading, error, success, setError } = useAuthStore()
+  const { login, isLoading, error, setError } = useAuthStore()
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -106,7 +151,11 @@ function LoginForm() {
       <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 26, color: 'var(--black)', marginBottom: 6 }}>Welcome back</div>
       <div style={{ fontSize: 14, color: 'var(--gray)', marginBottom: 28 }}>Login to your PrintHub account</div>
 
-      {error && <div style={{ background: 'var(--red-pale)', border: '1px solid var(--red-light)', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: 'var(--red)', marginBottom: 20 }}>{error}</div>}
+      {error && (
+        <div style={{ background: 'var(--red-pale)', border: '1px solid var(--red-light)', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: 'var(--red)', marginBottom: 20 }}>
+          {error}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit}>
         <div style={{ marginBottom: 16 }}>
@@ -115,7 +164,7 @@ function LoginForm() {
         </div>
         <div style={{ marginBottom: 8 }}>
           <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--dark)', display: 'block', marginBottom: 6 }}>Password</label>
-          <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required className="form-input" />
+          <PasswordInput value={password} onChange={setPassword} required />
         </div>
         <div style={{ textAlign: 'right' as const, marginBottom: 20 }}>
           <Link href="/auth/forgot-password" style={{ fontSize: 13, color: 'var(--red)', textDecoration: 'none' }}>Forgot password?</Link>
@@ -166,8 +215,16 @@ function RegisterForm({ onSuccess }: { onSuccess: () => void }) {
       <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 26, color: 'var(--black)', marginBottom: 6 }}>Create your account</div>
       <div style={{ fontSize: 14, color: 'var(--gray)', marginBottom: 28 }}>Free to register. Start ordering in minutes.</div>
 
-      {error && <div style={{ background: 'var(--red-pale)', border: '1px solid var(--red-light)', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: 'var(--red)', marginBottom: 20 }}>{error}</div>}
-      {success && <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#166534', marginBottom: 20 }}>{success}</div>}
+      {error && (
+        <div style={{ background: 'var(--red-pale)', border: '1px solid var(--red-light)', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: 'var(--red)', marginBottom: 20 }}>
+          {error}
+        </div>
+      )}
+      {success && (
+        <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#166534', marginBottom: 20 }}>
+          {success}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
@@ -190,7 +247,14 @@ function RegisterForm({ onSuccess }: { onSuccess: () => void }) {
         </div>
         <div style={{ marginBottom: 16 }}>
           <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--dark)', display: 'block', marginBottom: 6 }}>Password</label>
-          <input type="password" value={form.password} onChange={e => set('password', e.target.value)} placeholder="Create a strong password" required minLength={6} className="form-input" />
+          <PasswordInput
+            value={form.password}
+            onChange={val => set('password', val)}
+            placeholder="Create a strong password"
+            required
+            minLength={6}
+          />
+          <div style={{ fontSize: 11, color: 'var(--gray)', marginTop: 5 }}>Minimum 6 characters</div>
         </div>
         <div style={{ marginBottom: 16 }}>
           <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--dark)', display: 'block', marginBottom: 6 }}>How did you hear about us?</label>
