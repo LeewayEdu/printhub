@@ -16,6 +16,8 @@ interface ProductForm {
   moq: number | ''
   increment: number | ''
   max_qty: number | '' | null
+  min_width: number | ''
+  min_height: number | ''
   featured: boolean
   badge: string
   collection: string
@@ -42,6 +44,8 @@ interface Product {
   moq: number
   increment: number
   max_qty: number | null
+  min_width: number | null
+  min_height: number | null
   featured: boolean
   badge: string
   collection: string
@@ -75,6 +79,7 @@ const emptyForm: ProductForm = {
   display_price: '',
   is_fixed_price: false,
   moq: '', increment: '', max_qty: '',
+  min_width: '', min_height: '',
   featured: false, badge: '', collection: '',
   rating: 0, review_count: 0,
   discount_type: '', discount_value: '',
@@ -232,6 +237,8 @@ export default function AdminProductsPage() {
       is_fixed_price: p.is_fixed_price || false,
       moq: p.moq || '', increment: p.increment || '',
       max_qty: p.max_qty || '',
+      min_width: p.min_width || '',
+      min_height: p.min_height || '',
       featured: p.featured || false, badge: p.badge || '', collection: p.collection || '',
       discount_type: (p.discount_type as any) || '', discount_value: p.discount_value || '',
       rating: Number(p.rating) || 0, review_count: Number(p.review_count) || 0,
@@ -273,6 +280,8 @@ export default function AdminProductsPage() {
       moq: Number(form.moq) || 1,
       increment: Number(form.increment) || 1,
       max_qty: form.max_qty ? Number(form.max_qty) : null,
+      min_width: form.min_width !== '' ? Number(form.min_width) : null,
+      min_height: form.min_height !== '' ? Number(form.min_height) : null,
       featured: form.featured,
       badge: form.badge || null,
       collection: form.collection || null,
@@ -359,7 +368,7 @@ export default function AdminProductsPage() {
     if (rows.length === 0) { toast.error('No products to export'); return }
     const cols: (keyof Product)[] = [
       'name', 'category', 'pricing_model', 'price', 'display_price', 'area_rate', 'area_unit',
-      'moq', 'increment', 'max_qty', 'badge', 'featured', 'discount_type', 'discount_value',
+      'moq', 'increment', 'max_qty', 'min_width', 'min_height', 'badge', 'featured', 'discount_type', 'discount_value',
       'rating', 'review_count', 'is_active', 'sort_order', 'image_url', 'created_at',
     ]
     const header = cols.join(',')
@@ -856,6 +865,43 @@ export default function AdminProductsPage() {
                       onChange={e => setF('max_qty', e.target.value === '' ? '' : Number(e.target.value))}
                       placeholder="e.g. 10000" style={{ ...inputStyle, maxWidth: 200 }} />
                   </div>
+
+                  {/* Min dimensions — only relevant for area-based pricing categories */}
+                  {categorySlugMap[form.category] && ['area', 'area_sqin'].includes(categorySlugMap[form.category]) && (
+                    <div>
+                      <label style={labelStyle}>
+                        Minimum Size ({categorySlugMap[form.category] === 'area_sqin' ? 'inches' : 'feet'})
+                        <span style={{ fontWeight: 400, textTransform: 'none' as const, color: '#888', marginLeft: 6 }}>
+                          — enforced in the calculator so customers can't order below this
+                        </span>
+                      </label>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                        <div>
+                          <label style={{ fontSize: 11, color: '#888', display: 'block', marginBottom: 4 }}>
+                            Min Width ({categorySlugMap[form.category] === 'area_sqin' ? 'in' : 'ft'})
+                          </label>
+                          <input type="number" step="0.5" min="0"
+                            value={form.min_width}
+                            onChange={e => setF('min_width', e.target.value === '' ? '' : Number(e.target.value))}
+                            placeholder={categorySlugMap[form.category] === 'area_sqin' ? 'e.g. 2' : 'e.g. 3'}
+                            style={inputStyle} />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: 11, color: '#888', display: 'block', marginBottom: 4 }}>
+                            Min Height ({categorySlugMap[form.category] === 'area_sqin' ? 'in' : 'ft'})
+                          </label>
+                          <input type="number" step="0.5" min="0"
+                            value={form.min_height}
+                            onChange={e => setF('min_height', e.target.value === '' ? '' : Number(e.target.value))}
+                            placeholder={categorySlugMap[form.category] === 'area_sqin' ? 'e.g. 2' : 'e.g. 2'}
+                            style={inputStyle} />
+                        </div>
+                      </div>
+                      <div style={{ fontSize: 11, color: '#888', marginTop: 6 }}>
+                        e.g. set 3ft × 2ft minimum for a roll-up banner. Leave blank for no minimum beyond the calculator's default (5 sqft / 1 sq.in).
+                      </div>
+                    </div>
+                  )}
 
                   {/* Info about spec options */}
                   {!form.is_fixed_price && form.category && (
