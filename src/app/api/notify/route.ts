@@ -3,49 +3,92 @@ import { Resend } from 'resend'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
+// ── Send the WhatsApp order alert via UltraMsg, AWAITED with real
+// status checking — the previous version fired fetch() without await
+// and without checking the HTTP response, so an expired token, wrong
+// phone format, or rate limit would fail completely silently. This
+// version returns a clear success/failure result that gets logged AND
+// returned in the API response, so failures are actually visible.
+async function sendWhatsAppAlert(message: string): Promise<{ ok: boolean; provider: string | null; detail: string }> {
+  const notifyPhone = process.env.NOTIFY_PHONE
+  if (!notifyPhone) {
+    return { ok: false, provider: null, detail: 'NOTIFY_PHONE is not set in environment variables.' }
+  }
+
+  const ultraInstance = process.env.ULTRAMSG_INSTANCE_ID
+  const ultraToken = process.env.ULTRAMSG_TOKEN
+
+  if (ultraInstance && ultraToken) {
+    try {
+      const res = await fetch(`https://api.ultramsg.com/${ultraInstance}/messages/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          token: ultraToken,
+          to: `+${notifyPhone}`,
+          body: message,
+        }).toString(),
+      })
+      const body = await res.text()
+      if (!res.ok) {
+        // UltraMsg returned an HTTP error (expired token, bad instance ID,
+        // rate limit, etc.) — fetch() does NOT throw on this, so this check
+        // is the only thing that catches it.
+        return { ok: false, provider: 'ultramsg', detail: `UltraMsg HTTP ${res.status}: ${body.slice(0, 300)}` }
+      }
+      // UltraMsg can return 200 with an error payload (e.g. invalid token,
+      // instance disconnected) — check the parsed body for that too.
+      try {
+        const parsed = JSON.parse(body)
+        if (parsed.error || parsed.sent === false) {
+          return { ok: false, provider: 'ultramsg', detail: `UltraMsg rejected: ${JSON.stringify(parsed).slice(0, 300)}` }
+        }
+      } catch {
+        // Non-JSON 200 response — treat as success if status was OK
+      }
+      return { ok: true, provider: 'ultramsg', detail: 'Sent successfully' }
+    } catch (e: any) {
+      return { ok: false, provider: 'ultramsg', detail: `UltraMsg network error: ${e?.message || String(e)}` }
+    }
+  }
+
+  if (process.env.CALLMEBOT_API_KEY) {
+    try {
+      const encoded = encodeURIComponent(message)
+      const res = await fetch(`https://api.callmebot.com/whatsapp.php?phone=${notifyPhone}&text=${encoded}&apikey=${process.env.CALLMEBOT_API_KEY}`)
+      const body = await res.text()
+      if (!res.ok) {
+        return { ok: false, provider: 'callmebot', detail: `CallMeBot HTTP ${res.status}: ${body.slice(0, 300)}` }
+      }
+      return { ok: true, provider: 'callmebot', detail: 'Sent successfully' }
+    } catch (e: any) {
+      return { ok: false, provider: 'callmebot', detail: `CallMeBot network error: ${e?.message || String(e)}` }
+    }
+  }
+
+  return { ok: false, provider: null, detail: 'No WhatsApp provider configured — set ULTRAMSG_INSTANCE_ID + ULTRAMSG_TOKEN, or CALLMEBOT_API_KEY.' }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { orderId, customerName, customerEmail, customerPhone, total, items, itemsArr, subtotal, deliveryFee, deliveryArea, address, paymentMethod, paystackRef } = await req.json()
 
-    // ── WhatsApp notification ───────────────────────────────
-    // Supports two providers — set whichever you have credentials for:
-    //
-    // Option A: UltraMsg (recommended — ultramsg.com, free 500 msgs/month)
-    //   ULTRAMSG_INSTANCE_ID=xxxxx
-    //   ULTRAMSG_TOKEN=xxxxxxxxxx
-    //   NOTIFY_PHONE=2348052929523  (international format, no +)
-    //
-    // Option B: CallMeBot (free but requires manual WhatsApp activation)
-    //   CALLMEBOT_API_KEY=xxxxxxxx
-    //   NOTIFY_PHONE=2348052929523
-
-    const notifyPhone = process.env.NOTIFY_PHONE
+    // ── WhatsApp notification — now AWAITED, with real success/failure
+    // tracking instead of fire-and-forget. Logged clearly so a failure
+    // shows up in Vercel's function logs with an actual reason, and also
+    // returned in this route's JSON response so the checkout page (or any
+    // monitoring you add later) can detect and surface it if needed.
     const waMessage = `🛒 NEW ORDER on PrintHub!\n\nOrder: #${orderId}\nCustomer: ${customerName}\nTotal: ₦${Number(total).toLocaleString()}\nItems: ${items}\n\nDashboard: https://printhub.cchumedia.com/dashboard/admin/orders`
-
-    if (notifyPhone) {
-      // Try UltraMsg first
-      const ultraInstance = process.env.ULTRAMSG_INSTANCE_ID
-      const ultraToken = process.env.ULTRAMSG_TOKEN
-      if (ultraInstance && ultraToken) {
-        fetch(`https://api.ultramsg.com/${ultraInstance}/messages/chat`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({
-            token: ultraToken,
-            to: `+${notifyPhone}`,
-            body: waMessage,
-          }).toString(),
-        }).catch(e => console.error('UltraMsg error:', e))
-      }
-      // Try CallMeBot as fallback
-      else if (process.env.CALLMEBOT_API_KEY) {
-        const encoded = encodeURIComponent(waMessage)
-        fetch(`https://api.callmebot.com/whatsapp.php?phone=${notifyPhone}&text=${encoded}&apikey=${process.env.CALLMEBOT_API_KEY}`)
-          .catch(e => console.error('CallMeBot error:', e))
-      }
+    const waResult = await sendWhatsAppAlert(waMessage)
+    if (!waResult.ok) {
+      console.error(`[notify] WhatsApp alert FAILED for order #${orderId} — provider: ${waResult.provider || 'none'} — ${waResult.detail}`)
+    } else {
+      console.log(`[notify] WhatsApp alert sent for order #${orderId} via ${waResult.provider}`)
     }
 
     // ── Email via Resend ────────────────────────────────────
+    let adminEmailOk = true
+    let adminEmailError: string | null = null
     if (process.env.RESEND_API_KEY && customerEmail) {
       const itemsHtml = (itemsArr || []).map((item: any) => `
         <tr>
@@ -99,15 +142,28 @@ export async function POST(req: NextRequest) {
 </body>
 </html>`
 
-      await resend.emails.send({
-        from: 'PrintHub Orders <orders@cchumedia.com>',
-        to: 'info@cchumedia.com',
-        subject: `🛒 New Order #${orderId} — ₦${Number(total).toLocaleString()} (${paymentMethod === 'paystack' ? 'Paid' : 'Bank Transfer'})`,
-        html,
-      })
+      try {
+        const sendResult = await resend.emails.send({
+          from: 'PrintHub Orders <orders@cchumedia.com>',
+          to: 'info@cchumedia.com',
+          subject: `🛒 New Order #${orderId} — ₦${Number(total).toLocaleString()} (${paymentMethod === 'paystack' ? 'Paid' : 'Bank Transfer'})`,
+          html,
+        })
+        if (sendResult.error) {
+          adminEmailOk = false
+          adminEmailError = JSON.stringify(sendResult.error)
+          console.error(`[notify] Admin email FAILED for order #${orderId}:`, adminEmailError)
+        }
+      } catch (e: any) {
+        adminEmailOk = false
+        adminEmailError = e?.message || String(e)
+        console.error(`[notify] Admin email threw for order #${orderId}:`, adminEmailError)
+      }
     }
 
     // ── Customer order confirmation email ────────────────────
+    let customerEmailOk = true
+    let customerEmailError: string | null = null
     if (process.env.RESEND_API_KEY && customerEmail) {
       const confirmHtml = `<!DOCTYPE html>
 <html>
@@ -154,17 +210,35 @@ export async function POST(req: NextRequest) {
 </body>
 </html>`
 
-      await resend.emails.send({
-        from: 'PrintHub <orders@cchumedia.com>',
-        to: customerEmail,
-        subject: `✅ Order Confirmed — #${orderId} · ₦${Number(total).toLocaleString()}`,
-        html: confirmHtml,
-      })
+      try {
+        const sendResult = await resend.emails.send({
+          from: 'PrintHub <orders@cchumedia.com>',
+          to: customerEmail,
+          subject: `✅ Order Confirmed — #${orderId} · ₦${Number(total).toLocaleString()}`,
+          html: confirmHtml,
+        })
+        if (sendResult.error) {
+          customerEmailOk = false
+          customerEmailError = JSON.stringify(sendResult.error)
+          console.error(`[notify] Customer email FAILED for order #${orderId}:`, customerEmailError)
+        }
+      } catch (e: any) {
+        customerEmailOk = false
+        customerEmailError = e?.message || String(e)
+        console.error(`[notify] Customer email threw for order #${orderId}:`, customerEmailError)
+      }
     }
 
-    return NextResponse.json({ success: true })
-  } catch (error) {
-    console.error('Notify error:', error)
-    return NextResponse.json({ success: false })
+    // Return real status for every channel — previously this always
+    // returned { success: true } regardless of what actually happened.
+    return NextResponse.json({
+      success: true, // the route itself didn't crash
+      whatsapp: { ok: waResult.ok, provider: waResult.provider, detail: waResult.ok ? undefined : waResult.detail },
+      adminEmail: { ok: adminEmailOk, error: adminEmailError || undefined },
+      customerEmail: { ok: customerEmailOk, error: customerEmailError || undefined },
+    })
+  } catch (error: any) {
+    console.error('[notify] Route-level error:', error?.message || error)
+    return NextResponse.json({ success: false, error: error?.message || String(error) }, { status: 500 })
   }
 }
