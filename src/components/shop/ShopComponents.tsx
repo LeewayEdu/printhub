@@ -86,6 +86,16 @@ export function StarDisplay({ rating, count, size = 12 }: { rating: number; coun
 }
 
 // ─── CARD IMAGE (hover carousel, square 1:1) ─────────────────
+// NOTE ON PERFORMANCE: `unoptimized` is set unconditionally below.
+// Next.js's built-in image optimizer was measured (via DevTools) taking
+// 20-40+ SECONDS per image when fetching from Supabase Storage and
+// resizing through Vercel's /image proxy — this was the dominant cause
+// of site-wide slowness, not image file size or Supabase itself (files
+// were only 10-50KB). Supabase Storage already serves images via CDN,
+// so Next's extra optimization step was a slow, unnecessary middleman.
+// Do not reintroduce conditional optimization for Supabase URLs without
+// first re-measuring in DevTools Network tab — this was a confirmed,
+// measured bottleneck, not a guess.
 function CardImage({ imgs, name }: { imgs: string[]; name: string }) {
   const [idx, setIdx] = useState(0)
   const [hovering, setHovering] = useState(false)
@@ -113,7 +123,7 @@ function CardImage({ imgs, name }: { imgs: string[]; name: string }) {
               fill
               sizes="(max-width: 480px) 45vw, (max-width: 1024px) 25vw, 22vw"
               style={{ objectFit: 'cover', transition: 'opacity 0.35s' }}
-              unoptimized={imgs[idx]?.includes('unsplash') || imgs[idx]?.includes('blob:')}
+              unoptimized
             />
           </div>
         : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, background: '#f5f5f3' }}>🖨️</div>
