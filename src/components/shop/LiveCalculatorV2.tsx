@@ -217,29 +217,41 @@ export default function LiveCalculatorV2({
           ))}
         </div>
       ) : (
-        Object.entries(groups).map(([group, options]) => (
-          <div key={group}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 7 }}>
-              {groupLabel(group)}
+        Object.entries(groups).map(([group, options]) => {
+          const selectedOpt = selection[group]
+          return (
+            <div key={group}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 7 }}>
+                {groupLabel(group)}
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const }}>
+                {options.map(opt => (
+                  <button
+                    key={opt.id}
+                    onClick={() => selectOption(group, opt)}
+                    style={btnActive(selection[group]?.id === opt.id)}
+                  >
+                    {opt.option_label}
+                    {Number(opt.price_modifier) !== 0 && opt.modifier_type !== 'base_rate' && (
+                      <span style={{ fontSize: 10, opacity: 0.7, marginLeft: 4 }}>
+                        {opt.modifier_type === 'percentage'
+                          ? `${Number(opt.price_modifier) > 0 ? '+' : ''}${opt.price_modifier}%`
+                          : `+₦${Number(opt.price_modifier).toLocaleString()}`}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+              {/* Guidance note for the currently-selected option in this group —
+                  e.g. "Best for full-colour designs, any quantity" for print methods */}
+              {selectedOpt?.note && (
+                <div style={{ fontSize: 11, color: '#888', marginTop: 5, fontStyle: 'italic' as const }}>
+                  💡 {selectedOpt.note}
+                </div>
+              )}
             </div>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const }}>
-              {options.map(opt => (
-                <button
-                  key={opt.id}
-                  onClick={() => selectOption(group, opt)}
-                  style={btnActive(selection[group]?.id === opt.id)}
-                >
-                  {opt.option_label}
-                  {Number(opt.price_modifier) > 0 && opt.modifier_type !== 'base_rate' && opt.modifier_type !== 'fixed_per_piece' && (
-                    <span style={{ fontSize: 10, opacity: 0.7, marginLeft: 4 }}>
-                      {opt.modifier_type === 'percentage' ? `+${opt.price_modifier}%` : `+₦${Number(opt.price_modifier).toLocaleString()}`}
-                  </span>
-                )}
-                </button>
-              ))}
-            </div>
-          </div>
-        ))
+          )
+        })
       )}
 
       {isAreaCategory && (

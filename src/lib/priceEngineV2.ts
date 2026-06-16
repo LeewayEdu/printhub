@@ -13,6 +13,7 @@ export interface SpecOption {
   sort_order: number
   is_default?: boolean
   is_addon?: boolean
+  note?: string | null   // short guidance shown under the selected option, e.g. "Best for 20+ pcs"
 }
 
 export interface QtyTier {
