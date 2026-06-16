@@ -212,36 +212,15 @@ export default function CheckoutPage() {
     }
   }
 
-  const initPaystack = () => {
-    if (!email) { toast.error('Please enter your email address'); return }
-    if (!selectedDelivery) { toast.error('Please select a delivery option first'); return }
-
+  const launchPaystackWidget = () => {
     const paystackKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY
     if (!paystackKey) {
       toast.error('Payment not configured — contact support.')
       return
     }
-
-    // @ts-ignore
-    const PaystackPop = window.PaystackPop
-    if (!PaystackPop) {
-      // Script not yet loaded — load it now and retry
-      const existing = document.getElementById('paystack-script')
-      if (!existing) {
-        const script = document.createElement('script')
-        script.id = 'paystack-script'
-        script.src = 'https://js.paystack.co/v1/inline.js'
-        script.onload = () => initPaystack()
-        document.head.appendChild(script)
-      } else {
-        toast('Payment is loading, please try again in a moment')
-      }
-      return
-    }
-
     try {
       // @ts-ignore
-      const handler = PaystackPop.setup({
+      const handler = window.PaystackPop.setup({
         key: paystackKey,
         email,
         amount: Math.round(total * 100),
@@ -254,6 +233,37 @@ export default function CheckoutPage() {
     } catch (err: any) {
       console.error('Paystack error:', err)
       toast.error(err?.message || 'Payment failed to open. Please try again.')
+    }
+  }
+
+  const initPaystack = () => {
+    if (!email) { toast.error('Please enter your email address'); return }
+    if (!selectedDelivery) { toast.error('Please select a delivery option first'); return }
+
+    // @ts-ignore
+    if (window.PaystackPop) {
+      launchPaystackWidget()
+      return
+    }
+
+    // Script hasn't finished loading yet (next/script's afterInteractive can
+    // still be in-flight when the customer clicks). Rather than telling them
+    // to click again — which silently does nothing until they happen to
+    // retry after the script finishes — wait for the SAME script tag's load
+    // event and launch automatically the instant it's ready. No duplicate
+    // script injection: Next's <Script> tag already owns loading this file.
+    const existing = document.getElementById('paystack-script')
+    if (existing) {
+      toast('Preparing secure payment...', { icon: '🔒' })
+      existing.addEventListener('load', () => launchPaystackWidget(), { once: true })
+      // Safety net in case the script already fired its load event before
+      // this listener was attached (rare, but avoids a permanent stall)
+      setTimeout(() => {
+        // @ts-ignore
+        if (window.PaystackPop) launchPaystackWidget()
+      }, 1500)
+    } else {
+      toast.error('Payment script failed to load — please refresh the page and try again.')
     }
   }
 
