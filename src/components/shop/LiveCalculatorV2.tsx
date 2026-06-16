@@ -37,7 +37,12 @@ export default function LiveCalculatorV2({
   const [selection, setSelection] = useState<SpecSelection>({})
   const [priceModel, setPriceModel] = useState<string>('unit')
   const [pages, setPages] = useState(100)
-  const [loading, setLoading] = useState(true)
+  // Split loading state: priceModel resolves independently and fast (single
+  // categories-table lookup, already warmed by the shop page's prefetch).
+  // specsLoading covers spec_options/qty_tiers/add-ons, which are heavier and
+  // shouldn't block dimension inputs or the pages stepper from appearing.
+  const [priceModelLoading, setPriceModelLoading] = useState(true)
+  const [specsLoading, setSpecsLoading] = useState(true)
   const [total, setTotal] = useState<number | null>(null)
   const [tierLabel, setTierLabel] = useState<string | null>(null)
   const [discountPct, setDiscountPct] = useState(0)
@@ -45,28 +50,43 @@ export default function LiveCalculatorV2({
   const isBookCategory = priceModel === 'per_page'
   const isAreaCategory = priceModel === 'area' || priceModel === 'area_sqin'
   const hasSpecs = Object.keys(groups).length > 0 || addonOptions.length > 0
+  // Overall loading — used only to gate the recalculation effect below,
+  // never to gate rendering of dimension/page inputs.
+  const loading = priceModelLoading || specsLoading
 
-  // Load spec groups, add-ons, tiers, price model
+  // Resolve the price model independently — this is the fastest call (a single
+  // categories-table lookup, already warm from the shop page's prefetch on mount)
+  // and dimension/page inputs only depend on this, not on spec_options.
+  useEffect(() => {
+    let cancelled = false
+    getCategoryPriceModel(category).then(pm => {
+      if (cancelled) return
+      setPriceModel(pm)
+      onPriceModelResolved?.(pm)
+      setPriceModelLoading(false)
+    })
+    return () => { cancelled = true }
+  }, [category])
+
+  // Load spec groups, add-ons, qty tiers — heavier, runs in parallel with the
+  // price model resolution above but gates only the spec-option buttons/add-ons.
   useEffect(() => {
     let cancelled = false
     const load = async () => {
-      setLoading(true)
-      const [grps, trs, addons, pm] = await Promise.all([
+      setSpecsLoading(true)
+      const [grps, trs, addons] = await Promise.all([
         getSpecGroups(category),
         getQtyTiers(category),
         getAddonOptions(category),
-        getCategoryPriceModel(category),
       ])
       if (cancelled) return
       setGroups(grps)
       setTiers(trs)
       setAddonOptions(addons)
       setAddonQtys({})
-      setPriceModel(pm)
-      onPriceModelResolved?.(pm)
       const defaults = getDefaultSelection(grps)
       setSelection(defaults)
-      setLoading(false)
+      setSpecsLoading(false)
     }
     load()
     return () => { cancelled = true }
@@ -147,7 +167,7 @@ export default function LiveCalculatorV2({
     setAddonQtys(prev => ({ ...prev, [id]: Math.max(0, qty) }))
   }, [])
 
-  if (loading) {
+  if (priceModelLoading) {
     return (
       <div style={{ padding: '12px 0', fontSize: 12, color: 'var(--text-secondary)', textAlign: 'center' as const }}>
         Loading pricing options...
@@ -155,7 +175,12 @@ export default function LiveCalculatorV2({
     )
   }
 
-  if (!hasSpecs) return null
+  // Only treat "no specs" as a reason to render nothing once specs have
+  // actually finished loading — while specsLoading is true, hasSpecs is
+  // false simply because nothing has arrived yet, not because the category
+  // has no options. Dimension/page inputs depend only on priceModel, which
+  // is already resolved by this point, so they should never be blocked by this.
+  if (!specsLoading && !hasSpecs && !isAreaCategory && !isBookCategory) return null
 
   const btnActive = (active: boolean) => ({
     padding: '6px 12px',
@@ -176,30 +201,46 @@ export default function LiveCalculatorV2({
   return (
     <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 14 }}>
 
-      {/* Spec selectors */}
-      {Object.entries(groups).map(([group, options]) => (
-        <div key={group}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 7 }}>
-            {groupLabel(group)}
-          </div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const }}>
-            {options.map(opt => (
-              <button
-                key={opt.id}
-                onClick={() => selectOption(group, opt)}
-                style={btnActive(selection[group]?.id === opt.id)}
-              >
-                {opt.option_label}
-                {Number(opt.price_modifier) > 0 && opt.modifier_type !== 'base_rate' && opt.modifier_type !== 'fixed_per_piece' && (
-                  <span style={{ fontSize: 10, opacity: 0.7, marginLeft: 4 }}>
-                    {opt.modifier_type === 'percentage' ? `+${opt.price_modifier}%` : `+₦${Number(opt.price_modifier).toLocaleString()}`}
+      {/* Spec selectors — lightweight skeleton while specsLoading, so dimension/
+          page inputs below aren't held hostage waiting for this section */}
+      {specsLoading ? (
+        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+          {[0, 1].map(i => (
+            <div key={i}>
+              <div style={{ width: 90, height: 10, borderRadius: 4, background: '#eee', marginBottom: 8 }} />
+              <div style={{ display: 'flex', gap: 6 }}>
+                {[0, 1, 2].map(j => (
+                  <div key={j} style={{ width: 64, height: 28, borderRadius: 8, background: '#f0f0f0' }} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        Object.entries(groups).map(([group, options]) => (
+          <div key={group}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 7 }}>
+              {groupLabel(group)}
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const }}>
+              {options.map(opt => (
+                <button
+                  key={opt.id}
+                  onClick={() => selectOption(group, opt)}
+                  style={btnActive(selection[group]?.id === opt.id)}
+                >
+                  {opt.option_label}
+                  {Number(opt.price_modifier) > 0 && opt.modifier_type !== 'base_rate' && opt.modifier_type !== 'fixed_per_piece' && (
+                    <span style={{ fontSize: 10, opacity: 0.7, marginLeft: 4 }}>
+                      {opt.modifier_type === 'percentage' ? `+${opt.price_modifier}%` : `+₦${Number(opt.price_modifier).toLocaleString()}`}
                   </span>
                 )}
-              </button>
-            ))}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-      ))}
+        ))
+      )}
 
       {isAreaCategory && (
         <div>

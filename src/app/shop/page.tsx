@@ -7,6 +7,7 @@ import Footer from '@/components/layout/Footer'
 import { supabase } from '@/lib/supabase/client'
 import { ProductCard as SharedProductCard, ShopSidebar, ProductCardData } from '@/components/shop/ShopComponents'
 import LiveCalculatorV2 from '@/components/shop/LiveCalculatorV2'
+import { getCategories } from '@/lib/categories'
 import { useCartStore } from '@/store/cartStore'
 import { ShoppingCart, Search, SlidersHorizontal, X, ChevronLeft, ChevronRight, Minus, Plus, Upload, Link as LinkIcon, Pen } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -119,6 +120,10 @@ function ShopContent() {
       .then(({ data }) => { if (data) setProducts(data as Product[]); setLoading(false) })
     supabase.from('hero_banners').select('*').eq('is_active', true).order('sort_order')
       .then(({ data }) => { if (data && data.length > 0) setHeroBanners(data) })
+    // Prefetch pricing categories so LiveCalculatorV2's getCategoryPriceModel()
+    // lookup is already warm by the time a customer opens a product modal —
+    // avoids a second cold network round-trip on first product open.
+    getCategories(true).catch(() => {})
     supabase.from('marketing_categories').select('id, label, slug, icon').eq('is_active', true).order('sort_order')
       .then(({ data }) => { if (data) setMarketingCategories(data as MarketingCategory[]) })
     supabase.from('product_marketing_categories').select('product_id, marketing_categories(label)')
