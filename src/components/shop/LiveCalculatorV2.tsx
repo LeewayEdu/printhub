@@ -20,13 +20,14 @@ interface LiveCalculatorV2Props {
   onPriceUpdate: (total: number, specs: Record<string, string>, summaryText: string) => void
   onSpecsUpdate?: (specs: SpecSelection) => void
   onDimensionChange?: (axis: 'width' | 'height', value: number) => void
+  onPriceModelResolved?: (priceModel: string) => void
 }
 
 export default function LiveCalculatorV2({
   category, productName, qty, widthFt = 1, heightFt = 1,
   minWidth = 0.1, minHeight = 0.1,
   isAreaBased = false,
-  applyPreset, onPriceUpdate, onSpecsUpdate, onDimensionChange
+  applyPreset, onPriceUpdate, onSpecsUpdate, onDimensionChange, onPriceModelResolved
 }: LiveCalculatorV2Props) {
 
   const [groups, setGroups] = useState<Record<string, SpecOption[]>>({})
@@ -62,6 +63,7 @@ export default function LiveCalculatorV2({
       setAddonOptions(addons)
       setAddonQtys({})
       setPriceModel(pm)
+      onPriceModelResolved?.(pm)
       const defaults = getDefaultSelection(grps)
       setSelection(defaults)
       setLoading(false)
@@ -204,6 +206,40 @@ export default function LiveCalculatorV2({
           <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 7 }}>
             Dimensions {priceModel === 'area_sqin' ? '(inches)' : '(feet)'}
           </div>
+
+          {/* Quick size presets — scaled relative to the product's minimum so
+              suggestions are never below what's actually orderable */}
+          <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' as const }}>
+            {(priceModel === 'area_sqin'
+              ? [
+                  { label: 'Small', w: Math.max(minWidth, 2), h: Math.max(minHeight, 2) },
+                  { label: 'Medium', w: Math.max(minWidth, 4), h: Math.max(minHeight, 4) },
+                  { label: 'Large', w: Math.max(minWidth, 6), h: Math.max(minHeight, 6) },
+                ]
+              : [
+                  { label: 'Small', w: Math.max(minWidth, 3), h: Math.max(minHeight, 2) },
+                  { label: 'Medium', w: Math.max(minWidth, 6), h: Math.max(minHeight, 3) },
+                  { label: 'Large', w: Math.max(minWidth, 10), h: Math.max(minHeight, 4) },
+                ]
+            ).map(preset => {
+              const isActive = widthFt === preset.w && heightFt === preset.h
+              return (
+                <button
+                  key={preset.label}
+                  onClick={() => { onDimensionChange?.('width', preset.w); onDimensionChange?.('height', preset.h) }}
+                  style={{
+                    padding: '6px 12px', borderRadius: 8, fontSize: 12, fontFamily: 'Montserrat', fontWeight: isActive ? 700 : 500,
+                    border: `1.5px solid ${isActive ? 'var(--red)' : '#e8e8e5'}`,
+                    background: isActive ? 'rgba(192,57,43,0.08)' : 'white',
+                    color: isActive ? 'var(--red)' : '#555',
+                    cursor: 'pointer',
+                  }}>
+                  {preset.label} <span style={{ opacity: 0.65, fontWeight: 400 }}>({preset.w}×{preset.h}{priceModel === 'area_sqin' ? 'in' : 'ft'})</span>
+                </button>
+              )
+            })}
+          </div>
+
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 3 }}>
               <label style={{ fontSize: 10, color: '#888', fontWeight: 600 }}>

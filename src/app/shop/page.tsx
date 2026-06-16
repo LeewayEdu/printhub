@@ -44,13 +44,16 @@ interface MarketingCategory {
   icon: string
 }
 
+// Fallback price calculator — used ONLY as a placeholder before LiveCalculatorV2's
+// first calculation lands (calcPrice is null momentarily on open), and for
+// is_fixed_price products which skip the calculator entirely.
+// This does NOT enforce min_width/min_height — that enforcement lives solely in
+// priceEngineV2.calculate(), which is what actually prices area-based products.
+// Do not extend this function with area-based logic; it is legacy and intentionally inert there.
 function calculatePrice(p: Product, qty: number, specs: Record<string, SpecOption>, w?: number, h?: number): number {
   const specTotal = Object.values(specs).reduce((s, o) => s + (o?.price || 0), 0)
-  if (p.pricing_model === 'area') {
-    return Math.round((p.area_rate + specTotal) * (w || p.min_width || 1) * (h || p.min_height || 1))
-  }
   const base = p.price + specTotal
-  if (p.pricing_model === 'fixed') return Math.round(base * (qty / (p.moq || 1)))
+  if (p.is_fixed_price) return Math.round(base * qty)
   const tiers = [...(p.qty_tiers || [])].sort((a, b) => a.qty - b.qty)
   if (!tiers.length || qty <= p.moq) return base
   let mult = 1
@@ -95,6 +98,10 @@ function ShopContent() {
   const [calcSummary, setCalcSummary] = useState<string>('')
   const [appliedPreset, setAppliedPreset] = useState<{ specs?: Record<string, string>; addons?: string[] } | null>(null)
   const [activePresetLabel, setActivePresetLabel] = useState<string | null>(null)
+  // Authoritative price model resolved by LiveCalculatorV2 via product_type → categories.price_model.
+  // Do NOT use selected.pricing_model (legacy column) for any UI decision — it can disagree
+  // with the new pricing-category system and reintroduce the same class of bug fixed earlier.
+  const [resolvedPriceModel, setResolvedPriceModel] = useState<string>('unit')
 
   // Marketing categories
   const [marketingCategories, setMarketingCategories] = useState<MarketingCategory[]>([])
@@ -165,7 +172,7 @@ function ShopContent() {
     setQty(p.moq || 1)
     setSpecs({})
     setW(p.min_width || 1)
-    setH(p.min_height || 1)    
+    setH(p.min_height || 1)
     setImgIdx(0)
     setDesignType(null)
     setDesignFile(null)
@@ -176,6 +183,7 @@ function ShopContent() {
     setCalcPrice(null)
     setCalcSpecs({})
     setCalcSummary('')
+    setResolvedPriceModel('unit')
   }
 
   const choosePreset = (preset: ProductPreset) => {
@@ -195,10 +203,11 @@ function ShopContent() {
     Object.entries(specs).forEach(([k, v]) => { sl[k] = v.label })
 
     let displayQty = ''
-    if (selected.pricing_model === 'area') {
-      sl['Width'] = `${w}${selected.area_unit === 'sqft' ? 'ft' : 'm'}`
-      sl['Height'] = `${h}${selected.area_unit === 'sqft' ? 'ft' : 'm'}`
-      displayQty = `${w}×${h} ${selected.area_unit}`
+    if (['area', 'area_sqin'].includes(resolvedPriceModel)) {
+      const unit = resolvedPriceModel === 'area_sqin' ? 'in' : 'ft'
+      sl['Width'] = `${w}${unit}`
+      sl['Height'] = `${h}${unit}`
+      displayQty = `${w}×${h} ${resolvedPriceModel === 'area_sqin' ? 'sq.in' : 'sqft'}`
     } else {
       displayQty = `${qty} pcs`
     }
@@ -433,8 +442,14 @@ function ShopContent() {
                       </div>
                     )}
 
-                    {/* Quantity — hidden for area-based products (dimensions drive qty instead) */}
-                    {selected.pricing_model !== 'area' && (
+                    {/* Quantity — hidden only for variable-priced area-based products
+                        (dimensions drive the order instead of a piece count there).
+                        Fixed-price products always show qty since they're priced per piece
+                        regardless of category. Uses resolvedPriceModel (sourced via
+                        product_type → categories.price_model through LiveCalculatorV2) rather
+                        than the legacy selected.pricing_model column, which may be stale or
+                        unset for products migrated to the new pricing-category system. */}
+                    {(selected.is_fixed_price || !['area', 'area_sqin'].includes(resolvedPriceModel)) && (
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                           <label style={{ fontSize: 13, fontWeight: 600, fontFamily: 'Montserrat', color: 'var(--text-primary)' }}>Quantity</label>
@@ -526,6 +541,7 @@ function ShopContent() {
                           if (axis === 'width') setW(val)
                           else setH(val)
                         }}
+                        onPriceModelResolved={setResolvedPriceModel}
                         onPriceUpdate={(total, specSummary, summaryText) => {
                           setCalcPrice(total)
                           setCalcSpecs(specSummary)
@@ -534,12 +550,16 @@ function ShopContent() {
                       />
                     )}
 
-                    {/* Price display — shown only when calculator is not active */}
+                    {/* Price display — shown only when calculator is not active (fixed-price products).
+                        Uses resolvedPriceModel for the dimensions label here too, but since fixed-price
+                        products skip the calculator entirely, resolvedPriceModel stays at its 'unit'
+                        default — so we fall back to selected.area_unit only for cosmetic labelling,
+                        never for calculation. */}
                     {selected.is_fixed_price && (
                       <div style={{ background: '#f7f7f5', borderRadius: 10, padding: '12px 14px', border: '1px solid #e8e8e5' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                            {selected.pricing_model === 'area' ? `${w}×${h} ${selected.area_unit}` : `${qty} pcs`}
+                            {qty} pcs
                           </span>
                           <span style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 22, color: 'var(--red)' }}>
                             ₦{(calcPrice || price).toLocaleString()}
