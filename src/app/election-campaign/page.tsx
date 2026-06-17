@@ -1,70 +1,103 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import { supabase } from '@/lib/supabase/client'
-import { useCartStore } from '@/store/cartStore'
 import { ShoppingCart, CheckCircle } from 'lucide-react'
 
 const CAMPAIGN_PACKAGES = [
   {
-    name: 'Ward Package', price: 150000,
+    name: 'Ward Package',
+    price: 930000,
     desc: 'Perfect for ward-level campaigns and grassroots mobilisation.',
     items: ['500 A3 Campaign Posters', '2 Pull-up Banners', '50 Campaign T-Shirts', '50 Campaign Caps', '100 Branded Pens'],
+    hasEstimate: true,
   },
   {
-    name: 'LGA Package', price: 350000,
+    name: 'LGA Package',
+    price: 3040000,
     desc: 'Comprehensive coverage for local government area campaigns.',
     items: ['2,000 A3 Campaign Posters', '5 Pull-up Banners', '100 Campaign T-Shirts', '100 Campaign Vests', '200 Campaign Caps', '1 Large Outdoor Banner (10×4ft)', 'Vehicle branding (1 car)'],
-    badge: 'Best Value',
+    badge: 'Most Requested',
+    hasEstimate: true,
   },
   {
-    name: 'State Package', price: 800000,
+    name: 'State Package',
+    price: 18900000,
     desc: 'Full-scale state-wide campaign materials package.',
     items: ['10,000 A3 Campaign Posters', '20 Pull-up Banners', '500 Campaign T-Shirts', '500 Campaign Vests', '500 Campaign Caps', '5 Large Outdoor Banners', 'Vehicle branding (3 vehicles)', 'Wall calendars (1,000 pcs)'],
+    hasEstimate: true,
   },
 ]
 
+// Marketing categories relevant to a campaign — pulls from whichever of these
+// actually have tagged products. As of the last check, 'Election & Campaign
+// Materials' has 0 tagged products yet, so this also pulls from related
+// categories (apparel, promo items) that DO have inventory likely usable
+// for campaigns (caps, t-shirts, pens, etc.) so the section isn't empty.
+const RELEVANT_MARKETING_CATEGORIES = [
+  'Election & Campaign Materials',
+  'Banners & Large Format',
+  'Shirts & Uniforms',
+  'Promotional Items & Gifts',
+]
+
+interface Product {
+  id: string
+  name: string
+  display_price: number | null
+  price: number | null
+  is_fixed_price: boolean | null
+  images: string[] | null
+  image_url: string | null
+}
+
 export default function ElectionCampaignPage() {
-  const [pinnedProducts, setPinnedProducts] = useState<any[]>([])
-  const [categoryProducts, setCategoryProducts] = useState<any[]>([])
-  const { addToCart } = useCartStore()
+  const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const load = async () => {
-      const { data: collection } = await supabase
-        .from('collections')
-        .select('id')
-        .eq('slug', 'election-campaign')
-        .single()
+      // Look up marketing category IDs by label, then pull tagged products
+      // via the junction table — replaces the old dead `category` column
+      // query, which no longer matches anything after the pricing/marketing
+      // category split.
+      const { data: cats } = await supabase
+        .from('marketing_categories')
+        .select('id, label')
+        .in('label', RELEVANT_MARKETING_CATEGORIES)
 
-      if (collection) {
-        const { data: pinned } = await supabase
-          .from('collection_products')
-          .select('product_id, sort_order, products(*)')
-          .eq('collection_id', collection.id)
-          .order('sort_order')
-        if (pinned) setPinnedProducts(pinned.map((p: any) => p.products))
-      }
+      if (!cats || cats.length === 0) { setLoading(false); return }
 
-      const { data: catProducts } = await supabase
+      const { data: tags } = await supabase
+        .from('product_marketing_categories')
+        .select('product_id')
+        .in('marketing_category_id', cats.map(c => c.id))
+
+      const productIds = Array.from(new Set((tags || []).map(t => t.product_id)))
+      if (productIds.length === 0) { setLoading(false); return }
+
+      const { data: prods } = await supabase
         .from('products')
-        .select('*')
-        .in('category', ['Campaign Materials', 'Banners & Large Format', 'Shirts & Uniforms', 'Branded Souvenirs'])
+        .select('id, name, display_price, price, is_fixed_price, images, image_url')
+        .in('id', productIds)
         .eq('is_active', true)
         .order('featured', { ascending: false })
         .limit(12)
 
-      if (catProducts) setCategoryProducts(catProducts)
+      if (prods) setProducts(prods as Product[])
+      setLoading(false)
     }
     load()
   }, [])
 
-  const allProducts = [
-    ...pinnedProducts,
-    ...categoryProducts.filter(p => !pinnedProducts.find((pp: any) => pp?.id === p.id))
-  ]
+  const priceLabel = (p: Product) => {
+    const base = Number(p.display_price || p.price || 0)
+    if (!base) return 'Get a quote'
+    return p.is_fixed_price ? `₦${base.toLocaleString()}` : `From ₦${base.toLocaleString()}`
+  }
 
   return (
     <>
@@ -110,13 +143,13 @@ export default function ElectionCampaignPage() {
           </div>
         </section>
 
-        {/* Packages */}
+        {/* Packages — static pricing, unaffected by the calculator migration */}
         <section id="packages" style={{ background: 'var(--bg)', padding: '72px 40px' }}>
           <div style={{ maxWidth: 1100, margin: '0 auto' }}>
             <div style={{ textAlign: 'center' as const, marginBottom: 48 }}>
               <div className="badge badge-red" style={{ marginBottom: 14 }}>Campaign packages</div>
               <h2 style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 'clamp(26px, 3vw, 36px)', color: 'var(--text-primary)', marginBottom: 12 }}>Ready-made campaign packages</h2>
-              <p style={{ fontSize: 14, color: 'var(--text-secondary)', maxWidth: 480, margin: '0 auto' }}>Choose a package or mix and match individual items below.</p>
+              <p style={{ fontSize: 14, color: 'var(--text-secondary)', maxWidth: 480, margin: '0 auto' }}>Choose a package or mix and match individual items below. Prices reflect current material costs and are confirmed exactly when you place your order.</p>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24 }} className="packages-grid">
               {CAMPAIGN_PACKAGES.map((pkg, i) => (
@@ -127,8 +160,13 @@ export default function ElectionCampaignPage() {
                     </div>
                   )}
                   <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 20, color: 'var(--text-primary)', marginBottom: 6 }}>{pkg.name}</div>
-                  <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 32, color: 'var(--red)', marginBottom: 8 }}>₦{pkg.price.toLocaleString()}</div>
-                  <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20, lineHeight: 1.6 }}>{pkg.desc}</p>
+                  <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 32, color: 'var(--red)', marginBottom: 4 }}>₦{pkg.price.toLocaleString()}</div>
+                  {pkg.hasEstimate && (
+                    <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 12, lineHeight: 1.5 }}>
+                      Estimated price — based on current material costs, confirmed exactly when you request a quote.
+                    </div>
+                  )}
+                  <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20, lineHeight: 1.6, marginTop: pkg.hasEstimate ? 0 : 8 }}>{pkg.desc}</p>
                   <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8, marginBottom: 24 }}>
                     {pkg.items.map(item => (
                       <div key={item} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
@@ -148,32 +186,37 @@ export default function ElectionCampaignPage() {
           </div>
         </section>
 
-        {/* Individual Products */}
-        {allProducts.length > 0 && (
+        {/* Individual Products — now sourced from marketing categories.
+            Each card links to the main shop, pre-filtered to that product's
+            category, where the full spec calculator lives — no calculator
+            duplication on this page. */}
+        {!loading && products.length > 0 && (
           <section style={{ background: 'var(--bg-secondary)', padding: '72px 40px' }}>
             <div style={{ maxWidth: 1100, margin: '0 auto' }}>
               <div style={{ marginBottom: 32 }}>
                 <div className="badge badge-red" style={{ marginBottom: 12 }}>Individual items</div>
                 <h2 style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 'clamp(24px, 3vw, 32px)', color: 'var(--text-primary)', marginBottom: 8 }}>Order individual campaign items</h2>
-                <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Pick exactly what your campaign needs.</p>
+                <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Pick exactly what your campaign needs — choose specs and quantity on the product page.</p>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }} className="products-grid">
-                {allProducts.filter(Boolean).map((product: any) => (
-                  <div key={product.id} className="card-hover" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, overflow: 'hidden' }}>
-                    <div style={{ height: 160, background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, overflow: 'hidden' }}>
-                      {product.image_url ? <img src={product.image_url} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '🗳️'}
-                    </div>
-                    <div style={{ padding: 16 }}>
-                      <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>{product.category}</div>
-                      <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, marginBottom: 8, color: 'var(--text-primary)' }}>{product.name}</div>
-                      <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 18, color: 'var(--red)', marginBottom: 12 }}>₦{Number(product.price).toLocaleString()}</div>
-                      <button onClick={() => addToCart(product.id, product.name, product.price, '1 pc')}
-                        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px', background: 'var(--red)', color: 'white', border: 'none', borderRadius: 8, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
-                        <ShoppingCart size={13} /> Add to Cart
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                {products.map((product) => {
+                  const img = product.images?.[0] || product.image_url
+                  return (
+                    <Link key={product.id} href="/shop" className="card-hover"
+                      style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, overflow: 'hidden', textDecoration: 'none', display: 'block' }}>
+                      <div style={{ height: 160, background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, overflow: 'hidden' }}>
+                        {img ? <img src={img} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '🗳️'}
+                      </div>
+                      <div style={{ padding: 16 }}>
+                        <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, marginBottom: 8, color: 'var(--text-primary)' }}>{product.name}</div>
+                        <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 18, color: 'var(--red)', marginBottom: 12 }}>{priceLabel(product)}</div>
+                        <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px', background: 'var(--red)', color: 'white', borderRadius: 8, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 12 }}>
+                          <ShoppingCart size={13} /> View & Order
+                        </div>
+                      </div>
+                    </Link>
+                  )
+                })}
               </div>
             </div>
           </section>

@@ -15,6 +15,7 @@ const MODIFIER_TYPES = [
   { value: 'print_per_piece',  label: 'Per piece (branding/print cost)' },
   { value: 'per_sqft',         label: 'Per sqft (area-based)' },
   { value: 'per_sqft_extra',   label: 'Per sqft extra (material upgrade)' },
+  { value: 'per_sqin_extra',   label: 'Per sqin extra (sticker material upgrade)' },
   { value: 'per_page',         label: 'Per page (books/magazines)' },
   { value: 'fixed_per_unit',   label: 'Fixed per unit (binding, cover)' },
   { value: 'fixed_flat',       label: 'Flat fee (one-time per order)' },

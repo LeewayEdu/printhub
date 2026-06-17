@@ -40,6 +40,14 @@ const KITS = [
     ],
   },
   {
+    // ✅ RESOLVED 17 June 2026: pen base cost confirmed at ₦600/pen
+    // (was previously unpriced — flat ₦300 modifier-only assumption).
+    // With the real base cost included, 100 fully-branded pens would
+    // have pushed this kit's real cost to ₦307,076 — ABOVE the
+    // ₦280,000 selling price (negative margin). Reduced quantity to
+    // 30 pens to restore the ~40% target margin while keeping the
+    // price unchanged, per user's explicit choice over raising price
+    // or swapping the item.
     id: 'premium',
     name: 'Premium',
     price: 280000,
@@ -50,7 +58,7 @@ const KITS = [
       'Everything in Standard',
       '1,000 Business Cards (instead of 500)',
       '50 Branded Tote Bags',
-      '100 Branded Pens',
+      '30 Branded Pens',
       '1 Car Sticker (vinyl, 12×12in)',
       '1 Office Door Sign',
       'Turnaround: 10-14 working days',

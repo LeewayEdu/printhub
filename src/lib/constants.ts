@@ -102,6 +102,11 @@ export const STARTER_KITS = [
     color: 'red',
   },
   {
+    // ✅ RESOLVED 17 June 2026: pen base cost confirmed at ₦600/pen.
+    // 100 fully-branded pens would have pushed real cost to
+    // ₦307,076 — above the ₦280,000 price (negative margin).
+    // Reduced to 30 pens to restore ~40% target margin at the same
+    // price. See matching note in starter-kits/page.tsx.
     id: 'premium',
     name: 'Premium',
     price: 280000,
@@ -111,7 +116,7 @@ export const STARTER_KITS = [
       'Everything in Standard',
       '1,000 Business Cards (instead of 500)',
       '50 Branded Tote Bags',
-      '100 Branded Pens',
+      '30 Branded Pens',
       '1 Car Sticker (vinyl, 12×12in)',
       '1 Office Door Sign',
       'Turnaround: 10–14 working days',
