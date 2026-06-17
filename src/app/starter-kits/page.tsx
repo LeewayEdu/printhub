@@ -1,43 +1,40 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import { supabase } from '@/lib/supabase/client'
-import { useCartStore } from '@/store/cartStore'
 import { ShoppingCart, Star, Check } from 'lucide-react'
 
 const KITS = [
   {
     id: 'basic',
     name: 'Basic',
-    price: 75000,
+    price: 40000,
     badge: null,
     isPopular: false,
     tagline: 'You just registered your business. Now look like one.',
     items: [
-      '250 Business Cards (both sides)',
-      '1 Complimentary Slip pad (50 leaves)',
-      '1 Letterhead design + 20 printed copies',
+      '250 Business Cards (double-sided)',
+      '20 Letterheads (A4, printed) + design',
       '1 Rubber Stamp',
-      'Social Media profile setup (2 platforms)',
       'Logo design (if needed)',
     ],
   },
   {
     id: 'standard',
     name: 'Standard',
-    price: 150000,
+    price: 130000,
     badge: 'Most Popular',
     isPopular: true,
     tagline: 'Look established from day one.',
     items: [
       'Everything in Basic',
-      '500 Business Cards',
+      '500 Business Cards (instead of 250)',
       '1 A5 Notepad (100 leaves, branded)',
-      '2 Polo Shirts (branded)',
-      '1 Pull-up Banner (standard size)',
-      '1 Branded File Folder (50 pcs)',
+      '2 Polo Shirts (branded, front logo)',
+      '1 Pull-up Banner (2×5ft, with stand)',
       'Google Business Profile setup',
       'WhatsApp Business setup',
     ],
@@ -51,58 +48,78 @@ const KITS = [
     tagline: 'Arrive in every room looking like a million naira.',
     items: [
       'Everything in Standard',
-      '1,000 Business Cards',
-      '1 Branded Tote Bag (50 pcs)',
-      '1 Branded Pen (100 pcs)',
-      '1 Car Sticker (vinyl)',
+      '1,000 Business Cards (instead of 500)',
+      '50 Branded Tote Bags',
+      '100 Branded Pens',
+      '1 Car Sticker (vinyl, 12×12in)',
       '1 Office Door Sign',
-      '1 Roll-up Banner',
       'Turnaround: 10-14 working days',
     ],
   },
 ]
 
+// Marketing categories with confirmed inventory (per Supabase check):
+// Business Cards (2), Office & Business Stationery (21), Shirts & Uniforms (2)
+const RELEVANT_MARKETING_CATEGORIES = [
+  'Business Cards',
+  'Office & Business Stationery',
+  'Promotional Items & Gifts',
+  'Shirts & Uniforms',
+]
+
+interface Product {
+  id: string
+  name: string
+  display_price: number | null
+  price: number | null
+  is_fixed_price: boolean | null
+  images: string[] | null
+  image_url: string | null
+}
+
 export default function StarterKitsPage() {
-  const [pinnedProducts, setPinnedProducts] = useState<any[]>([])
-  const [categoryProducts, setCategoryProducts] = useState<any[]>([])
-  const { addToCart } = useCartStore()
+  const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const load = async () => {
-      const { data: collection } = await supabase
-        .from('collections')
-        .select('id')
-        .eq('slug', 'starter-kits')
-        .single()
+      // Marketing-category-based lookup, replacing the old dead `category`
+      // column query (Business Cards, Papers & Stationery, etc no longer
+      // match any product after the pricing/marketing category split).
+      const { data: cats } = await supabase
+        .from('marketing_categories')
+        .select('id, label')
+        .in('label', RELEVANT_MARKETING_CATEGORIES)
 
-      if (collection) {
-        const { data: pinned } = await supabase
-          .from('collection_products')
-          .select('sort_order, products(*)')
-          .eq('collection_id', collection.id)
-          .order('sort_order')
-        if (pinned) setPinnedProducts(pinned.map((p: any) => p.products))
-      }
+      if (!cats || cats.length === 0) { setLoading(false); return }
 
-      const { data: catProducts } = await supabase
+      const { data: tags } = await supabase
+        .from('product_marketing_categories')
+        .select('product_id')
+        .in('marketing_category_id', cats.map(c => c.id))
+
+      const productIds = Array.from(new Set((tags || []).map(t => t.product_id)))
+      if (productIds.length === 0) { setLoading(false); return }
+
+      const { data: prods } = await supabase
         .from('products')
-        .select('*')
-        .in('category', ['Business Cards', 'Papers & Stationery', 'Branded Souvenirs', 'Shirts & Uniforms'])
+        .select('id, name, display_price, price, is_fixed_price, images, image_url')
+        .in('id', productIds)
         .eq('is_active', true)
         .order('featured', { ascending: false })
         .limit(12)
 
-      if (catProducts) setCategoryProducts(catProducts)
+      if (prods) setProducts(prods as Product[])
+      setLoading(false)
     }
     load()
   }, [])
 
-  const allProducts = [
-    ...pinnedProducts,
-    ...categoryProducts.filter(
-      (p) => !pinnedProducts.find((pp: any) => pp?.id === p.id)
-    ),
-  ]
+  const priceLabel = (p: Product) => {
+    const base = Number(p.display_price || p.price || 0)
+    if (!base) return 'Get a quote'
+    return p.is_fixed_price ? `₦${base.toLocaleString()}` : `From ₦${base.toLocaleString()}`
+  }
 
   return (
     <>
@@ -150,7 +167,7 @@ export default function StarterKitsPage() {
                     {kit.name}
                   </div>
                   <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 38, color: 'var(--text-primary)', marginBottom: 8 }}>
-                    N{kit.price.toLocaleString()}
+                    ₦{kit.price.toLocaleString()}
                   </div>
                   <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 24, lineHeight: 1.6, fontStyle: 'italic' }}>
                     {kit.tagline}
@@ -177,7 +194,9 @@ export default function StarterKitsPage() {
           </div>
         </section>
 
-        {allProducts.length > 0 && (
+        {/* Individual products — links to /shop with the full calculator,
+            rather than duplicating spec selection on this landing page */}
+        {!loading && products.length > 0 && (
           <section style={{ background: 'var(--bg)', padding: '72px 40px' }}>
             <div style={{ maxWidth: 1100, margin: '0 auto' }}>
               <div style={{ marginBottom: 36 }}>
@@ -186,33 +205,28 @@ export default function StarterKitsPage() {
                   Order individual items too
                 </h2>
                 <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
-                  Not ready for a full kit? Order exactly what you need.
+                  Not ready for a full kit? Order exactly what you need — choose specs and quantity on the product page.
                 </p>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }} className="products-grid">
-                {allProducts.filter(Boolean).map((product: any) => (
-                  <div key={product.id} className="card-hover" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, overflow: 'hidden' }}>
-                    <div style={{ height: 160, background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, overflow: 'hidden' }}>
-                      {product.image_url
-                        ? <img src={product.image_url} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        : '🖨️'
-                      }
-                    </div>
-                    <div style={{ padding: 16 }}>
-                      <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>{product.category}</div>
-                      <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, marginBottom: 8, color: 'var(--text-primary)' }}>{product.name}</div>
-                      <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 18, color: 'var(--red)', marginBottom: 12 }}>
-                        N{Number(product.price).toLocaleString()}
+                {products.map((product) => {
+                  const img = product.images?.[0] || product.image_url
+                  return (
+                    <Link key={product.id} href="/shop" className="card-hover"
+                      style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, overflow: 'hidden', textDecoration: 'none', display: 'block' }}>
+                      <div style={{ height: 160, background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, overflow: 'hidden' }}>
+                        {img ? <img src={img} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '🖨️'}
                       </div>
-                      <button
-                        onClick={() => addToCart(product.id, product.name, product.price, '1 pc')}
-                        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px', background: 'var(--red)', color: 'white', border: 'none', borderRadius: 8, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
-                      >
-                        <ShoppingCart size={13} /> Add to Cart
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                      <div style={{ padding: 16 }}>
+                        <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, marginBottom: 8, color: 'var(--text-primary)' }}>{product.name}</div>
+                        <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 18, color: 'var(--red)', marginBottom: 12 }}>{priceLabel(product)}</div>
+                        <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px', background: 'var(--red)', color: 'white', borderRadius: 8, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 12 }}>
+                          <ShoppingCart size={13} /> View & Order
+                        </div>
+                      </div>
+                    </Link>
+                  )
+                })}
               </div>
             </div>
           </section>
