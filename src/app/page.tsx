@@ -25,7 +25,12 @@ export default function HomePage() {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([])
   const [allProducts, setAllProducts] = useState<Product[]>([])
   const [testimonials, setTestimonials] = useState<Testimonial[]>([])
+  // categoryMap and productTags now driven by MARKETING categories, not the
+  // legacy `category` (pricing category) column — customers should never
+  // see pricing-category names like "Sheet Printing" or "Apparel & Wearables"
+  // in navigation; those exist purely to drive the spec/price calculator.
   const [categoryMap, setCategoryMap] = useState<Record<string, number>>({})
+  const [productTags, setProductTags] = useState<Record<string, string[]>>({}) // product_id -> marketing category labels
   const [activeCat, setActiveCat] = useState('All Products')
   const [wishlistIds, setWishlistIds] = useState<string[]>([])
   const [heroSearch, setHeroSearch] = useState('')
@@ -41,18 +46,36 @@ export default function HomePage() {
     supabase.from('hero_banners').select('*').eq('is_active', true).eq('page_type', 'home').order('sort_order')
       .then(({ data }) => { if (data?.length) setHeroBanners(data) })
 
-    // Flash sale (active + not expired)
-
     // Products
     supabase.from('products').select('*').eq('is_active', true).order('created_at', { ascending: false })
       .then(({ data }) => {
         if (!data) return
         setAllProducts(data as Product[])
         setFeaturedProducts((data as Product[]).filter(p => p.featured).slice(0, 8))
-        // Build category counts
-        const map: Record<string, number> = { 'All Products': data.length }
-        data.forEach(p => { map[p.category] = (map[p.category] || 0) + 1 })
-        setCategoryMap(map)
+      })
+
+    // Marketing categories + product tags — replaces the old `category`
+    // (pricing category) based categoryMap. A product can carry several
+    // marketing category tags; counts here reflect that.
+    supabase.from('marketing_categories').select('id, label').eq('is_active', true).order('sort_order')
+      .then(async ({ data: cats }) => {
+        if (!cats) return
+        const { data: tags } = await supabase
+          .from('product_marketing_categories')
+          .select('product_id, marketing_categories(label)')
+        const tagMap: Record<string, string[]> = {}
+        const counts: Record<string, number> = {}
+        cats.forEach(c => { counts[c.label] = 0 })
+        ;(tags || []).forEach((row: any) => {
+          const label = row.marketing_categories?.label
+          if (!label) return
+          if (!tagMap[row.product_id]) tagMap[row.product_id] = []
+          tagMap[row.product_id].push(label)
+          if (counts[label] !== undefined) counts[label]++
+        })
+        setProductTags(tagMap)
+        const total = Object.values(counts).reduce((a, b) => a + b, 0)
+        setCategoryMap({ 'All Products': total, ...counts })
       })
 
     // Testimonials
@@ -62,7 +85,7 @@ export default function HomePage() {
     // Trust ticker
     supabase.from('trust_ticker').select('text, emoji').eq('is_active', true).order('sort_order')
       .then(({ data }) => { if (data?.length) setTickerItems(data) })
-        
+
     // Wishlist IDs for current user
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
@@ -72,15 +95,19 @@ export default function HomePage() {
     })
   }, [])
 
-  // Hero search
+  // Hero search — matches by name OR any of the product's marketing
+  // category tags (not the legacy pricing-category field)
   useEffect(() => {
     if (!heroSearch.trim()) { setHeroResults([]); return }
     const q = heroSearch.toLowerCase()
     const results = allProducts
-      .filter(p => p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q))
+      .filter(p => {
+        const tags = productTags[p.id] || []
+        return p.name.toLowerCase().includes(q) || tags.some(t => t.toLowerCase().includes(q))
+      })
       .slice(0, 8)
     setHeroResults(results)
-  }, [heroSearch, allProducts])
+  }, [heroSearch, allProducts, productTags])
 
   // Close search dropdown on outside click
   useEffect(() => {
@@ -103,12 +130,25 @@ export default function HomePage() {
   const bestsellers = allProducts.slice(0, 8)
   const categoryProducts = activeCat === 'All Products'
     ? allProducts.slice(0, 12)
-    : allProducts.filter(p => p.category === activeCat).slice(0, 12)
+    : allProducts.filter(p => (productTags[p.id] || []).includes(activeCat)).slice(0, 12)
 
-  const SHOP_CATS = ['All Products', ...Array.from(new Set(allProducts.map(p => p.category))).slice(0, 13)]
+  // Category pills now sourced from real marketing category labels (from
+  // categoryMap, which is keyed by marketing category since the fetch
+  // effect above), not by deriving unique values from products' legacy
+  // `category` field.
+  const SHOP_CATS = ['All Products', ...Object.keys(categoryMap).filter(c => c !== 'All Products').slice(0, 13)]
 
-  // We pass openModal handler — on homepage we just redirect to /shop
-  const openProduct = (p: Product) => { router.push(`/shop?product=${p.id}`) }
+  // Product price label helper — uses display_price / is_fixed_price,
+  // never the legacy price/pricing_model fields.
+  const priceLabel = (p: any) => {
+    const base = Number(p.display_price || p.price || 0)
+    if (!base) return 'Get a quote'
+    return p.is_fixed_price ? `₦${base.toLocaleString()}` : `From ₦${base.toLocaleString()}`
+  }
+
+  // Simple navigation to the shop — no deep-link auto-open of a specific
+  // product's modal (kept consistent with the landing pages' approach).
+  const openProduct = (_p: Product) => { router.push('/shop') }
 
   const handleSidebarCategory = (cat: string) => {
     if (cat === 'All Products') router.push('/shop')
@@ -169,7 +209,7 @@ export default function HomePage() {
               )}
             </h1>
 
-            {/* ── SEARCH BAR — fixed here below headline, unaffected by banners ── */}
+            {/* ── SEARCH BAR ── */}
             <div ref={searchRef} style={{ position: 'relative' as const, marginBottom: 32, maxWidth: 560, margin: '0 auto 32px' }}>
               <div style={{ display: 'flex', alignItems: 'center', background: 'white', borderRadius: 50, boxShadow: heroSearchFocused ? '0 0 0 4px rgba(192,57,43,0.35), 0 12px 40px rgba(0,0,0,0.4)' : '0 8px 32px rgba(0,0,0,0.3)', transition: 'box-shadow 0.2s', position: 'relative' as const, zIndex: 101 }}>
                 <div style={{ paddingLeft: 22, color: '#bbb', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
@@ -206,7 +246,8 @@ export default function HomePage() {
                       <div style={{ padding: '12px 16px 6px', fontSize: 10, fontWeight: 700, color: '#bbb', textTransform: 'uppercase' as const, letterSpacing: '0.1em' }}>Products</div>
                       {heroResults.map(p => {
                         const img = p.images?.[0] || p.image_url
-                        const price = p.pricing_model === 'area' ? `₦${Number(p.area_rate).toLocaleString()}/${p.area_unit}` : `From ₦${Number(p.price).toLocaleString()}`
+                        const tags = productTags[p.id] || []
+                        const catLabel = tags[0] || ''
                         return (
                           <div key={p.id} onClick={() => { openProduct(p); setHeroSearch(''); setHeroSearchFocused(false) }}
                             style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', cursor: 'pointer', transition: 'background 0.12s', borderBottom: '1px solid #f7f7f5' }}
@@ -217,9 +258,9 @@ export default function HomePage() {
                             </div>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13, color: '#1A1A1A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{p.name}</div>
-                              <div style={{ fontSize: 11, color: '#999', marginTop: 1 }}>{p.category}</div>
+                              {catLabel && <div style={{ fontSize: 11, color: '#999', marginTop: 1 }}>{catLabel}</div>}
                             </div>
-                            <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 12, color: 'var(--red)', flexShrink: 0 }}>{price}</div>
+                            <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 12, color: 'var(--red)', flexShrink: 0 }}>{priceLabel(p)}</div>
                           </div>
                         )
                       })}
@@ -241,11 +282,11 @@ export default function HomePage() {
                       {[
                         { icon: '🎌', label: 'Banners & Large Format' },
                         { icon: '💼', label: 'Business Cards' },
-                        { icon: '📄', label: 'Flyers & Leaflets' },
-                        { icon: '👕', label: 'Branded Apparel' },
+                        { icon: '📄', label: 'Office & Business Stationery' },
+                        { icon: '👕', label: 'Shirts & Uniforms' },
                         { icon: '📚', label: 'Book Publishing' },
                         { icon: '🪧', label: 'Signage & Installation' },
-                        { icon: '🎁', label: 'Souvenirs & Gifts' },
+                        { icon: '🎁', label: 'Promotional Items & Gifts' },
                       ].map((item, i, arr) => (
                         <div key={item.label} onClick={() => setHeroSearch(item.label)}
                           style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px', cursor: 'pointer', transition: 'background 0.12s', borderBottom: i < arr.length - 1 ? '1px solid #f7f7f5' : 'none' }}
@@ -302,7 +343,7 @@ export default function HomePage() {
           )}
         </section>
 
-        {/* ── SCROLLING TRUST TICKER — admin-controlled, hidden when flash sale active ── */}
+        {/* ── SCROLLING TRUST TICKER ── */}
         {!flashSaleActive && tickerItems.length > 0 && (
           <div style={{ background: 'var(--red)', overflow: 'hidden', padding: '13px 0' }}>
             <div className="trust-track">
@@ -345,11 +386,9 @@ export default function HomePage() {
                 },
               ].map((step, i) => (
                 <div key={i} className="card-hover" style={{ background: 'white', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden', position: 'relative' as const }}>
-                  {/* Step number badge */}
                   <div style={{ position: 'absolute' as const, top: 12, left: 12, zIndex: 2, background: 'var(--red)', color: 'white', fontFamily: 'Montserrat', fontWeight: 800, fontSize: 12, padding: '4px 10px', borderRadius: 20, letterSpacing: '0.06em' }}>
                     STEP {step.num}
                   </div>
-                  {/* Image */}
                   <div style={{ height: 180, overflow: 'hidden', position: 'relative' as const, background: 'var(--light)' }}>
                     <img
                       src={step.local}
@@ -361,7 +400,6 @@ export default function HomePage() {
                     />
                     <div style={{ position: 'absolute' as const, inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.4) 0%, transparent 60%)' }} />
                   </div>
-                  {/* Content */}
                   <div style={{ padding: '20px 24px 24px' }}>
                     <h3 style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 18, marginBottom: 10, color: 'var(--text-primary)' }}>{step.title}</h3>
                     <p style={{ fontSize: 14, color: 'var(--gray)', lineHeight: 1.7 }}>{step.desc}</p>
@@ -386,7 +424,7 @@ export default function HomePage() {
               <Link href="/shop" style={{ fontSize: 13, color: 'var(--red)', fontWeight: 700, textDecoration: 'none', fontFamily: 'Montserrat' }}>View all products →</Link>
             </div>
 
-            {/* Category pills */}
+            {/* Category pills — driven by marketing categories */}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, marginBottom: 28 }}>
               {SHOP_CATS.map(cat => (
                 <button key={cat} onClick={() => setActiveCat(cat)}
@@ -402,7 +440,14 @@ export default function HomePage() {
             {/* Products grid */}
             {categoryProducts.length > 0 ? (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }} className="cat-products-grid">
-                {categoryProducts.map(p => <ProductCard key={p.id} product={p} onOpen={openProduct} wishlistIds={wishlistIds} />)}
+                {categoryProducts.map(p => (
+                  <ProductCard
+                    key={p.id}
+                    product={{ ...p, category: (productTags[p.id] || [])[0] || p.category } as any}
+                    onOpen={openProduct}
+                    wishlistIds={wishlistIds}
+                  />
+                ))}
               </div>
             ) : (
               <div style={{ textAlign: 'center' as const, padding: '48px 0', color: 'var(--gray)' }}>
@@ -428,7 +473,14 @@ export default function HomePage() {
                 <Link href="/shop" style={{ fontSize: 13, color: 'var(--red)', fontWeight: 700, textDecoration: 'none', fontFamily: 'Montserrat' }}>View all →</Link>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }} className="featured-grid">
-                {featuredProducts.map(p => <ProductCard key={p.id} product={p} onOpen={openProduct} wishlistIds={wishlistIds} />)}
+                {featuredProducts.map(p => (
+                  <ProductCard
+                    key={p.id}
+                    product={{ ...p, category: (productTags[p.id] || [])[0] || p.category } as any}
+                    onOpen={openProduct}
+                    wishlistIds={wishlistIds}
+                  />
+                ))}
               </div>
             </div>
           </section>
@@ -446,7 +498,14 @@ export default function HomePage() {
                 <Link href="/shop" style={{ fontSize: 13, color: 'var(--red)', fontWeight: 700, textDecoration: 'none', fontFamily: 'Montserrat' }}>View all →</Link>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }} className="best-grid">
-                {bestsellers.map(p => <ProductCard key={p.id} product={p} onOpen={openProduct} wishlistIds={wishlistIds} />)}
+                {bestsellers.map(p => (
+                  <ProductCard
+                    key={p.id}
+                    product={{ ...p, category: (productTags[p.id] || [])[0] || p.category } as any}
+                    onOpen={openProduct}
+                    wishlistIds={wishlistIds}
+                  />
+                ))}
               </div>
             </div>
           </section>
@@ -486,7 +545,6 @@ export default function HomePage() {
                 const imgFallback = serviceFallbackImages[service.name]
                 return (
                   <Link key={i} href="/shop" className="card-hover" style={{ background: 'white', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', textDecoration: 'none', display: 'block' }}>
-                    {/* Image */}
                     <div style={{ height: 140, overflow: 'hidden', position: 'relative' as const, background: 'var(--light)' }}>
                       {imgSrc
                         ? <img src={imgSrc} alt={service.name}
@@ -498,7 +556,6 @@ export default function HomePage() {
                       }
                       <div style={{ position: 'absolute' as const, inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.45) 0%, transparent 60%)' }} />
                     </div>
-                    {/* Info */}
                     <div style={{ padding: '14px 16px 16px' }}>
                       <h3 style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, marginBottom: 6, color: 'var(--black)' }}>{service.name}</h3>
                       <p style={{ fontSize: 12, color: 'var(--gray)', lineHeight: 1.5, marginBottom: 10 }}>{service.desc}</p>
@@ -708,7 +765,6 @@ export default function HomePage() {
           50% { opacity: 0.5; transform: scale(1.4); }
         }
 
-        /* ── 1024px ── */
         @media (max-width: 1024px) {
           .cat-products-grid { grid-template-columns: repeat(3, 1fr) !important; }
           .featured-grid { grid-template-columns: repeat(3, 1fr) !important; }
@@ -716,9 +772,7 @@ export default function HomePage() {
           .services-grid { grid-template-columns: repeat(3, 1fr) !important; }
         }
 
-        /* ── 900px (tablet) ── */
         @media (max-width: 900px) {
-
           .steps-grid { grid-template-columns: 1fr !important; }
           .services-grid { grid-template-columns: repeat(2, 1fr) !important; }
           .why-grid { grid-template-columns: repeat(2, 1fr) !important; }
@@ -733,9 +787,7 @@ export default function HomePage() {
           .best-grid { grid-template-columns: repeat(2, 1fr) !important; }
         }
 
-        /* ── 600px (large mobile) ── */
         @media (max-width: 600px) {
-
           .steps-grid { grid-template-columns: 1fr !important; }
           .services-grid { grid-template-columns: repeat(2, 1fr) !important; }
           .why-grid { grid-template-columns: 1fr !important; }
@@ -750,7 +802,6 @@ export default function HomePage() {
           .hero-cta-row a { width: 100% !important; text-align: center !important; }
         }
 
-        /* ── 480px (mobile) ── */
         @media (max-width: 480px) {
           .hero-section { padding: 60px 16px 40px !important; }
           .section { padding: 40px 16px !important; }
@@ -761,7 +812,6 @@ export default function HomePage() {
           .clients-inner-grid { grid-template-columns: repeat(2, 1fr) !important; }
           .flash-sale-bar { flex-direction: column !important; gap: 8px !important; text-align: center !important; }
         }
-        /* Hide sidebar completely on tablet/mobile */
         @media (max-width: 1024px) {
           .sidebar-layout > div:first-child {
             display: none !important;

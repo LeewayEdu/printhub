@@ -61,19 +61,23 @@ export const HOME_SERVICES = [
 ]
 
 // ── STARTER KITS ────────────────────────────
+// Kept in sync with src/app/starter-kits/page.tsx's KITS array — these
+// prices and item lists were audited against real component costs
+// (rubber stamp, notepad, polo shirts via apparel spec_options, pull-up
+// banner via large_format, digital setup fees) rather than guessed.
+// If you change one, change the other, or better: import a single
+// shared source instead of duplicating this list in two places.
 export const STARTER_KITS = [
   {
     id: 'basic',
     name: 'Basic',
-    price: 75000,
+    price: 40000,
     tagline: 'You just registered your business. Now look like one.',
     badge: null,
     items: [
-      '250 Business Cards (both sides)',
-      '1 Complimentary Slip pad (50 leaves)',
-      '1 Letterhead design + 20 printed copies',
+      '250 Business Cards (double-sided)',
+      '20 Letterheads (A4, printed) + design',
       '1 Rubber Stamp',
-      'Social Media profile setup (2 platforms)',
       'Logo design (if needed)',
     ],
     cta: 'Get Basic Kit',
@@ -82,16 +86,15 @@ export const STARTER_KITS = [
   {
     id: 'standard',
     name: 'Standard',
-    price: 150000,
+    price: 130000,
     tagline: 'Look established from day one.',
     badge: 'Most Popular',
     items: [
       'Everything in Basic',
-      '500 Business Cards',
+      '500 Business Cards (instead of 250)',
       '1 A5 Notepad (100 leaves, branded)',
-      '2 Polo Shirts (branded)',
-      '1 Pull-up Banner (standard size)',
-      '1 Branded File Folder (50 pcs)',
+      '2 Polo Shirts (branded, front logo)',
+      '1 Pull-up Banner (2×5ft, with stand)',
       'Google Business Profile setup',
       'WhatsApp Business setup',
     ],
@@ -106,12 +109,11 @@ export const STARTER_KITS = [
     badge: null,
     items: [
       'Everything in Standard',
-      '1,000 Business Cards',
-      '1 Branded Tote Bag (50 pcs)',
-      '1 Branded Pen (100 pcs)',
-      '1 Car Sticker (vinyl)',
+      '1,000 Business Cards (instead of 500)',
+      '50 Branded Tote Bags',
+      '100 Branded Pens',
+      '1 Car Sticker (vinyl, 12×12in)',
       '1 Office Door Sign',
-      '1 Roll-up Banner',
       'Turnaround: 10–14 working days',
     ],
     cta: 'Get Premium Kit',
