@@ -73,23 +73,40 @@ export async function POST(req: NextRequest) {
   try {
     const { orderId, customerName, customerEmail, customerPhone, total, items, itemsArr, subtotal, deliveryFee, deliveryArea, address, paymentMethod, paystackRef } = await req.json()
 
-    // ── WhatsApp notification — now AWAITED, with real success/failure
-    // tracking instead of fire-and-forget. Logged clearly so a failure
-    // shows up in Vercel's function logs with an actual reason, and also
-    // returned in this route's JSON response so the checkout page (or any
-    // monitoring you add later) can detect and surface it if needed.
+    // ── WhatsApp notification — currently disabled while a provider
+    // decision is pending (UltraMsg renewal vs Meta Cloud API). Email is
+    // the primary notification channel for now. If no provider is
+    // configured, this skips silently rather than logging a "failure" —
+    // there's nothing wrong, WhatsApp is just intentionally not wired up
+    // yet. Once a provider is chosen, sendWhatsAppAlert() just needs its
+    // env vars set and this will start working automatically with no
+    // code changes here.
     const waMessage = `🛒 NEW ORDER on PrintHub!\n\nOrder: #${orderId}\nCustomer: ${customerName}\nTotal: ₦${Number(total).toLocaleString()}\nItems: ${items}\n\nDashboard: https://printhub.cchumedia.com/dashboard/admin/orders`
-    const waResult = await sendWhatsAppAlert(waMessage)
-    if (!waResult.ok) {
+    const waConfigured = !!(process.env.NOTIFY_PHONE && (
+      (process.env.ULTRAMSG_INSTANCE_ID && process.env.ULTRAMSG_TOKEN) ||
+      process.env.CALLMEBOT_API_KEY
+    ))
+    const waResult = waConfigured
+      ? await sendWhatsAppAlert(waMessage)
+      : { ok: false, provider: null, detail: 'WhatsApp not configured yet — email is the active notification channel.' }
+    if (waConfigured && !waResult.ok) {
       console.error(`[notify] WhatsApp alert FAILED for order #${orderId} — provider: ${waResult.provider || 'none'} — ${waResult.detail}`)
-    } else {
+    } else if (waConfigured) {
       console.log(`[notify] WhatsApp alert sent for order #${orderId} via ${waResult.provider}`)
     }
+    // (no log line at all when waConfigured is false — this is expected, not an error)
 
-    // ── Email via Resend ────────────────────────────────────
+    // ── Email via Resend (ADMIN notification — this is now the PRIMARY
+    // order alert channel while WhatsApp is pending. Gated only on
+    // RESEND_API_KEY, NOT on customerEmail — previously this shared a
+    // condition with the customer confirmation email, meaning if a
+    // customer ever checked out without an email on file, the admin
+    // alert would also silently never fire. Since this is the channel
+    // you're relying on to know an order happened, it must not depend
+    // on anything about the customer's own contact info.
     let adminEmailOk = true
     let adminEmailError: string | null = null
-    if (process.env.RESEND_API_KEY && customerEmail) {
+    if (process.env.RESEND_API_KEY) {
       const itemsHtml = (itemsArr || []).map((item: any) => `
         <tr>
           <td style="padding:10px 14px;border-bottom:1px solid #f0f0f0;font-size:13px;color:#2C2C2C">
@@ -112,7 +129,7 @@ export async function POST(req: NextRequest) {
       <div style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#C0392B;margin-bottom:14px">Customer Details</div>
       <table style="width:100%;border-collapse:collapse">
         <tr><td style="padding:5px 0;font-size:12px;color:#6B6B6B;width:130px">Name</td><td style="padding:5px 0;font-size:13px;font-weight:600">${customerName}</td></tr>
-        <tr><td style="padding:5px 0;font-size:12px;color:#6B6B6B">Email</td><td style="padding:5px 0;font-size:13px">${customerEmail}</td></tr>
+        <tr><td style="padding:5px 0;font-size:12px;color:#6B6B6B">Email</td><td style="padding:5px 0;font-size:13px">${customerEmail || '—'}</td></tr>
         <tr><td style="padding:5px 0;font-size:12px;color:#6B6B6B">Phone</td><td style="padding:5px 0;font-size:13px">${customerPhone || '—'}</td></tr>
         <tr><td style="padding:5px 0;font-size:12px;color:#6B6B6B">Delivery</td><td style="padding:5px 0;font-size:13px">${deliveryArea || '—'}${address ? ' — ' + address : ''}</td></tr>
         <tr><td style="padding:5px 0;font-size:12px;color:#6B6B6B">Payment</td><td style="padding:5px 0;font-size:13px">${paymentMethod === 'paystack' ? '💳 Paystack' : '🏦 Bank Transfer'}${paystackRef ? ' (' + paystackRef + ')' : ''}</td></tr>
