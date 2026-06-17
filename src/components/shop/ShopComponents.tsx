@@ -7,8 +7,6 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Heart, Star, ShoppingCart } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
-import { CATEGORIES } from '@/lib/constants'
-import { getCategories, CategoryRow } from '@/lib/categories'
 import toast from 'react-hot-toast'
 
 // ─── TYPES ────────────────────────────────────────────────────
@@ -289,27 +287,33 @@ export function ShopSidebar({
   categoryMap,
   activeCategory,
   onCategoryChange,
+  categoryIcons,
   mode = 'navigate', // 'navigate' | 'filter'
 }: {
   categoryMap: Record<string, number>
   activeCategory: string
   onCategoryChange: (cat: string) => void
+  categoryIcons?: Record<string, string>
   mode?: 'navigate' | 'filter'
 }) {
-  const total = Object.values(categoryMap).reduce((a, b) => a + b, 0)
-
-  // Fallback to static constants while DB categories load
-  const [dynamicCats, setDynamicCats] = useState<CategoryRow[] | null>(null)
-
-  useEffect(() => {
-    getCategories().then(cats => { if (cats?.length) setDynamicCats(cats) })
-  }, [])
-
-  const sourceCats = dynamicCats || CATEGORIES.map((c, i) => ({ id: c.id, label: c.label, icon: c.icon, price_model: 'unit', sort_order: i, is_active: true }))
+  // The category LIST shown here is derived directly from categoryMap's
+  // keys — which callers (shop page, homepage) populate from MARKETING
+  // categories, not pricing categories. This sidebar previously fetched
+  // its own category list internally via getCategories() (the pricing
+  // categories table) — that meant the labels shown (Sheet Printing,
+  // Apparel & Wearables, etc.) never matched what categoryMap's counts
+  // were keyed by, silently breaking counts and showing customers
+  // internal pricing-category names. There is no DB fetch in this
+  // component anymore; it is purely presentational.
+  const total = categoryMap['All Products'] ?? Object.entries(categoryMap)
+    .filter(([k]) => k !== 'All Products')
+    .reduce((sum, [, v]) => sum + v, 0)
 
   const cats = [
     { id: 'All Products', label: 'All Products', icon: '🛒' },
-    ...sourceCats.map(c => ({ id: c.label, label: c.label, icon: c.icon })),
+    ...Object.keys(categoryMap)
+      .filter(k => k !== 'All Products')
+      .map(label => ({ id: label, label, icon: categoryIcons?.[label] || '🏷️' })),
   ]
 
   return (

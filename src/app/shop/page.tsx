@@ -92,6 +92,7 @@ function ShopContent() {
   const [designBrief, setDesignBrief] = useState<Record<string, string>>({})
   const [wishlistIds, setWishlistIds] = useState<string[]>([])
   const [catCounts, setCatCounts] = useState<Record<string, number>>({})
+  const [catIcons, setCatIcons] = useState<Record<string, string>>({})
   const [heroBanners, setHeroBanners] = useState<any[]>([])
   const [heroIdx, setHeroIdx] = useState(0)
   const [calcPrice, setCalcPrice] = useState<number | null>(null)
@@ -164,12 +165,14 @@ function ShopContent() {
   useEffect(() => {
     if (marketingCategories.length === 0 || products.length === 0) return
     const counts: Record<string, number> = {}
-    marketingCategories.forEach(mc => { counts[mc.label] = 0 })
+    const icons: Record<string, string> = {}
+    marketingCategories.forEach(mc => { counts[mc.label] = 0; icons[mc.label] = mc.icon || '🏷️' })
     products.forEach(p => {
       const tags = productTags[p.id] || []
       tags.forEach(label => { if (counts[label] !== undefined) counts[label]++ })
     })
     setCatCounts(counts)
+    setCatIcons(icons)
   }, [marketingCategories, products, productTags])
 
   const open = (p: Product) => {
@@ -292,6 +295,7 @@ function ShopContent() {
             <div style={{ borderRight: '1px solid var(--border-color)', background: 'var(--bg-card)', minHeight: '60vh' }}>
               <ShopSidebar
                 categoryMap={catCounts}
+                categoryIcons={catIcons}
                 activeCategory={cat}
                 onCategoryChange={setCat}
                 mode="filter"

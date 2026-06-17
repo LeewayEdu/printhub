@@ -30,6 +30,7 @@ export default function HomePage() {
   // see pricing-category names like "Sheet Printing" or "Apparel & Wearables"
   // in navigation; those exist purely to drive the spec/price calculator.
   const [categoryMap, setCategoryMap] = useState<Record<string, number>>({})
+  const [categoryIcons, setCategoryIcons] = useState<Record<string, string>>({})
   const [productTags, setProductTags] = useState<Record<string, string[]>>({}) // product_id -> marketing category labels
   const [activeCat, setActiveCat] = useState('All Products')
   const [wishlistIds, setWishlistIds] = useState<string[]>([])
@@ -57,7 +58,7 @@ export default function HomePage() {
     // Marketing categories + product tags — replaces the old `category`
     // (pricing category) based categoryMap. A product can carry several
     // marketing category tags; counts here reflect that.
-    supabase.from('marketing_categories').select('id, label').eq('is_active', true).order('sort_order')
+    supabase.from('marketing_categories').select('id, label, icon').eq('is_active', true).order('sort_order')
       .then(async ({ data: cats }) => {
         if (!cats) return
         const { data: tags } = await supabase
@@ -65,7 +66,8 @@ export default function HomePage() {
           .select('product_id, marketing_categories(label)')
         const tagMap: Record<string, string[]> = {}
         const counts: Record<string, number> = {}
-        cats.forEach(c => { counts[c.label] = 0 })
+        const icons: Record<string, string> = {}
+        cats.forEach(c => { counts[c.label] = 0; icons[c.label] = c.icon || '🏷️' })
         ;(tags || []).forEach((row: any) => {
           const label = row.marketing_categories?.label
           if (!label) return
@@ -74,6 +76,7 @@ export default function HomePage() {
           if (counts[label] !== undefined) counts[label]++
         })
         setProductTags(tagMap)
+        setCategoryIcons(icons)
         const total = Object.values(counts).reduce((a, b) => a + b, 0)
         setCategoryMap({ 'All Products': total, ...counts })
       })
@@ -166,6 +169,7 @@ export default function HomePage() {
           <div style={{ width: 240, flexShrink: 0, borderRight: '1px solid var(--border-color)', background: 'var(--bg-card)', position: 'sticky' as const, top: 0, height: '100vh', overflowY: 'auto' as const, zIndex: 10 }}>
             <ShopSidebar
               categoryMap={categoryMap}
+              categoryIcons={categoryIcons}
               activeCategory={activeCat}
               onCategoryChange={handleSidebarCategory}
               mode="navigate"
