@@ -40,16 +40,24 @@ export default function FlashSaleBanner() {
   const countdown = useCountdown(sale?.ends_at || null)
 
   useEffect(() => {
+    // Filter by ends_at directly in the query — previously this only
+    // filtered by is_active and relied on a client-side re-check after
+    // fetching. Adding .gt('ends_at', ...) means an expired-but-still
+    // -marked-active row (the database-side bug fixed in the admin page)
+    // never even gets fetched here in the first place, as a second
+    // layer of defence on top of that fix.
     supabase
       .from('flash_sale')
       .select('*')
       .eq('is_active', true)
+      .gt('ends_at', new Date().toISOString())
       .order('created_at', { ascending: false })
       .limit(1)
       .then(({ data }) => {
         if (data && data.length > 0) {
           const s = data[0]
-          if (new Date(s.ends_at) > new Date()) { setSale(s); useFlashSaleStore.getState().setIsActive(true) }
+          setSale(s)
+          useFlashSaleStore.getState().setIsActive(true)
         }
       })
   }, [])

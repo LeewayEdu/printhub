@@ -35,7 +35,28 @@ export default function FlashSalePage() {
 
   const fetchSales = async () => {
     const { data } = await supabase.from('flash_sale').select('*').order('created_at', { ascending: false })
-    if (data) setSales(data)
+    if (!data) return
+
+    // AUTO-DEACTIVATE EXPIRED SALES — previously, is_active stayed true
+    // in the database forever once a sale's countdown passed; only the
+    // customer-facing banner correctly hid itself (by checking ends_at
+    // client-side), but the underlying row never got corrected. That
+    // meant the database itself could keep claiming an expired sale was
+    // "active" indefinitely unless a human manually clicked Deactivate.
+    // This silently flips any expired-but-still-active row to false
+    // every time this page loads, so the database stays accurate without
+    // depending on anyone remembering to turn it off.
+    const expiredButActive = data.filter(s => s.is_active && new Date(s.ends_at) < new Date())
+    if (expiredButActive.length > 0) {
+      await supabase
+        .from('flash_sale')
+        .update({ is_active: false })
+        .in('id', expiredButActive.map(s => s.id))
+      // Reflect the correction locally without an extra round-trip fetch
+      data.forEach(s => { if (expiredButActive.find(e => e.id === s.id)) s.is_active = false })
+    }
+
+    setSales(data)
   }
 
   const handleSave = async () => {
