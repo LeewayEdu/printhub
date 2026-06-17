@@ -58,9 +58,23 @@ export default function HomePage() {
     // Marketing categories + product tags — replaces the old `category`
     // (pricing category) based categoryMap. A product can carry several
     // marketing category tags; counts here reflect that.
+    //
+    // BUG FIX (17 June 2026): this previously counted every row in
+    // product_marketing_categories directly, with NO filter on whether
+    // the underlying product was active — so a deactivated product's
+    // tags still counted toward the sidebar/pill numbers, inflating
+    // "All Products" to the full database count (~100) instead of the
+    // real active count, while clicking into a specific category showed
+    // far fewer products since THAT view correctly filtered by is_active.
+    // Fix: fetch active product IDs first, then only count a tag if its
+    // product_id is in that active set — mirrors the (already correct)
+    // pattern used in shop-page.tsx.
     supabase.from('marketing_categories').select('id, label, icon').eq('is_active', true).order('sort_order')
       .then(async ({ data: cats }) => {
         if (!cats) return
+        const { data: activeProducts } = await supabase.from('products').select('id').eq('is_active', true)
+        const activeIds = new Set((activeProducts || []).map(p => p.id))
+
         const { data: tags } = await supabase
           .from('product_marketing_categories')
           .select('product_id, marketing_categories(label)')
@@ -71,9 +85,13 @@ export default function HomePage() {
         ;(tags || []).forEach((row: any) => {
           const label = row.marketing_categories?.label
           if (!label) return
-          if (!tagMap[row.product_id]) tagMap[row.product_id] = []
-          tagMap[row.product_id].push(label)
-          if (counts[label] !== undefined) counts[label]++
+          // Only build the tag lookup and counts for ACTIVE products —
+          // an inactive product's tags should not inflate any count.
+          if (activeIds.has(row.product_id)) {
+            if (!tagMap[row.product_id]) tagMap[row.product_id] = []
+            tagMap[row.product_id].push(label)
+            if (counts[label] !== undefined) counts[label]++
+          }
         })
         setProductTags(tagMap)
         setCategoryIcons(icons)
