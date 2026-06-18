@@ -219,13 +219,13 @@ export default function HomePage() {
             {/* Live badge */}
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(192,57,43,0.18)', border: '1px solid rgba(192,57,43,0.4)', borderRadius: 20, padding: '5px 14px', marginBottom: 24 }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--red)', display: 'inline-block', animation: 'pulseDot 2s infinite' }} />
-              <span style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.8)', fontFamily: 'Montserrat', textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.9)', fontFamily: 'Montserrat', textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>
                 {heroBanners[heroIdx]?.subtitle || 'Now live — Order printing online'}
               </span>
             </div>
 
             {/* Headline */}
-            <h1 style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 'clamp(30px, 5.5vw, 68px)', color: 'white', lineHeight: 1.05, letterSpacing: '-0.02em', marginBottom: 28, maxWidth: 700 }}>
+            <h1 style={{ fontFamily: 'Montserrat', fontWeight: 900, fontSize: 'clamp(30px, 5.5vw, 68px)', color: 'white', lineHeight: 1.05, letterSpacing: '-0.02em', maxWidth: 700, margin: '0 auto 28px' }}>
               {heroBanners[heroIdx]?.title || (
                 <>Your print orders,<br />handled <span style={{ color: 'var(--red)' }}>online.</span></>
               )}
@@ -325,7 +325,7 @@ export default function HomePage() {
             </div>
 
             {/* Body text */}
-            <p style={{ fontSize: 17, color: 'rgba(255,255,255,0.6)', maxWidth: 500, lineHeight: 1.75, fontWeight: 300, marginBottom: 36 }}>
+            <p style={{ fontSize: 17, color: 'rgba(255,255,255,0.7)', maxWidth: 500, lineHeight: 1.75, fontWeight: 500, margin: '0 auto 36px' }}>
               Browse, book, and manage all your printing needs from your phone or laptop. Banners, branding, souvenirs, books and more — trusted by {BRAND.stats.jobs} clients since {BRAND.since}.
             </p>
 
