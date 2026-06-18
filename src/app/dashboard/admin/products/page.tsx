@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { Plus, Pencil, Trash2, X, Upload, LayoutGrid, List, Star, GripVertical, Download, Save, RotateCcw } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, Upload, LayoutGrid, List, Star, GripVertical, Download, Save, RotateCcw, ShieldAlert, Clock } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { getCategories, CategoryRow } from '@/lib/categories'
 
@@ -87,6 +87,16 @@ const emptyForm: ProductForm = {
   marketing_category_ids: [],
 }
 
+// ── GATED FIELDS ──────────────────────────────────────────────
+// These specific fields require Super Admin approval when changed
+// by a regular admin — they're the fields that directly affect what
+// a customer can buy and at what price. Everything else (name,
+// description, images, badge, featured, marketing tags) saves
+// immediately as before, since locking those down would slow real
+// catalogue work for no real safety benefit.
+const GATED_FIELDS = ['display_price', 'price', 'is_fixed_price', 'is_active', 'moq', 'max_qty'] as const
+type GatedField = typeof GATED_FIELDS[number]
+
 const sectionStyle = {
   background: '#ffffff',
   border: '1px solid #e8e8e5',
@@ -157,6 +167,9 @@ function toCsvValue(val: any): string {
 export default function AdminProductsPage() {
   const router = useRouter()
   const [isAdmin, setIsAdmin] = useState(false)
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false)
+  const [userId, setUserId] = useState<string | null>(null)
+  const [userRole, setUserRole] = useState<string>('admin')
   const [products, setProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [showModal, setShowModal] = useState(false)
@@ -170,6 +183,8 @@ export default function AdminProductsPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const [sortKey, setSortKey] = useState<SortKey>('custom')
   const [dragOverId, setDragOverId] = useState<string | null>(null)
+  const [pendingRequestCount, setPendingRequestCount] = useState(0)
+  const [showApprovalQueue, setShowApprovalQueue] = useState(false)
 
   // ── Inline list-edit batch state (mirrors Spec Options pattern) ──
   const [pending, setPending] = useState<Record<string, Record<string, any>>>({})
@@ -182,7 +197,11 @@ export default function AdminProductsPage() {
       const { data } = await supabase.from('profiles').select('role').eq('id', session.user.id).single()
       if (!['admin','super_admin'].includes(data?.role)) { router.push('/dashboard'); return }
       setIsAdmin(true)
+      setIsSuperAdmin(data?.role === 'super_admin')
+      setUserRole(data?.role || 'admin')
+      setUserId(session.user.id)
       fetchProducts()
+      if (data?.role === 'super_admin') fetchPendingCount()
     }
     check()
     // Dynamic categories — shared with Spec Options admin (these are the
@@ -207,6 +226,14 @@ export default function AdminProductsPage() {
     }
   }, [])
 
+  const fetchPendingCount = async () => {
+    const { count } = await supabase
+      .from('product_change_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'pending')
+    setPendingRequestCount(count || 0)
+  }
+
   const changeViewMode = (mode: ViewMode) => {
     if (Object.keys(pending).length > 0 && !confirm('You have unsaved inline edits. Switch view and discard them?')) return
     setPending({})
@@ -224,6 +251,40 @@ export default function AdminProductsPage() {
     const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false })
     if (data) setProducts(data as Product[])
     setIsLoading(false)
+  }
+
+  // ── AUDIT LOGGING ──────────────────────────────────────────
+  // Records every field change to the permanent audit_log table,
+  // regardless of whether it applied immediately or went through
+  // the approval queue. This is the historical record — separate
+  // from product_change_requests, which only tracks PENDING/gated
+  // changes. Fire-and-forget by design (a logging failure should
+  // never block the actual product save).
+  const logAudit = async (productId: string, changes: Record<string, any>, oldProduct: Partial<Product> | null, appliedImmediately: boolean) => {
+    if (!userId) return
+    const rows = Object.entries(changes).map(([field, newVal]) => ({
+      product_id: productId,
+      changed_by: userId,
+      changed_by_role: userRole,
+      field_name: field,
+      old_value: oldProduct ? String((oldProduct as any)[field] ?? '') : null,
+      new_value: String(newVal ?? ''),
+      applied_immediately: appliedImmediately,
+    }))
+    if (rows.length === 0) return
+    const { error } = await supabase.from('product_audit_log').insert(rows)
+    if (error) console.error('[audit log] failed to record change:', error.message)
+  }
+
+  // Splits a patch object into { gated, ungated } based on GATED_FIELDS.
+  const splitGatedFields = (patch: Record<string, any>) => {
+    const gated: Record<string, any> = {}
+    const ungated: Record<string, any> = {}
+    for (const [key, val] of Object.entries(patch)) {
+      if (GATED_FIELDS.includes(key as GatedField)) gated[key] = val
+      else ungated[key] = val
+    }
+    return { gated, ungated }
   }
 
   const openAdd = () => { setEditing(null); setForm(emptyForm); setShowModal(true) }
@@ -268,7 +329,7 @@ export default function AdminProductsPage() {
     setIsLoading(true)
     const newImageUrls = form.images.length > 0 ? await uploadImages(form.images) : []
     const allImages = [...form.existing_images, ...newImageUrls]
-    const payload: Record<string, any> = {
+    const fullPayload: Record<string, any> = {
       name: form.name,
       description: form.description,
       category: form.category,
@@ -291,22 +352,70 @@ export default function AdminProductsPage() {
       discount_value: form.discount_value ? Number(form.discount_value) : null,
       images: allImages,
       image_url: allImages[0] || null,
-      is_active: true,
+      is_active: editing ? editing.is_active : true, // is_active is gated — never silently overwritten here
     }
+
     let savedId = editing?.id
+
     if (editing) {
-      const { error } = await supabase.from('products').update(payload).eq('id', editing.id)
-      if (error) { toast.error(error.message); setIsLoading(false); return }
-      toast.success('Product updated!')
+      // ── APPROVAL GATING ──────────────────────────────────────
+      // Compare the new payload against the existing product to find
+      // which GATED fields actually changed. Regular admins have those
+      // specific fields split out into a pending change_request instead
+      // of being written directly — everything else (name, description,
+      // images, badge, etc.) still saves immediately, same as before.
+      const { gated, ungated } = splitGatedFields(fullPayload)
+      const gatedChanges: Record<string, any> = {}
+      for (const [key, val] of Object.entries(gated)) {
+        if (String((editing as any)[key] ?? '') !== String(val ?? '')) gatedChanges[key] = val
+      }
+
+      if (Object.keys(gatedChanges).length > 0 && !isSuperAdmin) {
+        // Regular admin changing a gated field → goes to approval queue,
+        // NOT applied to the product directly.
+        const { error: reqError } = await supabase.from('product_change_requests').insert({
+          product_id: editing.id,
+          requested_by: userId,
+          changes: gatedChanges,
+        })
+        if (reqError) {
+          toast.error(`Could not submit change request: ${reqError.message}`)
+          setIsLoading(false)
+          return
+        }
+        await logAudit(editing.id, gatedChanges, editing, false)
+
+        // Still save the UNGATED fields immediately (name, description,
+        // images, badge, etc. aren't risk-bearing the same way).
+        if (Object.keys(ungated).length > 0) {
+          const { error } = await supabase.from('products').update(ungated).eq('id', editing.id)
+          if (error) { toast.error(error.message); setIsLoading(false); return }
+          await logAudit(editing.id, ungated, editing, true)
+        }
+        toast.success(`${Object.keys(gatedChanges).length} change(s) submitted for Super Admin approval. Other edits saved.`)
+      } else {
+        // Super Admin, OR no gated fields changed at all → save everything
+        // immediately as before.
+        const { error } = await supabase.from('products').update(fullPayload).eq('id', editing.id)
+        if (error) { toast.error(error.message); setIsLoading(false); return }
+        const allChanges: Record<string, any> = {}
+        for (const [key, val] of Object.entries(fullPayload)) {
+          if (String((editing as any)[key] ?? '') !== String(val ?? '')) allChanges[key] = val
+        }
+        if (Object.keys(allChanges).length > 0) await logAudit(editing.id, allChanges, editing, true)
+        toast.success('Product updated!')
+      }
     } else {
       // New products go to the end of the custom order
       const maxSort = products.reduce((max, p) => Math.max(max, p.sort_order ?? 0), 0)
-      payload.sort_order = maxSort + 1
-      const { data, error } = await supabase.from('products').insert(payload).select().single()
+      fullPayload.sort_order = maxSort + 1
+      const { data, error } = await supabase.from('products').insert(fullPayload).select().single()
       if (error) { toast.error(error.message); setIsLoading(false); return }
       savedId = data.id
+      await logAudit(savedId!, fullPayload, null, true)
       toast.success('Product added!')
     }
+
     if (form.collection && savedId) {
       const { data: col } = await supabase.from('collections').select('id').eq('slug', form.collection).single()
       if (col) await supabase.from('collection_products').upsert({ collection_id: col.id, product_id: savedId, sort_order: 0 })
@@ -348,16 +457,48 @@ export default function AdminProductsPage() {
     if (ids.length === 0) return
     setSavingInline(true)
     let errors = 0
+    let gatedSubmitted = 0
     for (const id of ids) {
       const patch = { ...pending[id] }
       // Keep price/display_price/legacy price column in sync
       if (patch.display_price !== undefined) patch.price = patch.display_price
-      const { error } = await supabase.from('products').update(patch).eq('id', id)
-      if (error) errors++
+
+      const original = products.find(p => p.id === id)
+      const { gated, ungated } = splitGatedFields(patch)
+      const gatedChanges: Record<string, any> = {}
+      if (original) {
+        for (const [key, val] of Object.entries(gated)) {
+          if (String((original as any)[key] ?? '') !== String(val ?? '')) gatedChanges[key] = val
+        }
+      }
+
+      if (Object.keys(gatedChanges).length > 0 && !isSuperAdmin) {
+        // Gated fields → approval queue, not applied directly.
+        const { error: reqError } = await supabase.from('product_change_requests').insert({
+          product_id: id,
+          requested_by: userId,
+          changes: gatedChanges,
+        })
+        if (reqError) { errors++; continue }
+        gatedSubmitted++
+        await logAudit(id, gatedChanges, original || null, false)
+
+        if (Object.keys(ungated).length > 0) {
+          const { error } = await supabase.from('products').update(ungated).eq('id', id)
+          if (error) { errors++; continue }
+          await logAudit(id, ungated, original || null, true)
+        }
+      } else {
+        // Super Admin, or no gated fields in this patch → apply directly.
+        const { error } = await supabase.from('products').update(patch).eq('id', id)
+        if (error) { errors++; continue }
+        await logAudit(id, patch, original || null, true)
+      }
     }
     setPending({})
     setSavingInline(false)
     if (errors > 0) toast.error(`${errors} update(s) failed`)
+    else if (gatedSubmitted > 0) toast.success(`${gatedSubmitted} change(s) sent for approval. Rest saved ✅`)
     else toast.success(`Saved ${ids.length} change${ids.length !== 1 ? 's' : ''} ✅`)
     fetchProducts()
   }
@@ -462,6 +603,15 @@ export default function AdminProductsPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 24, flexWrap: 'wrap' as const, gap: 12 }}>
         <div style={{ marginRight: 'auto', fontSize: 14, color: 'var(--text-secondary)' }}>{products.length} products in store</div>
         <div style={{ display: 'flex', gap: 10 }}>
+          {isSuperAdmin && (
+            <button onClick={() => setShowApprovalQueue(true)}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: pendingRequestCount > 0 ? '#fef3c7' : 'var(--bg-secondary)', border: `1px solid ${pendingRequestCount > 0 ? '#fbbf24' : 'var(--border-color)'}`, color: pendingRequestCount > 0 ? '#92400e' : 'var(--text-primary)', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, cursor: 'pointer', position: 'relative' as const }}>
+              <ShieldAlert size={16} /> Approval Queue
+              {pendingRequestCount > 0 && (
+                <span style={{ background: '#dc2626', color: 'white', fontSize: 11, fontWeight: 800, padding: '1px 7px', borderRadius: 10, marginLeft: 2 }}>{pendingRequestCount}</span>
+              )}
+            </button>
+          )}
           <button onClick={exportCsv} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
             <Download size={16} /> Export CSV
           </button>
@@ -470,6 +620,13 @@ export default function AdminProductsPage() {
           </button>
         </div>
       </div>
+
+      {!isSuperAdmin && (
+        <div style={{ marginBottom: 16, padding: '10px 16px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 9, fontSize: 12, color: '#1d4ed8', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <ShieldAlert size={14} />
+          Changes to price, active status, MOQ, or max quantity require Super Admin approval before going live. Other edits (name, description, images, badge) save immediately.
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 12, marginBottom: 12, flexWrap: 'wrap' as const, alignItems: 'center' }}>
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search products..." className="form-input" style={{ maxWidth: 280 }} />
@@ -529,6 +686,7 @@ export default function AdminProductsPage() {
         <div style={{ position: 'sticky' as const, top: 8, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fffbeb', border: '1.5px solid #fbbf24', borderRadius: 10, padding: '10px 16px', marginBottom: 16, boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: '#92400e', fontFamily: 'Montserrat' }}>
             {pendingCount} unsaved change{pendingCount !== 1 ? 's' : ''}
+            {!isSuperAdmin && <span style={{ fontWeight: 500, marginLeft: 6 }}>(price/status changes will need approval)</span>}
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={discardInlineChanges}
@@ -640,7 +798,10 @@ export default function AdminProductsPage() {
                       </td>
                       <td style={{ padding: '10px 14px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' as const }}>{product.category}</td>
 
-                      {/* Price — inline editable (disabled for area pricing, edit via modal) */}
+                      {/* Price — inline editable (disabled for area pricing, edit via modal).
+                          NOTE: this still writes to local `pending` state immediately for
+                          a responsive typing feel — the approval gating happens later, when
+                          "Save Changes" is actually clicked (see saveInlineChanges). */}
                       <td style={{ padding: '10px 14px', minWidth: 110 }}>
                         {product.pricing_model === 'area' ? (
                           <span style={{ fontFamily: 'Montserrat', fontWeight: 700, color: 'var(--red)', whiteSpace: 'nowrap' as const }}>{priceLabel(product)}</span>
@@ -675,7 +836,7 @@ export default function AdminProductsPage() {
                         />
                       </td>
 
-                      {/* Featured — inline toggle */}
+                      {/* Featured — inline toggle (NOT gated — purely cosmetic placement) */}
                       <td style={{ padding: '10px 14px' }}>
                         <button
                           onClick={() => stage(product.id, { featured: !product.featured })}
@@ -685,10 +846,11 @@ export default function AdminProductsPage() {
                         </button>
                       </td>
 
-                      {/* Active — inline toggle */}
+                      {/* Active — inline toggle (GATED — affects what customers can buy) */}
                       <td style={{ padding: '10px 14px' }}>
                         <button
                           onClick={() => stage(product.id, { is_active: !product.is_active })}
+                          title={!isSuperAdmin ? 'Changing this requires Super Admin approval' : undefined}
                           style={{
                             padding: '2px 8px', borderRadius: 20, fontWeight: 700, fontSize: 11, border: 'none', cursor: 'pointer',
                             background: product.is_active ? '#d1fae5' : '#fee2e2',
@@ -732,6 +894,13 @@ export default function AdminProductsPage() {
 
             {/* Body - single scrollable form */}
             <div style={{ padding: 24, maxHeight: '80vh', overflowY: 'auto' as const }}>
+
+              {editing && !isSuperAdmin && (
+                <div style={{ marginBottom: 16, padding: '10px 16px', background: '#fef3c7', border: '1px solid #fbbf24', borderRadius: 9, fontSize: 12, color: '#92400e', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <ShieldAlert size={14} />
+                  Price, active status, MOQ, and max quantity changes on this product will be sent to Super Admin for approval before going live.
+                </div>
+              )}
 
               {/* BASIC INFO */}
               <div style={sectionStyle}>
@@ -809,7 +978,10 @@ export default function AdminProductsPage() {
 
               {/* PRICING */}
               <div style={sectionStyle}>
-                <div style={sectionTitle}>Pricing</div>
+                <div style={{ ...sectionTitle, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  Pricing
+                  {!isSuperAdmin && <span style={{ fontSize: 10, fontWeight: 600, color: '#92400e', background: '#fef3c7', padding: '2px 8px', borderRadius: 10, textTransform: 'none' as const }}>Requires approval</span>}
+                </div>
                 <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 14 }}>
 
                   {/* Fixed price toggle */}
@@ -1038,10 +1210,144 @@ export default function AdminProductsPage() {
         </div>
       )}
 
+      {/* APPROVAL QUEUE MODAL — Super Admin only */}
+      {showApprovalQueue && isSuperAdmin && (
+        <ApprovalQueueModal
+          onClose={() => { setShowApprovalQueue(false); fetchPendingCount(); fetchProducts() }}
+          products={products}
+          userId={userId}
+        />
+      )}
+
       <style>{`
         @media (max-width: 900px) { .products-grid { grid-template-columns: repeat(2, 1fr) !important; } }
         @media (max-width: 480px) { .products-grid { grid-template-columns: 1fr !important; } }
       `}</style>
+    </div>
+  )
+}
+
+// ============================================================
+// APPROVAL QUEUE MODAL — Super Admin reviews pending requests
+// ============================================================
+function ApprovalQueueModal({ onClose, products, userId }: { onClose: () => void; products: Product[]; userId: string | null }) {
+  const [requests, setRequests] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [processingId, setProcessingId] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetchRequests()
+  }, [])
+
+  const fetchRequests = async () => {
+    setLoading(true)
+    const { data, error } = await supabase
+      .from('product_change_requests')
+      .select('*, requester:profiles!product_change_requests_requested_by_fkey(full_name, email)')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+    if (error) {
+      // Falls back to a simpler query if the FK relationship name differs
+      // in your actual schema — adjust the select() above to match your
+      // real profiles foreign key name if this errors.
+      const { data: simple } = await supabase.from('product_change_requests').select('*').eq('status', 'pending').order('created_at', { ascending: false })
+      if (simple) setRequests(simple)
+    } else if (data) {
+      setRequests(data)
+    }
+    setLoading(false)
+  }
+
+  const productName = (id: string) => products.find(p => p.id === id)?.name || 'Unknown product'
+
+  const approve = async (request: any) => {
+    setProcessingId(request.id)
+    // Apply the requested changes to the actual product
+    const patch = { ...request.changes }
+    if (patch.display_price !== undefined) patch.price = patch.display_price
+    const { error: applyError } = await supabase.from('products').update(patch).eq('id', request.product_id)
+    if (applyError) {
+      toast.error(`Failed to apply change: ${applyError.message}`)
+      setProcessingId(null)
+      return
+    }
+    const { error: statusError } = await supabase
+      .from('product_change_requests')
+      .update({ status: 'approved', reviewed_by: userId, reviewed_at: new Date().toISOString() })
+      .eq('id', request.id)
+    if (statusError) {
+      toast.error(`Change applied, but failed to mark request as approved: ${statusError.message}`)
+    } else {
+      toast.success('Change approved and applied')
+    }
+    setProcessingId(null)
+    fetchRequests()
+  }
+
+  const reject = async (request: any) => {
+    const note = prompt('Optional: reason for rejecting this change')
+    setProcessingId(request.id)
+    const { error } = await supabase
+      .from('product_change_requests')
+      .update({ status: 'rejected', reviewed_by: userId, reviewed_at: new Date().toISOString(), rejection_note: note || null })
+      .eq('id', request.id)
+    if (error) toast.error(`Failed to reject: ${error.message}`)
+    else toast.success('Change rejected')
+    setProcessingId(null)
+    fetchRequests()
+  }
+
+  return (
+    <div style={{ position: 'fixed' as const, inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 1100, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '20px', overflowY: 'auto' as const }}>
+      <div style={{ background: '#f5f5f3', borderRadius: 16, width: '100%', maxWidth: 640, boxShadow: '0 24px 60px rgba(0,0,0,0.4)', margin: '40px auto' }}>
+        <div style={{ padding: '20px 24px', background: '#ffffff', borderRadius: '16px 16px 0 0', borderBottom: '1px solid #e8e8e5', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h2 style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 18, color: '#1A1A1A', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <ShieldAlert size={18} /> Pending Price/Status Changes
+          </h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666' }}><X size={20} /></button>
+        </div>
+
+        <div style={{ padding: 20, maxHeight: '70vh', overflowY: 'auto' as const }}>
+          {loading ? (
+            <div style={{ textAlign: 'center' as const, padding: 40, color: '#888' }}>Loading...</div>
+          ) : requests.length === 0 ? (
+            <div style={{ textAlign: 'center' as const, padding: 40, color: '#888' }}>
+              <Clock size={32} style={{ marginBottom: 12, opacity: 0.4 }} />
+              <div>No pending changes to review.</div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 12 }}>
+              {requests.map(req => (
+                <div key={req.id} style={{ background: 'white', border: '1px solid #e8e8e5', borderRadius: 12, padding: 16 }}>
+                  <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, color: '#1A1A1A', marginBottom: 8 }}>
+                    {productName(req.product_id)}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 4, marginBottom: 12 }}>
+                    {Object.entries(req.changes).map(([field, val]) => (
+                      <div key={field} style={{ fontSize: 12, color: '#444' }}>
+                        <strong>{field}</strong> → {String(val)}
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#888', marginBottom: 12 }}>
+                    Requested {new Date(req.created_at).toLocaleString('en-NG', { dateStyle: 'medium', timeStyle: 'short' })}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={() => approve(req)} disabled={processingId === req.id}
+                      style={{ flex: 1, padding: '8px', background: '#10b981', color: 'white', border: 'none', borderRadius: 8, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+                      {processingId === req.id ? 'Processing...' : 'Approve'}
+                    </button>
+                    <button onClick={() => reject(req)} disabled={processingId === req.id}
+                      style={{ flex: 1, padding: '8px', background: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5', borderRadius: 8, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
