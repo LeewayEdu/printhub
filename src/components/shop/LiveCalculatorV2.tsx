@@ -23,6 +23,25 @@ interface LiveCalculatorV2Props {
   onPriceModelResolved?: (priceModel: string) => void
 }
 
+// ── PER-CATEGORY PAGE STEPPER CONFIG ──────────────────────────
+// Previously the "Number of Pages" stepper was hardcoded to step=4,
+// min=8 for EVERY per_page category — magazines, brochures, book
+// printing, and jotters all behaved identically. That's wrong for
+// jotters/diaries, which are only sold in fixed leaf-count tiers
+// (50/100/150/200), not arbitrary page counts in steps of 4.
+//
+// This config is keyed by category slug (the same `category` prop
+// already passed into this component as product_type). Any category
+// NOT listed here falls back to the original magazines/brochures
+// behavior (step 4, min 8, default 100) — so existing categories are
+// unaffected by this change.
+const PAGE_STEPPER_CONFIG: Record<string, { step: number; min: number; max?: number; default: number; label: string }> = {
+  'jotter-printing': { step: 50, min: 50, max: 200, default: 50, label: 'leaves' },
+  // Add other leaf/page-tiered categories here the same way, e.g.:
+  // 'notebook-stationery': { step: 50, min: 50, max: 300, default: 100, label: 'leaves' },
+}
+const DEFAULT_PAGE_STEPPER = { step: 4, min: 8, max: undefined as number | undefined, default: 100, label: 'pages' }
+
 export default function LiveCalculatorV2({
   category, productName, qty, widthFt = 1, heightFt = 1,
   minWidth = 0.1, minHeight = 0.1,
@@ -30,13 +49,15 @@ export default function LiveCalculatorV2({
   applyPreset, onPriceUpdate, onSpecsUpdate, onDimensionChange, onPriceModelResolved
 }: LiveCalculatorV2Props) {
 
+  const pageConfig = PAGE_STEPPER_CONFIG[category] || DEFAULT_PAGE_STEPPER
+
   const [groups, setGroups] = useState<Record<string, SpecOption[]>>({})
   const [addonOptions, setAddonOptions] = useState<SpecOption[]>([])
   const [addonQtys, setAddonQtys] = useState<Record<string, number>>({})
   const [tiers, setTiers] = useState<QtyTier[]>([])
   const [selection, setSelection] = useState<SpecSelection>({})
   const [priceModel, setPriceModel] = useState<string>('unit')
-  const [pages, setPages] = useState(100)
+  const [pages, setPages] = useState(pageConfig.default)
   // Split loading state: priceModel resolves independently and fast (single
   // categories-table lookup, already warmed by the shop page's prefetch).
   // specsLoading covers spec_options/qty_tiers/add-ons, which are heavier and
@@ -336,27 +357,37 @@ export default function LiveCalculatorV2({
         </div>
       )}
 
-      {/* Pages input for books/magazines */}
+      {/* Pages input for books/magazines/jotters — step, min, max, and
+          label now driven by PAGE_STEPPER_CONFIG per category, instead
+          of being hardcoded the same for every per_page category. Also
+          fixes a pre-existing bug where decrement used step 8 while
+          increment and manual entry used step 4 — both directions now
+          consistently use pageConfig.step. */}
       {isBookCategory && (
         <div>
           <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 7 }}>
-            Number of Pages
+            Number of {pageConfig.label === 'leaves' ? 'Leaves' : 'Pages'}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <button onClick={() => setPages(p => Math.max(8, p - 8))}
+            <button onClick={() => setPages(p => Math.max(pageConfig.min, p - pageConfig.step))}
               style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #d1d5db', background: '#f3f4f6', cursor: 'pointer', fontSize: 16, color: '#1A1A1A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
             <input
               type="number"
               value={pages}
-              min={8}
-              step={4}
-              onChange={e => setPages(Math.max(8, Number(e.target.value)))}
+              min={pageConfig.min}
+              max={pageConfig.max}
+              step={pageConfig.step}
+              onChange={e => {
+                let v = Math.max(pageConfig.min, Number(e.target.value))
+                if (pageConfig.max) v = Math.min(pageConfig.max, v)
+                setPages(v)
+              }}
               style={{ width: 70, textAlign: 'center' as const, padding: '6px', border: '1px solid #e8e8e5', borderRadius: 8, fontSize: 14, fontFamily: 'Montserrat', fontWeight: 700, outline: 'none' }}
               className="no-spinners"
             />
-            <button onClick={() => setPages(p => p + 4)}
+            <button onClick={() => setPages(p => pageConfig.max ? Math.min(pageConfig.max, p + pageConfig.step) : p + pageConfig.step)}
               style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #d1d5db', background: '#f3f4f6', cursor: 'pointer', fontSize: 16, color: '#1A1A1A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
-            <span style={{ fontSize: 12, color: '#888' }}>pages</span>
+            <span style={{ fontSize: 12, color: '#888' }}>{pageConfig.label}</span>
           </div>
         </div>
       )}
