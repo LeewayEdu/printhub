@@ -36,6 +36,12 @@ interface Product {
   sort_order: number | null
   product_type?: string
   presets?: ProductPreset[]
+  // Fields required by ProductCardData (previously hidden by `as any` cast)
+  discount_type: string | null
+  discount_value: number | null
+  rating: number
+  review_count: number
+  total_orders: number
 }
 
 interface MarketingCategory {
@@ -345,9 +351,10 @@ function ShopContent() {
                   {filtered.map(p => (
                     <SharedProductCard
                       key={p.id}
-                      product={{ ...p, category: (productTags[p.id] || [])[0] || p.category } as any}
+                      product={p}
                       onOpen={() => open(p)}
                       wishlistIds={wishlistIds}
+                      marketingTags={productTags[p.id] || []}
                     />
                   ))}
                 </div>

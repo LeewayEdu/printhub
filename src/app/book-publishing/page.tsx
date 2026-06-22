@@ -194,7 +194,7 @@ export default function BookPublishingPage() {
                     <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>{s.desc}</div>
                     {s.note && <div style={{ fontSize: 12, color: 'var(--red)', marginTop: 6, fontStyle: 'italic' as const }}>{s.note}</div>}
                   </div>
-                  <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 18, color: 'var(--red)', whiteSpace: 'nowrap' as const }}>{s.price}</div>
+                  <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, color: 'var(--red)', whiteSpace: 'nowrap' as const }}>Request a Quote</div>
                 </div>
               ))}
             </div>
@@ -234,8 +234,7 @@ export default function BookPublishingPage() {
                         {img ? <img src={img} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '📚'}
                       </div>
                       <div style={{ padding: 16 }}>
-                        <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, marginBottom: 6, color: 'var(--text-primary)' }}>{product.name}</div>
-                        <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 18, color: 'var(--red)', marginBottom: 12 }}>{priceLabel(product)}</div>
+                        <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, marginBottom: 12, color: 'var(--text-primary)' }}>{product.name}</div>
                         <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px', background: 'var(--red)', color: 'white', borderRadius: 8, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 12 }}>
                           <ShoppingCart size={13} /> Price My Book
                         </div>

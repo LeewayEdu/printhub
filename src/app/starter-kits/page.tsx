@@ -174,8 +174,8 @@ export default function StarterKitsPage() {
                   <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 8 }}>
                     {kit.name}
                   </div>
-                  <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 38, color: 'var(--text-primary)', marginBottom: 8 }}>
-                    ₦{kit.price.toLocaleString()}
+                  <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 15, color: 'var(--red)', marginBottom: 8 }}>
+                    Request a Quotation
                   </div>
                   <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 24, lineHeight: 1.6, fontStyle: 'italic' }}>
                     {kit.tagline}
@@ -189,12 +189,12 @@ export default function StarterKitsPage() {
                     ))}
                   </div>
                   <a
-                    href={`https://wa.me/2348052929523?text=Hello%2C%20I%20want%20to%20order%20the%20${encodeURIComponent(kit.name)}%20Starter%20Kit`}
+                    href={`https://wa.me/2348052929523?text=Hello%2C%20I%20would%20like%20a%20quote%20for%20the%20${encodeURIComponent(kit.name)}%20Starter%20Kit`}
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: '13px', background: kit.isPopular ? 'var(--red)' : '#1A1A1A', color: 'white', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}
                   >
-                    Order this Kit
+                    Request a Quote →
                   </a>
                 </div>
               ))}
@@ -226,8 +226,7 @@ export default function StarterKitsPage() {
                         {img ? <img src={img} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '🖨️'}
                       </div>
                       <div style={{ padding: 16 }}>
-                        <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, marginBottom: 8, color: 'var(--text-primary)' }}>{product.name}</div>
-                        <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 18, color: 'var(--red)', marginBottom: 12 }}>{priceLabel(product)}</div>
+                        <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, marginBottom: 12, color: 'var(--text-primary)' }}>{product.name}</div>
                         <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px', background: 'var(--red)', color: 'white', borderRadius: 8, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 12 }}>
                           <ShoppingCart size={13} /> View & Order
                         </div>

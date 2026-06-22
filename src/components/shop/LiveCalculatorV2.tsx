@@ -253,13 +253,6 @@ export default function LiveCalculatorV2({
                     style={btnActive(selection[group]?.id === opt.id)}
                   >
                     {opt.option_label}
-                    {Number(opt.price_modifier) !== 0 && opt.modifier_type !== 'base_rate' && (
-                      <span style={{ fontSize: 10, opacity: 0.7, marginLeft: 4 }}>
-                        {opt.modifier_type === 'percentage'
-                          ? `${Number(opt.price_modifier) > 0 ? '+' : ''}${opt.price_modifier}%`
-                          : `+₦${Number(opt.price_modifier).toLocaleString()}`}
-                      </span>
-                    )}
                   </button>
                 ))}
               </div>
@@ -405,7 +398,6 @@ export default function LiveCalculatorV2({
                 <div key={opt.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: 8, border: `1.5px solid ${q > 0 ? 'var(--red)' : '#e8e8e5'}`, background: q > 0 ? 'rgba(192,57,43,0.05)' : 'white' }}>
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 600, fontFamily: 'Montserrat', color: '#1A1A1A' }}>{opt.option_label}</div>
-                    <div style={{ fontSize: 11, color: '#888' }}>₦{Number(opt.price_modifier).toLocaleString()} each</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <button onClick={() => setAddonQty(opt.id, q - 1)}

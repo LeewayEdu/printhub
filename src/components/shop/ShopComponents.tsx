@@ -181,12 +181,17 @@ export function ProductCard({
   product,
   onOpen,
   wishlistIds = [],
+  marketingTags = [],
 }: {
   product: ProductCardData
   onOpen: (p: ProductCardData) => void
   wishlistIds?: string[]
+  marketingTags?: string[]  // all marketing category labels for this product
 }) {
   const imgs = product.images?.length ? product.images : product.image_url ? [product.image_url] : []
+  // Use marketing category tags when available (multiple per product),
+  // falling back to the single pricing-category label only as a last resort.
+  const categoryDisplay = marketingTags.length > 0 ? marketingTags : [product.category]
 
   return (
     <div className="product-card"
@@ -219,9 +224,13 @@ export function ProductCard({
 
       {/* Info */}
       <div className="card-info" style={{ padding: '12px 14px', flex: 1, display: 'flex', flexDirection: 'column' as const, gap: 4 }}>
-        {/* Category */}
-        <div className="card-category" style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', fontWeight: 600 }}>
-          {product.category}
+        {/* Category tags — all marketing categories this product belongs to */}
+        <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4 }}>
+          {categoryDisplay.map(tag => (
+            <span key={tag} style={{ fontSize: 9, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', fontWeight: 600, background: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: 6 }}>
+              {tag}
+            </span>
+          ))}
         </div>
 
         {/* Name */}

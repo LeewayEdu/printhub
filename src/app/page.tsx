@@ -465,9 +465,10 @@ export default function HomePage() {
                 {categoryProducts.map(p => (
                   <ProductCard
                     key={p.id}
-                    product={{ ...p, category: (productTags[p.id] || [])[0] || p.category } as any}
+                    product={p}
                     onOpen={openProduct}
                     wishlistIds={wishlistIds}
+                    marketingTags={productTags[p.id] || []}
                   />
                 ))}
               </div>
@@ -498,9 +499,10 @@ export default function HomePage() {
                 {featuredProducts.map(p => (
                   <ProductCard
                     key={p.id}
-                    product={{ ...p, category: (productTags[p.id] || [])[0] || p.category } as any}
+                    product={p}
                     onOpen={openProduct}
                     wishlistIds={wishlistIds}
+                    marketingTags={productTags[p.id] || []}
                   />
                 ))}
               </div>
@@ -523,9 +525,10 @@ export default function HomePage() {
                 {bestsellers.map(p => (
                   <ProductCard
                     key={p.id}
-                    product={{ ...p, category: (productTags[p.id] || [])[0] || p.category } as any}
+                    product={p}
                     onOpen={openProduct}
                     wishlistIds={wishlistIds}
+                    marketingTags={productTags[p.id] || []}
                   />
                 ))}
               </div>
