@@ -622,39 +622,84 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ── STARTER KITS ── */}
-        <section className="section" style={{ background: 'white', paddingLeft: 'clamp(16px, 3vw, 40px)', paddingRight: 'clamp(16px, 3vw, 40px)', paddingTop: 40, paddingBottom: 40 }}>
+        {/* ── SERVICES TEASERS: Starter Kits · Campaign · Publishing ── */}
+        <section className="section" style={{ background: 'white', paddingLeft: 'clamp(16px, 3vw, 40px)', paddingRight: 'clamp(16px, 3vw, 40px)', paddingTop: 60, paddingBottom: 60 }}>
           <div className="section-inner" style={{ paddingLeft: 0, paddingRight: 0 }}>
-            <div style={{ textAlign: 'center' as const, marginBottom: 48 }}>
-              <div className="badge badge-red" style={{ marginBottom: 14 }}>New business? Start here</div>
-              <h2 style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 'clamp(28px, 3.5vw, 40px)', marginBottom: 14, color: 'var(--text-primary)' }}>Business Starter Kits</h2>
-              <p style={{ fontSize: 15, color: 'var(--gray)', maxWidth: 480, margin: '0 auto', lineHeight: 1.75 }}>Everything a new business needs from day one, bundled at one flat price.</p>
+            <div style={{ textAlign: 'center' as const, marginBottom: 52 }}>
+              <div className="badge badge-red" style={{ marginBottom: 14 }}>Specialised services</div>
+              <h2 style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 'clamp(28px, 3.5vw, 40px)', marginBottom: 14, color: 'var(--text-primary)' }}>More than just printing</h2>
+              <p style={{ fontSize: 15, color: 'var(--gray)', maxWidth: 480, margin: '0 auto', lineHeight: 1.75 }}>From launching a new business to winning an election or publishing a book — we have a complete solution for you.</p>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, alignItems: 'start' }} className="kits-grid">
-              {STARTER_KITS.map((kit, i) => {
-                const isPopular = kit.id === 'standard'
-                return (
-                  <div key={i} style={{ background: 'white', border: `2px solid ${isPopular ? 'var(--red)' : 'var(--border)'}`, borderRadius: 16, padding: 32, position: 'relative' as const, transform: isPopular ? 'scale(1.03)' : 'none', boxShadow: isPopular ? '0 12px 40px rgba(192,57,43,0.15)' : 'none' }}>
-                    {kit.badge && (
-                      <div style={{ position: 'absolute' as const, top: -12, left: '50%', transform: 'translateX(-50%)', background: 'var(--red)', color: 'white', fontFamily: 'Montserrat', fontWeight: 700, fontSize: 11, padding: '4px 16px', borderRadius: 20, whiteSpace: 'nowrap' as const }}>⭐ {kit.badge}</div>
-                    )}
-                    <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13, color: 'var(--gray)', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 8 }}>{kit.name}</div>
-                    <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 36, color: 'var(--black)', marginBottom: 8 }}>₦{kit.price.toLocaleString()}</div>
-                    <p style={{ fontSize: 13, color: 'var(--gray)', marginBottom: 24, lineHeight: 1.6, fontStyle: 'italic' }}>{kit.tagline}</p>
-                    <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10, marginBottom: 28 }}>
-                      {kit.items.map(item => (
-                        <div key={item} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                          <span style={{ color: 'var(--red)', fontSize: 13, marginTop: 1, flexShrink: 0 }}>✓</span>
-                          <span style={{ fontSize: 13, color: 'var(--dark)', lineHeight: 1.5 }}>{item}</span>
-                        </div>
-                      ))}
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 28 }} className="kits-grid">
+
+              {/* STARTER KITS */}
+              <div style={{ background: 'var(--light)', border: '1px solid var(--border)', borderRadius: 20, padding: 32, display: 'flex', flexDirection: 'column' as const, gap: 20 }}>
+                <div style={{ fontSize: 40 }}>🚀</div>
+                <div>
+                  <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 22, color: 'var(--text-primary)', marginBottom: 10 }}>Business Starter Kits</div>
+                  <p style={{ fontSize: 14, color: 'var(--gray)', lineHeight: 1.75, marginBottom: 0 }}>
+                    Launching a new business? We've bundled everything you need to hit the ground running — business cards, letterheads, rubber stamp, branded t-shirts, pull-up banners, and more — into three ready-made packages designed for Nigerian entrepreneurs.
+                  </p>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+                  {['Business cards & letterheads', 'Branded apparel & caps', 'Pull-up banners & signage', 'Google & WhatsApp Business setup', 'Tote bags, pens & branded merch'].map(item => (
+                    <div key={item} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                      <span style={{ color: 'var(--red)', fontSize: 13, flexShrink: 0 }}>✓</span>
+                      <span style={{ fontSize: 13, color: 'var(--dark)', lineHeight: 1.5 }}>{item}</span>
                     </div>
-                    <Link href={`/starter-kits#${kit.id}`} className={`btn ${kit.color === 'red' ? 'btn-primary' : kit.color === 'dark' ? 'btn-dark' : 'btn-outline'}`} style={{ width: '100%', justifyContent: 'center', fontSize: 14 }}>
-                      {kit.cta}
-                    </Link>
-                  </div>
-                )
-              })}
+                  ))}
+                </div>
+                <Link href="/starter-kits" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '13px 24px', background: 'var(--red)', color: 'white', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, textDecoration: 'none', marginTop: 'auto' }}>
+                  View Starter Kits →
+                </Link>
+              </div>
+
+              {/* CAMPAIGN MATERIALS */}
+              <div style={{ background: '#111', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 20, padding: 32, display: 'flex', flexDirection: 'column' as const, gap: 20 }}>
+                <div style={{ fontSize: 40 }}>🗳️</div>
+                <div>
+                  <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 22, color: 'white', marginBottom: 10 }}>Campaign Materials</div>
+                  <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.6)', lineHeight: 1.75, marginBottom: 0 }}>
+                    Running for office? We supply ward, LGA, and state-level campaign packages — posters, branded t-shirts, caps, vests, pull-up banners, vehicle branding, and large outdoor displays — everything your campaign needs, on time and on budget.
+                  </p>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+                  {['A3 campaign posters at scale', 'Branded t-shirts, vests & caps', 'Pull-up & large outdoor banners', 'Vehicle branding & fleet wraps', 'Ward, LGA & State packages'].map(item => (
+                    <div key={item} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                      <span style={{ color: 'var(--red)', fontSize: 13, flexShrink: 0 }}>✓</span>
+                      <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.65)', lineHeight: 1.5 }}>{item}</span>
+                    </div>
+                  ))}
+                </div>
+                <Link href="/election-campaign" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '13px 24px', background: 'var(--red)', color: 'white', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, textDecoration: 'none', marginTop: 'auto' }}>
+                  View Campaign Packages →
+                </Link>
+              </div>
+
+              {/* BOOK PUBLISHING */}
+              <div style={{ background: 'var(--light)', border: '2px solid var(--red)', borderRadius: 20, padding: 32, display: 'flex', flexDirection: 'column' as const, gap: 20, position: 'relative' as const }}>
+                <div style={{ position: 'absolute' as const, top: -12, left: 32, background: 'var(--red)', color: 'white', fontFamily: 'Montserrat', fontWeight: 700, fontSize: 11, padding: '4px 14px', borderRadius: 20 }}>Popular</div>
+                <div style={{ fontSize: 40 }}>📚</div>
+                <div>
+                  <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 22, color: 'var(--text-primary)', marginBottom: 10 }}>Book Publishing</div>
+                  <p style={{ fontSize: 14, color: 'var(--gray)', lineHeight: 1.75, marginBottom: 0 }}>
+                    From manuscript to finished copies — we handle editing, cover design, typesetting, ISBN registration, printing, and eBook conversion. Whether it's a novel, academic work, devotional, or business book, we help Nigerian authors publish professionally.
+                  </p>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+                  {['Manuscript editing & proofreading', 'Cover design (paperback & hardback)', 'Professional typesetting & layout', 'ISBN registration', 'Print-on-demand or bulk printing'].map(item => (
+                    <div key={item} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                      <span style={{ color: 'var(--red)', fontSize: 13, flexShrink: 0 }}>✓</span>
+                      <span style={{ fontSize: 13, color: 'var(--dark)', lineHeight: 1.5 }}>{item}</span>
+                    </div>
+                  ))}
+                </div>
+                <Link href="/book-publishing" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '13px 24px', background: 'var(--red)', color: 'white', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, textDecoration: 'none', marginTop: 'auto' }}>
+                  View Publishing Services →
+                </Link>
+              </div>
+
             </div>
           </div>
         </section>
