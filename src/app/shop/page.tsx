@@ -458,37 +458,41 @@ function ShopContent() {
                       </div>
                     )}
 
-                    {/* Quantity — hidden only for variable-priced area-based products
-                        (dimensions drive the order instead of a piece count there).
-                        Fixed-price products always show qty since they're priced per piece
-                        regardless of category. Uses resolvedPriceModel (sourced via
-                        product_type → categories.price_model through LiveCalculatorV2) rather
-                        than the legacy selected.pricing_model column, which may be stale or
-                        unset for products migrated to the new pricing-category system. */}
-                    {(selected.is_fixed_price || !['area', 'area_sqin'].includes(resolvedPriceModel)) && (
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                          <label style={{ fontSize: 13, fontWeight: 600, fontFamily: 'Montserrat', color: 'var(--text-primary)' }}>Quantity</label>
-                          <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Min: {moq} · Step: {inc}</span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <button onClick={() => { if (qty - inc >= moq) setQty(qty - inc) }}
-                            style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid #e8e8e5', background: '#f7f7f5', cursor: qty <= moq ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: qty <= moq ? 0.4 : 1 }}>
-                            <Minus size={13} color="#1A1A1A" />
-                          </button>
-                          <input type="number" value={qty} min={moq} step={inc}
-                            onChange={e => { const val = Number(e.target.value); if (val >= moq) setQty(val) }}
-                            className="no-spinners"
-                            style={{ width: 70, textAlign: 'center' as const, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 16, border: '1px solid #e8e8e5', borderRadius: 8, padding: '6px', background: '#f7f7f5', color: '#1A1A1A', outline: 'none' }}
-                          />
-                          <button onClick={() => { if (!selected.max_qty || qty + inc <= selected.max_qty) setQty(qty + inc) }}
-                            style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid #e8e8e5', background: '#f7f7f5', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Plus size={13} color="#1A1A1A" />
-                          </button>
-                          <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>pcs</span>
-                        </div>
+                    {/* Quantity — shown for ALL products including area-based.
+                        Previously hidden for area/area_sqin products on the
+                        incorrect assumption that "dimensions drive the order" —
+                        but a customer wanting 10 × (4ft×3ft) banners had no way
+                        to specify 10 pieces and had to place the same order 10
+                        separate times. The price engine already correctly
+                        multiplies by qty for area products (rate × area × qty),
+                        so this was purely a UI gate causing a real UX problem.
+                        Fixed: qty stepper now always visible. Label changes to
+                        "Number of Pieces" for area products to distinguish it
+                        from the dimension inputs above. */}
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <label style={{ fontSize: 13, fontWeight: 600, fontFamily: 'Montserrat', color: 'var(--text-primary)' }}>
+                          {['area', 'area_sqin'].includes(resolvedPriceModel) ? 'Number of Pieces' : 'Quantity'}
+                        </label>
+                        <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Min: {moq} · Step: {inc}</span>
                       </div>
-                    )}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <button onClick={() => { if (qty - inc >= moq) setQty(qty - inc) }}
+                          style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid #e8e8e5', background: '#f7f7f5', cursor: qty <= moq ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: qty <= moq ? 0.4 : 1 }}>
+                          <Minus size={13} color="#1A1A1A" />
+                        </button>
+                        <input type="number" value={qty} min={moq} step={inc}
+                          onChange={e => { const val = Number(e.target.value); if (val >= moq) setQty(val) }}
+                          className="no-spinners"
+                          style={{ width: 70, textAlign: 'center' as const, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 16, border: '1px solid #e8e8e5', borderRadius: 8, padding: '6px', background: '#f7f7f5', color: '#1A1A1A', outline: 'none' }}
+                        />
+                        <button onClick={() => { if (!selected.max_qty || qty + inc <= selected.max_qty) setQty(qty + inc) }}
+                          style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid #e8e8e5', background: '#f7f7f5', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Plus size={13} color="#1A1A1A" />
+                        </button>
+                        <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>pcs</span>
+                      </div>
+                    </div>
 
                     {/* Design section */}
                     <div>
