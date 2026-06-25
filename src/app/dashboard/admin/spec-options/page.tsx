@@ -52,7 +52,7 @@ export default function SpecOptionsPage() {
 
   const emptySpecRow = () => ({
     spec_group: '', option_label: '', price_modifier: '0',
-    modifier_type: 'base_rate', sort_order: '0', is_default: false, is_addon: false,
+    modifier_type: 'base_rate', sort_order: '0', is_default: false, is_addon: false, note: '',
   })
   const [newSpecRows, setNewSpecRows] = useState([emptySpecRow()])
 
@@ -144,6 +144,7 @@ export default function SpecOptionsPage() {
       is_active: true,
       is_default: r.is_default,
       is_addon: r.is_addon,
+      note: r.note?.trim() || null,
     }))
 
     const { error } = await supabase.from('spec_options').insert(payload)
@@ -309,6 +310,14 @@ export default function SpecOptionsPage() {
                       style={{ accentColor: '#8b5cf6', width: 15, height: 15 }} />
                     <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>⭐ Add-on (customer picks quantity, e.g. Eyelets ×4)</span>
                   </label>
+                </div>
+                <div style={{ marginTop: 6 }}>
+                  <input
+                    value={row.note || ''}
+                    onChange={e => updateNewRow(i, { note: e.target.value })}
+                    placeholder="💡 Optional hint shown on product card (e.g. 'Best for 1–2 colour designs')"
+                    style={{ ...inp, fontSize: 11, color: '#555', fontStyle: 'italic' as const }}
+                  />
                 </div>
               </div>
             ))}
@@ -661,6 +670,7 @@ function SpecRow({ item, last, hasPending, onStage, onDelete }: {
   const [modType, setModType] = useState(item.modifier_type)
   const [isDefault, setIsDefault] = useState(item.is_default || false)
   const [isAddon, setIsAddon] = useState(item.is_addon || false)
+  const [note, setNote] = useState(item.note || '')
 
   // Re-sync local edit fields if item changes (e.g. after discard)
   useEffect(() => {
@@ -670,7 +680,8 @@ function SpecRow({ item, last, hasPending, onStage, onDelete }: {
     setModType(item.modifier_type)
     setIsDefault(item.is_default || false)
     setIsAddon(item.is_addon || false)
-  }, [item.option_label, item.price_modifier, item.sort_order, item.modifier_type, item.is_default, item.is_addon])
+    setNote(item.note || '')
+  }, [item.option_label, item.price_modifier, item.sort_order, item.modifier_type, item.is_default, item.is_addon, item.note])
 
   const save = () => {
     if (!label.trim()) { toast.error('Label cannot be empty'); return }
@@ -681,6 +692,7 @@ function SpecRow({ item, last, hasPending, onStage, onDelete }: {
       modifier_type: modType,
       is_default: isDefault,
       is_addon: isAddon,
+      note: note.trim() || null,
     })
     setEditing(false)
   }
@@ -692,6 +704,7 @@ function SpecRow({ item, last, hasPending, onStage, onDelete }: {
     setModType(item.modifier_type)
     setIsDefault(item.is_default || false)
     setIsAddon(item.is_addon || false)
+    setNote(item.note || '')
     setEditing(false)
   }
 
@@ -749,6 +762,14 @@ function SpecRow({ item, last, hasPending, onStage, onDelete }: {
             <span style={{ color: 'var(--text-primary)' }}>⭐ Add-on (qty-selectable)</span>
           </label>
         </div>
+        <div style={{ marginTop: 8 }}>
+          <input
+            value={note}
+            onChange={e => setNote(e.target.value)}
+            placeholder="Optional hint shown under this option on the product card (e.g. 'Best for small quantities')"
+            style={{ ...miniInp, width: '100%', fontSize: 11, color: '#555' }}
+          />
+        </div>
       </div>
     )
   }
@@ -788,6 +809,11 @@ function SpecRow({ item, last, hasPending, onStage, onDelete }: {
           <div style={{ fontSize: 11, color: 'var(--gray)' }}>
             {MODIFIER_TYPES.find(m => m.value === item.modifier_type)?.label}
           </div>
+          {item.note && (
+            <div style={{ fontSize: 11, color: '#b45309', fontStyle: 'italic' as const, marginTop: 2 }}>
+              💡 {item.note}
+            </div>
+          )}
         </div>
 
         <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, color: 'var(--red)', minWidth: 80, textAlign: 'right' as const }}>
