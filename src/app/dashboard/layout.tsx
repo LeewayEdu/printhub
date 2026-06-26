@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/lib/supabase/client'
-import { LayoutDashboard, ShoppingBag, User, LogOut, Package, Menu, X, ChevronRight, MessageSquare, TrendingUp, Truck, Tag, Bell, Image, DollarSign, Users, Zap, Star, FileSpreadsheet, Heart, AlignJustify } from 'lucide-react'
+import { LayoutDashboard, ShoppingBag, User, LogOut, Package, Menu, X, ChevronRight, MessageSquare, TrendingUp, Truck, Tag, Bell, Image, DollarSign, Users, Zap, Star, FileSpreadsheet, Heart, AlignJustify, ShieldAlert } from 'lucide-react'
 
 interface NavLink {
   href: string
@@ -21,7 +21,6 @@ const customerLinks: NavLink[] = [
   { href: '/dashboard/profile', label: 'Profile', icon: User },
 ]
 
-// Staff admin — operational tasks only
 const adminLinks: NavLink[] = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
   { href: '/dashboard/admin/orders', label: 'All Orders', icon: ShoppingBag },
@@ -34,7 +33,6 @@ const adminLinks: NavLink[] = [
   { href: '/dashboard/profile', label: 'Profile', icon: User },
 ]
 
-// Super admin — full access
 const superAdminLinks: NavLink[] = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
   { href: '/dashboard/admin/orders', label: 'All Orders', icon: ShoppingBag },
@@ -64,6 +62,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [role, setRole] = useState<string>('user')
   const [profile, setProfile] = useState<{ first_name: string; last_name: string; email: string } | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [pendingApprovals, setPendingApprovals] = useState(0)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -73,10 +72,34 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         .eq('id', session.user.id)
         .single()
         .then(({ data }) => {
-          if (data) { setRole(data.role || 'user'); setProfile(data) }
+          if (data) {
+            setRole(data.role || 'user')
+            setProfile(data)
+            // Fetch pending approvals immediately on login for super admins.
+            // This runs once here so the badge is visible from ANY page in the
+            // dashboard, not just when navigating to the Products page.
+            if (data.role === 'super_admin') {
+              fetchPendingApprovals()
+            }
+          }
         })
     })
   }, [])
+
+  // Re-fetch when navigating between pages so the count stays fresh
+  // (e.g. after approving/rejecting requests on the Products page, the
+  // badge updates immediately when you navigate away)
+  useEffect(() => {
+    if (role === 'super_admin') fetchPendingApprovals()
+  }, [pathname, role])
+
+  const fetchPendingApprovals = async () => {
+    const { count } = await supabase
+      .from('product_change_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'pending')
+    setPendingApprovals(count || 0)
+  }
 
   const handleLogout = async () => {
     await logout()
@@ -88,6 +111,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     : customerLinks
 
   const isAdmin = role === 'admin' || role === 'super_admin'
+  const isSuperAdmin = role === 'super_admin'
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', background: 'var(--light)' }}>
@@ -123,6 +147,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </span>
               </div>
             )}
+
+            {/* Pending approvals alert — shown immediately below profile
+                badge so it's the first thing you see after logging in.
+                Only visible to Super Admins when there are pending requests. */}
+            {isSuperAdmin && pendingApprovals > 0 && (
+              <Link href="/dashboard/admin/products"
+                style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, padding: '8px 10px', background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(220,38,38,0.4)', borderRadius: 9, textDecoration: 'none' }}>
+                <ShieldAlert size={14} color="#f87171" />
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#f87171', fontFamily: 'Montserrat' }}>
+                    {pendingApprovals} change{pendingApprovals !== 1 ? 's' : ''} awaiting approval
+                  </div>
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginTop: 1 }}>Tap to review →</div>
+                </div>
+              </Link>
+            )}
           </div>
         )}
 
@@ -130,12 +170,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <nav style={{ flex: 1, padding: '16px 12px', overflowY: 'auto' as const }}>
           {links.map(({ href, label, icon: Icon }: NavLink) => {
             const active = pathname === href
+            // Show pending count badge on the Products link for super admins
+            const showBadge = isSuperAdmin && href === '/dashboard/admin/products' && pendingApprovals > 0
             return (
               <Link key={href} href={href} onClick={() => setSidebarOpen(false)}
                 style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 9, marginBottom: 4, textDecoration: 'none', transition: 'all 0.2s', background: active ? 'rgba(192,57,43,0.15)' : 'transparent', color: active ? 'white' : 'rgba(255,255,255,0.55)', borderLeft: active ? '3px solid var(--red)' : '3px solid transparent' }}>
                 <Icon size={17} />
                 <span style={{ fontSize: 14, fontFamily: 'Open Sans' }}>{label}</span>
-                {active && <ChevronRight size={14} style={{ marginLeft: 'auto' }} />}
+                {showBadge && (
+                  <span style={{ marginLeft: 'auto', background: '#dc2626', color: 'white', fontSize: 10, fontWeight: 800, minWidth: 18, height: 18, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 5px', fontFamily: 'Montserrat' }}>
+                    {pendingApprovals}
+                  </span>
+                )}
+                {active && !showBadge && <ChevronRight size={14} style={{ marginLeft: 'auto' }} />}
               </Link>
             )
           })}
@@ -162,9 +209,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 18, color: 'var(--black)' }}>
             {links.find((l: NavLink) => l.href === pathname)?.label || 'Dashboard'}
           </div>
-          <Link href="/shop" style={{ fontSize: 13, fontWeight: 700, padding: '8px 18px', background: 'var(--red)', color: 'white', borderRadius: 8, textDecoration: 'none', fontFamily: 'Montserrat' }}>
-            + New Order
-          </Link>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {/* Global approval alert in top header bar — extra visibility */}
+            {isSuperAdmin && pendingApprovals > 0 && (
+              <Link href="/dashboard/admin/products"
+                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, textDecoration: 'none' }}>
+                <ShieldAlert size={14} color="#dc2626" />
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#dc2626', fontFamily: 'Montserrat' }}>
+                  {pendingApprovals} pending approval{pendingApprovals !== 1 ? 's' : ''}
+                </span>
+              </Link>
+            )}
+            <Link href="/shop" style={{ fontSize: 13, fontWeight: 700, padding: '8px 18px', background: 'var(--red)', color: 'white', borderRadius: 8, textDecoration: 'none', fontFamily: 'Montserrat' }}>
+              + New Order
+            </Link>
+          </div>
         </header>
         <main style={{ flex: 1, padding: 32, overflowY: 'auto' as const }}>{children}</main>
       </div>
