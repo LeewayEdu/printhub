@@ -30,6 +30,7 @@ const adminLinks: NavLink[] = [
   { href: '/dashboard/admin/reviews', label: 'Product Reviews', icon: MessageSquare },
   { href: '/dashboard/admin/messages', label: 'Messages', icon: MessageSquare },
   { href: '/dashboard/orders', label: 'My Orders', icon: ShoppingBag },
+  { href: '/dashboard/affiliate', label: 'My Affiliate', icon: TrendingUp },
   { href: '/dashboard/profile', label: 'Profile', icon: User },
 ]
 
@@ -52,6 +53,7 @@ const superAdminLinks: NavLink[] = [
   { href: '/dashboard/admin/affiliates', label: 'Affiliates', icon: TrendingUp },
   { href: '/dashboard/admin/users', label: 'Manage Users', icon: Users },
   { href: '/dashboard/orders', label: 'My Orders', icon: ShoppingBag },
+  { href: '/dashboard/affiliate', label: 'My Affiliate', icon: TrendingUp },
   { href: '/dashboard/profile', label: 'Profile', icon: User },
 ]
 
@@ -63,6 +65,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [profile, setProfile] = useState<{ first_name: string; last_name: string; email: string } | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [pendingApprovals, setPendingApprovals] = useState(0)
+  const [pendingBankPayments, setPendingBankPayments] = useState(0)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -75,22 +78,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           if (data) {
             setRole(data.role || 'user')
             setProfile(data)
-            // Fetch pending approvals immediately on login for super admins.
-            // This runs once here so the badge is visible from ANY page in the
-            // dashboard, not just when navigating to the Products page.
-            if (data.role === 'super_admin') {
-              fetchPendingApprovals()
-            }
+            if (data.role === 'super_admin') fetchPendingApprovals()
+            if (['admin', 'super_admin'].includes(data.role)) fetchPendingBankPayments()
           }
         })
     })
   }, [])
 
-  // Re-fetch when navigating between pages so the count stays fresh
-  // (e.g. after approving/rejecting requests on the Products page, the
-  // badge updates immediately when you navigate away)
   useEffect(() => {
     if (role === 'super_admin') fetchPendingApprovals()
+    if (['admin', 'super_admin'].includes(role)) fetchPendingBankPayments()
   }, [pathname, role])
 
   const fetchPendingApprovals = async () => {
@@ -99,6 +96,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       .select('id', { count: 'exact', head: true })
       .eq('status', 'pending')
     setPendingApprovals(count || 0)
+  }
+
+  const fetchPendingBankPayments = async () => {
+    const { count } = await supabase
+      .from('orders')
+      .select('id', { count: 'exact', head: true })
+      .eq('payment_method', 'bank_transfer')
+      .eq('receipt_status', 'awaiting_receipt')
+    setPendingBankPayments(count || 0)
   }
 
   const handleLogout = async () => {
@@ -148,9 +154,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </div>
             )}
 
-            {/* Pending approvals alert — shown immediately below profile
-                badge so it's the first thing you see after logging in.
-                Only visible to Super Admins when there are pending requests. */}
+            {/* Pending approvals alert — super admin only */}
             {isSuperAdmin && pendingApprovals > 0 && (
               <Link href="/dashboard/admin/products"
                 style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, padding: '8px 10px', background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(220,38,38,0.4)', borderRadius: 9, textDecoration: 'none' }}>
@@ -163,6 +167,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </div>
               </Link>
             )}
+
+            {/* Bank payment alert — all admins */}
+            {isAdmin && pendingBankPayments > 0 && (
+              <Link href="/dashboard/admin/orders"
+                style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, padding: '8px 10px', background: 'rgba(234,179,8,0.15)', border: '1px solid rgba(234,179,8,0.4)', borderRadius: 9, textDecoration: 'none' }}>
+                <Bell size={14} color="#fbbf24" />
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', fontFamily: 'Montserrat' }}>
+                    {pendingBankPayments} bank transfer{pendingBankPayments !== 1 ? 's' : ''} awaiting receipt
+                  </div>
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginTop: 1 }}>Tap to verify →</div>
+                </div>
+              </Link>
+            )}
           </div>
         )}
 
@@ -171,15 +189,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {links.map(({ href, label, icon: Icon }: NavLink) => {
             const active = pathname === href
             // Show pending count badge on the Products link for super admins
-            const showBadge = isSuperAdmin && href === '/dashboard/admin/products' && pendingApprovals > 0
+            const showApprovalBadge = isSuperAdmin && href === '/dashboard/admin/products' && pendingApprovals > 0
+            // Show bank payment badge on All Orders link for all admins
+            const showBankBadge = isAdmin && href === '/dashboard/admin/orders' && pendingBankPayments > 0
+            const showBadge = showApprovalBadge || showBankBadge
+            const badgeCount = showApprovalBadge ? pendingApprovals : pendingBankPayments
+            const badgeBg = showApprovalBadge ? '#dc2626' : '#d97706'
             return (
               <Link key={href} href={href} onClick={() => setSidebarOpen(false)}
                 style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 9, marginBottom: 4, textDecoration: 'none', transition: 'all 0.2s', background: active ? 'rgba(192,57,43,0.15)' : 'transparent', color: active ? 'white' : 'rgba(255,255,255,0.55)', borderLeft: active ? '3px solid var(--red)' : '3px solid transparent' }}>
                 <Icon size={17} />
                 <span style={{ fontSize: 14, fontFamily: 'Open Sans' }}>{label}</span>
                 {showBadge && (
-                  <span style={{ marginLeft: 'auto', background: '#dc2626', color: 'white', fontSize: 10, fontWeight: 800, minWidth: 18, height: 18, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 5px', fontFamily: 'Montserrat' }}>
-                    {pendingApprovals}
+                  <span style={{ marginLeft: 'auto', background: badgeBg, color: 'white', fontSize: 10, fontWeight: 800, minWidth: 18, height: 18, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 5px', fontFamily: 'Montserrat' }}>
+                    {badgeCount}
                   </span>
                 )}
                 {active && !showBadge && <ChevronRight size={14} style={{ marginLeft: 'auto' }} />}
@@ -210,13 +233,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {links.find((l: NavLink) => l.href === pathname)?.label || 'Dashboard'}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {/* Global approval alert in top header bar — extra visibility */}
             {isSuperAdmin && pendingApprovals > 0 && (
               <Link href="/dashboard/admin/products"
                 style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, textDecoration: 'none' }}>
                 <ShieldAlert size={14} color="#dc2626" />
                 <span style={{ fontSize: 12, fontWeight: 700, color: '#dc2626', fontFamily: 'Montserrat' }}>
                   {pendingApprovals} pending approval{pendingApprovals !== 1 ? 's' : ''}
+                </span>
+              </Link>
+            )}
+            {isAdmin && pendingBankPayments > 0 && (
+              <Link href="/dashboard/admin/orders"
+                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: '#fffbeb', border: '1px solid #fbbf24', borderRadius: 8, textDecoration: 'none' }}>
+                <Bell size={14} color="#d97706" />
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#d97706', fontFamily: 'Montserrat' }}>
+                  {pendingBankPayments} bank transfer{pendingBankPayments !== 1 ? 's' : ''} to verify
                 </span>
               </Link>
             )}

@@ -27,16 +27,40 @@ export default function AdminAffiliatePage() {
 
   const load = async () => {
     setLoading(true)
-    const { data } = await supabase
+
+    // Fetch affiliates first, then join profiles manually.
+    // Previously used Supabase FK join syntax (.select('*, profiles(...)'))
+    // which silently returns null for all profile data if the FK relationship
+    // name in the schema doesn't exactly match what Supabase expects — this
+    // caused the admin page to show only the super admin's own affiliate record.
+    // Manual join avoids this entirely and is more reliable across schema setups.
+    const { data: affs, error } = await supabase
       .from('affiliates')
-      .select(`
-        *,
-        profiles (
-          first_name, last_name, email, phone
-        )
-      `)
+      .select('*')
       .order('total_earnings', { ascending: false })
-    if (data) setAffiliates(data)
+
+    if (error) { toast.error(`Failed to load affiliates: ${error.message}`); setLoading(false); return }
+    if (!affs || affs.length === 0) { setAffiliates([]); setLoading(false); return }
+
+    // Get the profile_id (or user_id) column — handle both naming conventions
+    const profileIdField = 'profile_id' in (affs[0] || {}) ? 'profile_id' : 'user_id'
+    const profileIds = affs.map(a => a[profileIdField]).filter(Boolean)
+
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, first_name, last_name, email, phone')
+      .in('id', profileIds)
+
+    const profileMap: Record<string, any> = {}
+    ;(profiles || []).forEach(p => { profileMap[p.id] = p })
+
+    const merged = affs.map(a => ({
+      ...a,
+      profiles: profileMap[a[profileIdField]] || null,
+      _profileIdField: profileIdField,
+    }))
+
+    setAffiliates(merged)
     setLoading(false)
   }
 
@@ -44,7 +68,7 @@ export default function AdminAffiliatePage() {
     if (commissions[affiliateId]) return
     const { data } = await supabase
       .from('commissions')
-      .select('*, orders(job_number, total_amount, created_at)')
+      .select('*, orders(job_number, total, created_at)')
       .eq('affiliate_id', affiliateId)
       .order('created_at', { ascending: false })
       .limit(20)
@@ -62,26 +86,21 @@ export default function AdminAffiliatePage() {
 
   const markPaid = async (affiliateId: string, amount: number) => {
     if (!confirm(`Mark ₦${amount.toLocaleString()} as paid to this affiliate?`)) return
+    const aff = affiliates.find(a => a.id === affiliateId)
+    if (!aff) return
+
+    // Fix: removed the broken first update that called supabase.rpc as a value.
+    // Now a single clean update that correctly increments paid_out and zeroes
+    // pending_payout, checked for errors before proceeding.
     const { error } = await supabase
       .from('affiliates')
       .update({
         pending_payout: 0,
-        paid_out: supabase.rpc as any,
+        paid_out: (Number(aff.paid_out) || 0) + amount,
       })
       .eq('id', affiliateId)
 
-    // Use raw update
-    const aff = affiliates.find(a => a.id === affiliateId)
-    if (!aff) return
-    const { error: err } = await supabase
-      .from('affiliates')
-      .update({
-        pending_payout: 0,
-        paid_out: (aff.paid_out || 0) + amount,
-      })
-      .eq('id', affiliateId)
-
-    if (err) { toast.error(err.message); return }
+    if (error) { toast.error(error.message); return }
 
     // Mark all approved commissions as paid
     await supabase
@@ -109,7 +128,6 @@ export default function AdminAffiliatePage() {
 
   return (
     <div>
-      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap' as const, gap: 12 }}>
         <div>
           <h1 style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 22, marginBottom: 4, color: 'var(--text-primary)' }}>Affiliate Overview</h1>
@@ -156,7 +174,7 @@ export default function AdminAffiliatePage() {
         ))}
       </div>
 
-      {/* Affiliates table */}
+      {/* Affiliates list */}
       {loading ? (
         <div style={{ textAlign: 'center' as const, padding: 60, color: 'var(--gray)' }}>Loading...</div>
       ) : filtered.length === 0 ? (
@@ -173,8 +191,6 @@ export default function AdminAffiliatePage() {
 
             return (
               <div key={aff.id} style={{ background: 'white', border: `1px solid ${hasPending ? '#fbbf24' : 'var(--border)'}`, borderRadius: 12, overflow: 'hidden' }}>
-
-                {/* Row */}
                 <div onClick={() => toggleExpand(aff.id)}
                   style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 16, cursor: 'pointer', flexWrap: 'wrap' as const }}>
 
@@ -186,8 +202,10 @@ export default function AdminAffiliatePage() {
                       </span>
                     </div>
                     <div>
-                      <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13 }}>{profile?.first_name} {profile?.last_name}</div>
-                      <div style={{ fontSize: 11, color: 'var(--gray)' }}>{profile?.email}</div>
+                      <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13 }}>
+                        {profile ? `${profile.first_name} ${profile.last_name}` : <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>Profile not found</span>}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--gray)' }}>{profile?.email || aff[aff._profileIdField]}</div>
                     </div>
                   </div>
 
@@ -215,8 +233,7 @@ export default function AdminAffiliatePage() {
                     <div style={{ fontSize: 10, color: 'var(--gray)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 2 }}>Bank Details</div>
                     {aff.bank_name ? (
                       <div style={{ fontSize: 11, color: 'var(--dark)', lineHeight: 1.5 }}>
-                        {aff.bank_name}<br />
-                        {aff.account_number} · {aff.account_name}
+                        {aff.bank_name}<br />{aff.account_number} · {aff.account_name}
                       </div>
                     ) : (
                       <div style={{ fontSize: 11, color: '#9ca3af', fontStyle: 'italic' }}>Not provided</div>
@@ -238,9 +255,7 @@ export default function AdminAffiliatePage() {
                 {/* Expanded commissions */}
                 {isExpanded && (
                   <div style={{ borderTop: '1px solid var(--border)', background: 'var(--light)', padding: '16px 20px' }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 12 }}>
-                      Recent Commissions
-                    </div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 12 }}>Recent Commissions</div>
                     {!commissions[aff.id] ? (
                       <div style={{ fontSize: 13, color: 'var(--gray)' }}>Loading...</div>
                     ) : commissions[aff.id].length === 0 ? (
