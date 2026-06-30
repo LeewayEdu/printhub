@@ -38,6 +38,19 @@ export default function AffiliateDashboardPage() {
   const [savingCode, setSavingCode] = useState(false)
   const [codeError, setCodeError] = useState('')
 
+  // ── Join Affiliate Program form state ──
+  const [showJoinModal, setShowJoinModal] = useState(false)
+  const [joinForm, setJoinForm] = useState({
+    referral_code: '', legal_name: '', occupation: '',
+    bank_name: '', account_number: '', account_name: '',
+  })
+  const [joinErrors, setJoinErrors] = useState<Record<string, string>>({})
+
+  const OCCUPATIONS = [
+    'Graphic Designer', 'Printer/Print Shop Owner', 'Marketer/Social Media Influencer',
+    'Event Planner', 'Student', 'Business Owner', 'Other',
+  ]
+
   useEffect(() => {
     const load = async () => {
       const { data: { session } } = await supabase.auth.getSession()
@@ -68,18 +81,87 @@ export default function AffiliateDashboardPage() {
     load()
   }, [])
 
+  const openJoinModal = () => {
+    setJoinForm({
+      referral_code: '',
+      legal_name: profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() : '',
+      occupation: '',
+      bank_name: '', account_number: '', account_name: '',
+    })
+    setJoinErrors({})
+    setShowJoinModal(true)
+  }
+
+  const validateCode = (code: string): string | null => {
+    if (code.length < CODE_MIN_LENGTH) return `Code must be at least ${CODE_MIN_LENGTH} characters`
+    if (code.length > CODE_MAX_LENGTH) return `Code must be at most ${CODE_MAX_LENGTH} characters`
+    if (!CODE_PATTERN.test(code)) return 'Only uppercase letters and numbers allowed, no spaces or symbols'
+    return null
+  }
+
+  const validateJoinForm = (): Record<string, string> => {
+    const errs: Record<string, string> = {}
+    const code = joinForm.referral_code.trim().toUpperCase()
+    if (!code) errs.referral_code = 'Choose a username for your referral link'
+    else if (validateCode(code)) errs.referral_code = validateCode(code)!
+    if (!joinForm.legal_name.trim()) errs.legal_name = 'Your full legal name is required'
+    if (!joinForm.occupation) errs.occupation = 'Please select what you do'
+    if (!joinForm.bank_name.trim()) errs.bank_name = 'Bank name is required'
+    if (!joinForm.account_number.trim()) errs.account_number = 'Account number is required'
+    else if (!/^\d{10}$/.test(joinForm.account_number.trim())) errs.account_number = 'Nigerian account numbers are 10 digits'
+    if (!joinForm.account_name.trim()) errs.account_name = 'Account name is required'
+    return errs
+  }
+
   const handleApply = async () => {
+    const errs = validateJoinForm()
+    setJoinErrors(errs)
+    if (Object.keys(errs).length > 0) return
+
     setApplying(true)
     const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return
-    const referralCode = session.user.id.slice(0, 8).toUpperCase()
-    const { error } = await supabase.from('affiliates').insert({ profile_id: session.user.id, referral_code: referralCode })
-    if (error) { toast.error(error.message) } else {
-      await supabase.from('profiles').update({ is_affiliate: true }).eq('id', session.user.id)
-      toast.success('Welcome to the affiliate program!')
-      window.location.reload()
+    if (!session) { setApplying(false); return }
+
+    const code = joinForm.referral_code.trim().toUpperCase()
+
+    // Check the chosen code isn't already taken before inserting —
+    // gives a clear error instead of relying solely on the DB's
+    // unique constraint to reject it after the fact.
+    const { data: existing } = await supabase
+      .from('affiliates')
+      .select('id')
+      .eq('referral_code', code)
+      .maybeSingle()
+
+    if (existing) {
+      setJoinErrors({ referral_code: 'This username is already taken — please choose another' })
+      setApplying(false)
+      return
     }
-    setApplying(false)
+
+    const { error } = await supabase.from('affiliates').insert({
+      profile_id: session.user.id,
+      referral_code: code,
+      legal_name: joinForm.legal_name.trim(),
+      occupation: joinForm.occupation,
+      bank_name: joinForm.bank_name.trim(),
+      account_number: joinForm.account_number.trim(),
+      account_name: joinForm.account_name.trim(),
+    })
+
+    if (error) {
+      if (error.message.includes('duplicate') || error.message.includes('unique')) {
+        setJoinErrors({ referral_code: 'This username is already taken — please choose another' })
+      } else {
+        toast.error(error.message)
+      }
+      setApplying(false)
+      return
+    }
+
+    await supabase.from('profiles').update({ is_affiliate: true }).eq('id', session.user.id)
+    toast.success('Welcome to the affiliate program!')
+    window.location.reload()
   }
 
   const handleCopy = () => {
@@ -90,13 +172,6 @@ export default function AffiliateDashboardPage() {
   }
 
   // ── Custom referral code handlers ──
-  const validateCode = (code: string): string | null => {
-    if (code.length < CODE_MIN_LENGTH) return `Code must be at least ${CODE_MIN_LENGTH} characters`
-    if (code.length > CODE_MAX_LENGTH) return `Code must be at most ${CODE_MAX_LENGTH} characters`
-    if (!CODE_PATTERN.test(code)) return 'Only uppercase letters and numbers allowed, no spaces or symbols'
-    return null
-  }
-
   const handleSaveCode = async () => {
     const cleaned = newCode.trim().toUpperCase()
     const validationError = validateCode(cleaned)
@@ -211,11 +286,95 @@ export default function AffiliateDashboardPage() {
             <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{item}</span>
           </div>
         ))}
-        <button onClick={handleApply} disabled={applying}
-          style={{ width: '100%', padding: '13px', background: applying ? '#ccc' : 'var(--red)', color: 'white', border: 'none', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 15, cursor: applying ? 'not-allowed' : 'pointer', marginTop: 20 }}>
-          {applying ? 'Joining...' : 'Join Affiliate Program'}
+        <button onClick={openJoinModal}
+          style={{ width: '100%', padding: '13px', background: 'var(--red)', color: 'white', border: 'none', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 15, cursor: 'pointer', marginTop: 20 }}>
+          Join Affiliate Program
         </button>
       </div>
+
+      {showJoinModal && (
+        <div style={{ position: 'fixed' as const, inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '20px', overflowY: 'auto' as const }}>
+          <div style={{ background: 'var(--bg-card)', borderRadius: 16, width: '100%', maxWidth: 480, padding: 28, margin: '40px auto' }}>
+            <h2 style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 19, marginBottom: 6, color: 'var(--text-primary)' }}>Set up your Affiliate Account</h2>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 22, lineHeight: 1.6 }}>
+              A few details to get you started. Your bank account name must match your legal name for payouts to be approved.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 16 }}>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 6, color: 'var(--text-primary)', textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Choose Your Username *</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>?ref=</span>
+                  <input
+                    value={joinForm.referral_code}
+                    onChange={e => setJoinForm(p => ({ ...p, referral_code: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') }))}
+                    maxLength={CODE_MAX_LENGTH}
+                    placeholder="YOURNAME"
+                    className="form-input"
+                    style={{ flex: 1, fontFamily: 'Montserrat', fontWeight: 700 }}
+                  />
+                </div>
+                {joinErrors.referral_code && <div style={{ fontSize: 11, color: '#ef4444', marginTop: 4 }}>{joinErrors.referral_code}</div>}
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>This becomes your unique referral link — choose something memorable.</div>
+              </div>
+
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 6, color: 'var(--text-primary)', textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Full Legal Name *</label>
+                <input
+                  value={joinForm.legal_name}
+                  onChange={e => setJoinForm(p => ({ ...p, legal_name: e.target.value }))}
+                  placeholder="As it appears on your bank account"
+                  className="form-input"
+                />
+                {joinErrors.legal_name && <div style={{ fontSize: 11, color: '#ef4444', marginTop: 4 }}>{joinErrors.legal_name}</div>}
+              </div>
+
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 6, color: 'var(--text-primary)', textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>What do you do? *</label>
+                <select
+                  value={joinForm.occupation}
+                  onChange={e => setJoinForm(p => ({ ...p, occupation: e.target.value }))}
+                  className="form-input"
+                  style={{ cursor: 'pointer' }}
+                >
+                  <option value="">Select one</option>
+                  {OCCUPATIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+                {joinErrors.occupation && <div style={{ fontSize: 11, color: '#ef4444', marginTop: 4 }}>{joinErrors.occupation}</div>}
+              </div>
+
+              <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 16, marginTop: 4 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 12, fontFamily: 'Montserrat' }}>Payout Bank Details</div>
+                <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 14 }}>
+                  <div>
+                    <label style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'block', marginBottom: 5 }}>Bank Name *</label>
+                    <input value={joinForm.bank_name} onChange={e => setJoinForm(p => ({ ...p, bank_name: e.target.value }))} placeholder="e.g. GTBank" className="form-input" style={{ fontSize: 13 }} />
+                    {joinErrors.bank_name && <div style={{ fontSize: 11, color: '#ef4444', marginTop: 4 }}>{joinErrors.bank_name}</div>}
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'block', marginBottom: 5 }}>Account Number *</label>
+                    <input value={joinForm.account_number} onChange={e => setJoinForm(p => ({ ...p, account_number: e.target.value.replace(/\D/g, '') }))} maxLength={10} placeholder="0123456789" className="form-input" style={{ fontSize: 13 }} />
+                    {joinErrors.account_number && <div style={{ fontSize: 11, color: '#ef4444', marginTop: 4 }}>{joinErrors.account_number}</div>}
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'block', marginBottom: 5 }}>Account Name *</label>
+                    <input value={joinForm.account_name} onChange={e => setJoinForm(p => ({ ...p, account_name: e.target.value }))} placeholder="Must match your legal name above" className="form-input" style={{ fontSize: 13 }} />
+                    {joinErrors.account_name && <div style={{ fontSize: 11, color: '#ef4444', marginTop: 4 }}>{joinErrors.account_name}</div>}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
+              <button onClick={() => setShowJoinModal(false)} style={{ flex: 1, padding: '12px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 600, fontSize: 14, cursor: 'pointer', color: 'var(--text-primary)' }}>Cancel</button>
+              <button onClick={handleApply} disabled={applying}
+                style={{ flex: 2, padding: '12px', background: applying ? '#ccc' : 'var(--red)', color: 'white', border: 'none', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, cursor: applying ? 'not-allowed' : 'pointer' }}>
+                {applying ? 'Setting up...' : 'Become an Affiliate'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 

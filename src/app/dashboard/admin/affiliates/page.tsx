@@ -206,6 +206,9 @@ export default function AdminAffiliatePage() {
                         {profile ? `${profile.first_name} ${profile.last_name}` : <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>Profile not found</span>}
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--gray)' }}>{profile?.email || aff[aff._profileIdField]}</div>
+                      {aff.occupation && (
+                        <div style={{ fontSize: 10, color: 'var(--red)', marginTop: 2, fontWeight: 600 }}>{aff.occupation}</div>
+                      )}
                     </div>
                   </div>
 
@@ -234,6 +237,13 @@ export default function AdminAffiliatePage() {
                     {aff.bank_name ? (
                       <div style={{ fontSize: 11, color: 'var(--dark)', lineHeight: 1.5 }}>
                         {aff.bank_name}<br />{aff.account_number} · {aff.account_name}
+                        {aff.legal_name && aff.account_name &&
+                          !aff.legal_name.toLowerCase().split(' ').filter((w: string) => w.length > 1)
+                            .some((w: string) => aff.account_name.toLowerCase().includes(w)) && (
+                          <div style={{ marginTop: 4, color: '#d97706', fontWeight: 700, fontSize: 10 }}>
+                            ⚠️ Name may not match legal name ({aff.legal_name}) — verify before payout
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div style={{ fontSize: 11, color: '#9ca3af', fontStyle: 'italic' }}>Not provided</div>
