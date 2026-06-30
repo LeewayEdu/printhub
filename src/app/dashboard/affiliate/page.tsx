@@ -3,8 +3,17 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { Copy, Check, TrendingUp, Users, DollarSign, Plus } from 'lucide-react'
+import { Copy, Check, TrendingUp, Users, DollarSign, Plus, Pencil, X } from 'lucide-react'
 import toast from 'react-hot-toast'
+
+// Referral code rules — kept simple and URL-safe since this becomes
+// part of a public link (?ref=CODE). Enforced both client-side (for
+// instant feedback) and should also be enforced by a DB constraint
+// (see custom-referral-code-feature.sql) so it can't be bypassed by
+// a direct API call.
+const CODE_MIN_LENGTH = 4
+const CODE_MAX_LENGTH = 16
+const CODE_PATTERN = /^[A-Z0-9]+$/  // uppercase letters and numbers only, no spaces/symbols
 
 export default function AffiliateDashboardPage() {
   const router = useRouter()
@@ -23,6 +32,12 @@ export default function AffiliateDashboardPage() {
   const [savingBank, setSavingBank] = useState(false)
   const [editingBank, setEditingBank] = useState(false)
 
+  // ── Custom referral code state ──
+  const [editingCode, setEditingCode] = useState(false)
+  const [newCode, setNewCode] = useState('')
+  const [savingCode, setSavingCode] = useState(false)
+  const [codeError, setCodeError] = useState('')
+
   useEffect(() => {
     const load = async () => {
       const { data: { session } } = await supabase.auth.getSession()
@@ -34,6 +49,7 @@ export default function AffiliateDashboardPage() {
         const { data: aff } = await supabase.from('affiliates').select('*').eq('profile_id', session.user.id).single()
         if (aff) {
           setAffiliate(aff)
+          setNewCode(aff.referral_code || '')
           setBankForm({ bank_name: aff.bank_name || '', account_number: aff.account_number || '', account_name: aff.account_name || '' })
 
           const [commsRes, referralsRes, payoutsRes] = await Promise.all([
@@ -71,6 +87,74 @@ export default function AffiliateDashboardPage() {
     navigator.clipboard.writeText(referralLink)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  // ── Custom referral code handlers ──
+  const validateCode = (code: string): string | null => {
+    if (code.length < CODE_MIN_LENGTH) return `Code must be at least ${CODE_MIN_LENGTH} characters`
+    if (code.length > CODE_MAX_LENGTH) return `Code must be at most ${CODE_MAX_LENGTH} characters`
+    if (!CODE_PATTERN.test(code)) return 'Only uppercase letters and numbers allowed, no spaces or symbols'
+    return null
+  }
+
+  const handleSaveCode = async () => {
+    const cleaned = newCode.trim().toUpperCase()
+    const validationError = validateCode(cleaned)
+    if (validationError) { setCodeError(validationError); return }
+
+    if (cleaned === affiliate.referral_code) {
+      setEditingCode(false)
+      return
+    }
+
+    setSavingCode(true)
+    setCodeError('')
+
+    // Check uniqueness before attempting the update — gives a clear
+    // error message instead of a raw DB constraint violation. A DB-level
+    // UNIQUE constraint (see SQL file) is still the real enforcement —
+    // this check is just for a better user experience.
+    const { data: existing } = await supabase
+      .from('affiliates')
+      .select('id')
+      .eq('referral_code', cleaned)
+      .neq('id', affiliate.id)
+      .maybeSingle()
+
+    if (existing) {
+      setCodeError('This code is already taken — please choose another')
+      setSavingCode(false)
+      return
+    }
+
+    const { error } = await supabase
+      .from('affiliates')
+      .update({ referral_code: cleaned })
+      .eq('id', affiliate.id)
+
+    if (error) {
+      // Catches the case where a DB UNIQUE constraint blocks it anyway
+      // (e.g. a race condition where two people grabbed the same code
+      // at the same moment) — same friendly message either way.
+      if (error.message.includes('duplicate') || error.message.includes('unique')) {
+        setCodeError('This code is already taken — please choose another')
+      } else {
+        toast.error(error.message)
+      }
+      setSavingCode(false)
+      return
+    }
+
+    setAffiliate((prev: any) => ({ ...prev, referral_code: cleaned }))
+    toast.success('Your referral code has been updated!')
+    setEditingCode(false)
+    setSavingCode(false)
+  }
+
+  const cancelEditCode = () => {
+    setNewCode(affiliate.referral_code)
+    setCodeError('')
+    setEditingCode(false)
   }
 
   const handleSaveBank = async () => {
@@ -111,7 +195,6 @@ export default function AffiliateDashboardPage() {
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center' as const, color: 'var(--text-secondary)' }}>Loading...</div>
 
-  // Not an affiliate yet
   if (!affiliate) return (
     <div style={{ maxWidth: 560 }}>
       <div style={{ marginBottom: 28 }}>
@@ -162,47 +245,87 @@ export default function AffiliateDashboardPage() {
         ))}
       </div>
 
-      {/* Referral link */}
+      {/* Referral link — now with customizable code */}
       <div style={{ background: '#1A1A1A', borderRadius: 14, padding: '22px 24px', marginBottom: 24 }}>
-        <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, color: 'white', marginBottom: 12 }}>Your referral link</div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 9, padding: '10px 14px', marginBottom: 10 }}>
-          <span style={{ flex: 1, fontSize: 13, color: 'rgba(255,255,255,0.8)', fontFamily: 'Montserrat', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{referralLink}</span>
-          <button onClick={handleCopy}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', background: 'var(--red)', color: 'white', border: 'none', borderRadius: 7, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 12, cursor: 'pointer', flexShrink: 0 }}>
-            {copied ? <Check size={13} /> : <Copy size={13} />}
-            {copied ? 'Copied!' : 'Copy'}
-          </button>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, color: 'white' }}>Your referral link</div>
+          {!editingCode && (
+            <button onClick={() => setEditingCode(true)}
+              style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.5)', fontSize: 12, fontFamily: 'Montserrat' }}>
+              <Pencil size={11} /> Customize code
+            </button>
+          )}
         </div>
+
+        {editingCode ? (
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+              <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', fontFamily: 'Montserrat', flexShrink: 0 }}>printhub.cchumedia.com?ref=</span>
+              <input
+                value={newCode}
+                onChange={e => { setNewCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '')); setCodeError('') }}
+                maxLength={CODE_MAX_LENGTH}
+                placeholder="YOURCODE"
+                style={{ flex: 1, minWidth: 100, padding: '7px 10px', background: 'rgba(255,255,255,0.08)', border: `1px solid ${codeError ? '#ef4444' : 'rgba(255,255,255,0.2)'}`, borderRadius: 7, color: 'white', fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13, outline: 'none' }}
+              />
+            </div>
+            {codeError && (
+              <div style={{ fontSize: 11, color: '#fca5a5', marginBottom: 8 }}>{codeError}</div>
+            )}
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginBottom: 10 }}>
+              {CODE_MIN_LENGTH}-{CODE_MAX_LENGTH} characters, letters and numbers only. Changing your code breaks any links you've already shared with the old code.
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={cancelEditCode}
+                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 7, color: 'rgba(255,255,255,0.7)', fontFamily: 'Montserrat', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
+                <X size={12} /> Cancel
+              </button>
+              <button onClick={handleSaveCode} disabled={savingCode}
+                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', background: savingCode ? '#6b7280' : 'var(--red)', border: 'none', borderRadius: 7, color: 'white', fontFamily: 'Montserrat', fontWeight: 700, fontSize: 12, cursor: savingCode ? 'not-allowed' : 'pointer' }}>
+                <Check size={12} /> {savingCode ? 'Saving...' : 'Save Code'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 9, padding: '10px 14px', marginBottom: 10 }}>
+            <span style={{ flex: 1, fontSize: 13, color: 'rgba(255,255,255,0.8)', fontFamily: 'Montserrat', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{referralLink}</span>
+            <button onClick={handleCopy}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', background: 'var(--red)', color: 'white', border: 'none', borderRadius: 7, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 12, cursor: 'pointer', flexShrink: 0 }}>
+              {copied ? <Check size={13} /> : <Copy size={13} />}
+              {copied ? 'Copied!' : 'Copy'}
+            </button>
+          </div>
+        )}
         <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)' }}>Share this link. When they register and order, you earn automatically.</div>
       </div>
 
       {/* Request payout — ALWAYS VISIBLE */}
-<div style={{ background: 'var(--bg-card)', border: `2px solid ${Number(affiliate.pending_payout) >= 5000 ? '#10b981' : 'var(--border-color)'}`, borderRadius: 14, padding: '20px 24px', marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 12 }}>
-  <div>
-    <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 15, color: 'var(--text-primary)', marginBottom: 4 }}>
-      {Number(affiliate.pending_payout) >= 5000 ? 'Ready for payout!' : 'Payout not yet available'}
-    </div>
-    <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-      {Number(affiliate.pending_payout) >= 5000
-        ? `You have ₦${Number(affiliate.pending_payout).toLocaleString()} available to withdraw.`
-        : `You need ₦${(5000 - Number(affiliate.pending_payout)).toLocaleString()} more to reach the ₦5,000 minimum.`}
-    </div>
-  </div>
-  <div style={{ position: 'relative' as const }} className="payout-btn-wrap">
-    <button
-      onClick={Number(affiliate.pending_payout) >= 5000 ? () => setShowPayoutModal(true) : undefined}
-      disabled={Number(affiliate.pending_payout) < 5000}
-      style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', background: Number(affiliate.pending_payout) >= 5000 ? '#10b981' : '#e5e7eb', color: Number(affiliate.pending_payout) >= 5000 ? 'white' : '#9ca3af', border: 'none', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, cursor: Number(affiliate.pending_payout) >= 5000 ? 'pointer' : 'not-allowed' }}>
-      <Plus size={16} /> Request Payout
-    </button>
-    <style>{`.payout-btn-wrap:hover .payout-tooltip { opacity: 1; pointer-events: auto; }`}</style>
-    {Number(affiliate.pending_payout) < 5000 && (
-      <div className="payout-tooltip" style={{ position: 'absolute' as const, bottom: '110%', left: '50%', transform: 'translateX(-50%)', background: '#1a1a1a', color: 'white', fontSize: 11, padding: '6px 12px', borderRadius: 6, whiteSpace: 'nowrap', opacity: 0, transition: 'opacity 0.2s', pointerEvents: 'none', zIndex: 10 }}>
-        Minimum payout is ₦5,000
+      <div style={{ background: 'var(--bg-card)', border: `2px solid ${Number(affiliate.pending_payout) >= 5000 ? '#10b981' : 'var(--border-color)'}`, borderRadius: 14, padding: '20px 24px', marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 12 }}>
+        <div>
+          <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 15, color: 'var(--text-primary)', marginBottom: 4 }}>
+            {Number(affiliate.pending_payout) >= 5000 ? 'Ready for payout!' : 'Payout not yet available'}
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+            {Number(affiliate.pending_payout) >= 5000
+              ? `You have ₦${Number(affiliate.pending_payout).toLocaleString()} available to withdraw.`
+              : `You need ₦${(5000 - Number(affiliate.pending_payout)).toLocaleString()} more to reach the ₦5,000 minimum.`}
+          </div>
+        </div>
+        <div style={{ position: 'relative' as const }} className="payout-btn-wrap">
+          <button
+            onClick={Number(affiliate.pending_payout) >= 5000 ? () => setShowPayoutModal(true) : undefined}
+            disabled={Number(affiliate.pending_payout) < 5000}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', background: Number(affiliate.pending_payout) >= 5000 ? '#10b981' : '#e5e7eb', color: Number(affiliate.pending_payout) >= 5000 ? 'white' : '#9ca3af', border: 'none', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, cursor: Number(affiliate.pending_payout) >= 5000 ? 'pointer' : 'not-allowed' }}>
+            <Plus size={16} /> Request Payout
+          </button>
+          <style>{`.payout-btn-wrap:hover .payout-tooltip { opacity: 1; pointer-events: auto; }`}</style>
+          {Number(affiliate.pending_payout) < 5000 && (
+            <div className="payout-tooltip" style={{ position: 'absolute' as const, bottom: '110%', left: '50%', transform: 'translateX(-50%)', background: '#1a1a1a', color: 'white', fontSize: 11, padding: '6px 12px', borderRadius: 6, whiteSpace: 'nowrap', opacity: 0, transition: 'opacity 0.2s', pointerEvents: 'none', zIndex: 10 }}>
+              Minimum payout is ₦5,000
+            </div>
+          )}
+        </div>
       </div>
-    )}
-  </div>
-</div>
 
       {/* Bank details */}
       <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, padding: '22px 24px', marginBottom: 24 }}>
@@ -221,30 +344,30 @@ export default function AffiliateDashboardPage() {
                 placeholder={placeholder}
                 className="form-input"
                 style={{ fontSize: 13 }}
-                  disabled={!!bankForm.bank_name && !editingBank}
+                disabled={!!bankForm.bank_name && !editingBank}
               />
             </div>
           ))}
         </div>
         {!bankForm.bank_name || editingBank ? (
-  <div style={{ display: 'flex', gap: 10 }}>
-    <button onClick={handleSaveBank} disabled={savingBank}
-      style={{ padding: '10px 24px', background: savingBank ? '#ccc' : 'var(--red)', color: 'white', border: 'none', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, cursor: savingBank ? 'not-allowed' : 'pointer' }}>
-      {savingBank ? 'Saving...' : 'Save Bank Details'}
-    </button>
-    {editingBank && (
-      <button onClick={() => setEditingBank(false)}
-        style={{ padding: '10px 20px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 600, fontSize: 14, cursor: 'pointer', color: 'var(--text-primary)' }}>
-        Cancel
-      </button>
-    )}
-  </div>
-) : (
-  <button onClick={() => setEditingBank(true)}
-    style={{ padding: '10px 24px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 600, fontSize: 14, cursor: 'pointer', color: 'var(--text-primary)' }}>
-    Edit Bank Details
-  </button>
-)}
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={handleSaveBank} disabled={savingBank}
+              style={{ padding: '10px 24px', background: savingBank ? '#ccc' : 'var(--red)', color: 'white', border: 'none', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, cursor: savingBank ? 'not-allowed' : 'pointer' }}>
+              {savingBank ? 'Saving...' : 'Save Bank Details'}
+            </button>
+            {editingBank && (
+              <button onClick={() => setEditingBank(false)}
+                style={{ padding: '10px 20px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 600, fontSize: 14, cursor: 'pointer', color: 'var(--text-primary)' }}>
+                Cancel
+              </button>
+            )}
+          </div>
+        ) : (
+          <button onClick={() => setEditingBank(true)}
+            style={{ padding: '10px 24px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 600, fontSize: 14, cursor: 'pointer', color: 'var(--text-primary)' }}>
+            Edit Bank Details
+          </button>
+        )}
         <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 10 }}>Payouts processed within 24 hours of approved request. Minimum ₦5,000.</div>
       </div>
 
