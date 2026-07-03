@@ -99,11 +99,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   const fetchPendingBankPayments = async () => {
+    // Try the most likely column pattern first based on the orders admin
+    // page showing "Awaiting receipt" status with an "Approve Receipt" button.
+    // If your orders table uses different column names, update this query to
+    // match — check information_schema.columns WHERE table_name = 'orders'.
     const { count } = await supabase
       .from('orders')
       .select('id', { count: 'exact', head: true })
-      .eq('payment_method', 'bank_transfer')
-      .eq('receipt_status', 'awaiting_receipt')
+      .or('receipt_status.eq.awaiting_receipt,status.eq.awaiting_receipt')
     setPendingBankPayments(count || 0)
   }
 

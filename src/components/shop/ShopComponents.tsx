@@ -182,16 +182,17 @@ export function ProductCard({
   onOpen,
   wishlistIds = [],
   marketingTags = [],
+  href,
 }: {
   product: ProductCardData
   onOpen: (p: ProductCardData) => void
   wishlistIds?: string[]
-  marketingTags?: string[]  // all marketing category labels for this product
+  marketingTags?: string[]
+  href?: string  // when provided, card navigates to this URL instead of opening a modal
 }) {
   const imgs = product.images?.length ? product.images : product.image_url ? [product.image_url] : []
-  // Use marketing category tags when available (multiple per product),
-  // falling back to the single pricing-category label only as a last resort.
   const categoryDisplay = marketingTags.length > 0 ? marketingTags : [product.category]
+  const handleClick = href ? undefined : () => onOpen(product)
 
   return (
     <div className="product-card"
@@ -201,7 +202,7 @@ export function ProductCard({
 
       {/* Image — square 1:1 */}
       <div className="card-img" style={{ width: '100%', aspectRatio: '1 / 1', background: 'var(--bg-secondary)', position: 'relative' as const, overflow: 'hidden', cursor: 'pointer' }}
-        onClick={() => onOpen(product)}>
+        onClick={href ? () => window.location.href = href : () => onOpen(product)}>
         <CardImage imgs={imgs} name={product.name} />
 
         {/* Badge */}
@@ -280,7 +281,7 @@ export function ProductCard({
         </div>
 
         {/* Order button */}
-        <button onClick={() => onOpen(product)}
+        <button onClick={href ? () => window.location.href = href : () => onOpen(product)}
           style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px', background: 'var(--red)', color: 'white', border: 'none', borderRadius: 8, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 12, cursor: 'pointer', marginTop: 8, transition: 'background 0.2s' }}
           onMouseEnter={e => (e.currentTarget.style.background = 'var(--red-dark)')}
           onMouseLeave={e => (e.currentTarget.style.background = 'var(--red)')}>

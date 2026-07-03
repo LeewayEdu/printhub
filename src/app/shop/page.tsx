@@ -36,7 +36,8 @@ interface Product {
   sort_order: number | null
   product_type?: string
   presets?: ProductPreset[]
-  // Fields required by ProductCardData (previously hidden by `as any` cast)
+  slug?: string
+  // Fields required by ProductCardData
   discount_type: string | null
   discount_value: number | null
   rating: number
@@ -352,9 +353,10 @@ function ShopContent() {
                     <SharedProductCard
                       key={p.id}
                       product={p}
-                      onOpen={() => open(p)}
+                      onOpen={() => {}}
                       wishlistIds={wishlistIds}
                       marketingTags={productTags[p.id] || []}
+                      href={p.slug ? `/products/${p.slug}` : undefined}
                     />
                   ))}
                 </div>

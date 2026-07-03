@@ -28,6 +28,15 @@ interface ProductForm {
   images: File[]
   existing_images: string[]
   marketing_category_ids: string[]
+  // SEO & content fields
+  slug?: string
+  short_description?: string
+  full_description?: string
+  seo_title?: string
+  meta_description?: string
+  turnaround_time?: string
+  delivery_information?: string
+  faq?: any[]
 }
 
 interface Product {
@@ -85,6 +94,9 @@ const emptyForm: ProductForm = {
   discount_type: '', discount_value: '',
   images: [], existing_images: [],
   marketing_category_ids: [],
+  slug: '', short_description: '', full_description: '',
+  seo_title: '', meta_description: '', turnaround_time: '',
+  delivery_information: '', faq: [],
 }
 
 // ── GATED FIELDS ──────────────────────────────────────────────
@@ -305,6 +317,14 @@ export default function AdminProductsPage() {
       rating: Number(p.rating) || 0, review_count: Number(p.review_count) || 0,
       images: [], existing_images: p.images || (p.image_url ? [p.image_url] : []),
       marketing_category_ids: (tags || []).map((t: any) => t.marketing_category_id),
+      slug: (p as any).slug || '',
+      short_description: (p as any).short_description || '',
+      full_description: (p as any).full_description || '',
+      seo_title: (p as any).seo_title || '',
+      meta_description: (p as any).meta_description || '',
+      turnaround_time: (p as any).turnaround_time || '',
+      delivery_information: (p as any).delivery_information || '',
+      faq: (p as any).faq || [],
     })
     setShowModal(true)
   }
@@ -353,6 +373,15 @@ export default function AdminProductsPage() {
       images: allImages,
       image_url: allImages[0] || null,
       is_active: editing ? editing.is_active : true, // is_active is gated — never silently overwritten here
+      // SEO & content fields
+      ...(form.slug && { slug: form.slug }),
+      ...(form.short_description && { short_description: form.short_description }),
+      ...(form.full_description && { full_description: form.full_description }),
+      ...(form.seo_title && { seo_title: form.seo_title }),
+      ...(form.meta_description && { meta_description: form.meta_description }),
+      ...(form.turnaround_time && { turnaround_time: form.turnaround_time }),
+      ...(form.delivery_information && { delivery_information: form.delivery_information }),
+      ...(form.faq?.length && { faq: form.faq }),
     }
 
     let savedId = editing?.id
@@ -1195,6 +1224,57 @@ export default function AdminProductsPage() {
                     </div>
                   </div>
                 )}
+              </div>
+
+              {/* SEO & CONTENT */}
+              <div style={sectionStyle}>
+                <div style={sectionTitle}>SEO & Content</div>
+                <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 14 }}>
+                  <div>
+                    <label style={labelStyle}>URL Slug</label>
+                    <input value={(form as any).slug || ''} onChange={e => setF('slug' as any, e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))} placeholder="auto-generated from name if left blank" style={inputStyle} />
+                    <div style={{ fontSize: 10, color: '#888', marginTop: 4 }}>printhub.cchumedia.com/products/<strong>{(form as any).slug || 'your-slug'}</strong></div>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Short Description</label>
+                    <textarea value={(form as any).short_description || ''} onChange={e => setF('short_description' as any, e.target.value)} placeholder="1-2 sentence summary shown on product page" style={{ ...inputStyle, minHeight: 64, resize: 'vertical' as const }} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Full Description (HTML allowed)</label>
+                    <textarea value={(form as any).full_description || ''} onChange={e => setF('full_description' as any, e.target.value)} placeholder="<p>Detailed product description for SEO and customers...</p>" style={{ ...inputStyle, minHeight: 120, resize: 'vertical' as const }} />
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                    <div>
+                      <label style={labelStyle}>Turnaround Time</label>
+                      <input value={(form as any).turnaround_time || ''} onChange={e => setF('turnaround_time' as any, e.target.value)} placeholder="e.g. 2-3 working days" style={inputStyle} />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Delivery Information</label>
+                      <input value={(form as any).delivery_information || ''} onChange={e => setF('delivery_information' as any, e.target.value)} placeholder="e.g. Free delivery in Abuja over ₦20,000" style={inputStyle} />
+                    </div>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>SEO Title <span style={{ textTransform: 'none' as const, fontWeight: 400, color: '#888' }}>(shown in Google — blank = product name)</span></label>
+                    <input value={(form as any).seo_title || ''} onChange={e => setF('seo_title' as any, e.target.value)} placeholder="e.g. Business Card Printing Abuja | PrintHub" style={inputStyle} maxLength={60} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Meta Description <span style={{ textTransform: 'none' as const, fontWeight: 400, color: '#888' }}>(shown in Google — 150-160 chars)</span></label>
+                    <textarea value={(form as any).meta_description || ''} onChange={e => setF('meta_description' as any, e.target.value)} placeholder="Professional business card printing in Abuja. Fast turnaround, competitive prices." style={{ ...inputStyle, minHeight: 72, resize: 'vertical' as const }} maxLength={160} />
+                    <div style={{ fontSize: 10, color: '#888', marginTop: 4 }}>{((form as any).meta_description || '').length}/160 characters</div>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>FAQs <span style={{ textTransform: 'none' as const, fontWeight: 400, color: '#888' }}>(JSON array — shown on product page + helps Google)</span></label>
+                    <textarea
+                      value={(form as any).faq ? JSON.stringify((form as any).faq, null, 2) : '[]'}
+                      onChange={e => {
+                        try { setF('faq' as any, JSON.parse(e.target.value)) } catch { /* invalid JSON, don't update */ }
+                      }}
+                      placeholder={'[\n  {"question": "What paper do you use?", "answer": "We use premium 300gsm paper..."}\n]'}
+                      style={{ ...inputStyle, minHeight: 120, resize: 'vertical' as const, fontFamily: 'monospace', fontSize: 11 }}
+                    />
+                    <div style={{ fontSize: 10, color: '#888', marginTop: 4 }}>Each FAQ entry: {"{ \"question\": \"...\", \"answer\": \"...\" }"}</div>
+                  </div>
+                </div>
               </div>
 
             </div>
