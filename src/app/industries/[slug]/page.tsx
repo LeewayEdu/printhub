@@ -5,10 +5,13 @@ import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
 import { generateIndustryMetadata, Breadcrumbs, BreadcrumbSchema } from '@/components/seo'
 
+export const dynamic = 'force-dynamic'
+
+
 const SITE_URL = 'https://printhub.cchumedia.com'
 const supabaseServer = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
 export async function generateStaticParams() {
