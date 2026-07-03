@@ -8,16 +8,22 @@ export const dynamic = 'force-dynamic'
 
 const SITE_URL = 'https://printhub.cchumedia.com'
 
+// Use the service role key for server-side fetches; fall back to the anon key.
+// Both are read at REQUEST time so they work on Vercel serverless functions.
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
+const SUPABASE_KEY =
+  process.env.SUPABASE_SERVICE_ROLE_KEY ??
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+  ''
+
 function serverClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  return createClient(SUPABASE_URL, SUPABASE_KEY)
 }
 
 export async function generateMetadata(
   { params }: { params: { slug: string } }
 ): Promise<Metadata> {
+  if (!SUPABASE_URL || !SUPABASE_KEY) return { title: 'PrintHub — Print Products' }
   const { data } = await serverClient()
     .from('products')
     .select('name, seo_title, meta_description, slug, images, image_url, short_description')
@@ -30,16 +36,22 @@ export async function generateMetadata(
 }
 
 export default async function ProductPage({ params }: { params: { slug: string } }) {
+  if (!SUPABASE_URL || !SUPABASE_KEY) notFound()
+
   const db = serverClient()
 
-  const { data: product } = await db
+  const { data: product, error } = await db
     .from('products')
     .select('*')
     .eq('slug', params.slug)
     .eq('is_active', true)
     .single()
 
-  if (!product) notFound()
+  // PGRST116 = no rows found; any other error is unexpected — log but still 404
+  if (error || !product) {
+    if (error && error.code !== 'PGRST116') console.error('[product-page]', params.slug, error.code, error.message)
+    notFound()
+  }
 
   const { data: related } = await db
     .from('products')
