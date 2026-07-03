@@ -1,7 +1,4 @@
 // src/app/products/[slug]/page.tsx
-// Individual product page — server-side rendered for SEO,
-// with client-side calculator hydrated after initial load.
-
 import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
@@ -13,26 +10,28 @@ import {
   BreadcrumbSchema,
 } from '@/components/seo'
 
+export const dynamic = 'force-dynamic'
+
 const SITE_URL = 'https://printhub.cchumedia.com'
 
 const supabaseServer = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-// ── Static params for build-time SSG ────────────────────────
-// Next.js pre-renders all active product pages at build time.
-// Any new product added after build is caught by the fallback.
 export async function generateStaticParams() {
-  const { data } = await supabaseServer
-    .from('products')
-    .select('slug')
-    .eq('is_active', true)
-    .not('slug', 'is', null)
-  return (data || []).map(p => ({ slug: p.slug }))
+  try {
+    const { data } = await supabaseServer
+      .from('products')
+      .select('slug')
+      .eq('is_active', true)
+      .not('slug', 'is', null)
+    return (data || []).map((p: any) => ({ slug: p.slug }))
+  } catch {
+    return []
+  }
 }
 
-// ── Dynamic metadata per product ────────────────────────────
 export async function generateMetadata(
   { params }: { params: { slug: string } }
 ): Promise<Metadata> {
@@ -46,7 +45,6 @@ export async function generateMetadata(
   return generateProductMetadata(product)
 }
 
-// ── Server component — fetches product + related data ───────
 export default async function ProductPage({ params }: { params: { slug: string } }) {
   const [{ data: product }, { data: relatedRaw }] = await Promise.all([
     supabaseServer
@@ -55,7 +53,6 @@ export default async function ProductPage({ params }: { params: { slug: string }
       .eq('slug', params.slug)
       .eq('is_active', true)
       .single(),
-    // Fetch spec options for the calculator
     supabaseServer
       .from('spec_options')
       .select('*')
@@ -65,7 +62,6 @@ export default async function ProductPage({ params }: { params: { slug: string }
 
   if (!product) notFound()
 
-  // Related products
   let relatedProducts: any[] = []
   if (product.related_product_ids?.length) {
     const { data } = await supabaseServer
@@ -75,7 +71,6 @@ export default async function ProductPage({ params }: { params: { slug: string }
       .eq('is_active', true)
     relatedProducts = data || []
   } else {
-    // Fall back to products in the same category
     const { data } = await supabaseServer
       .from('products')
       .select('id, name, slug, display_price, price, images, image_url, badge, pricing_model, area_rate, area_unit')
@@ -98,14 +93,9 @@ export default async function ProductPage({ params }: { params: { slug: string }
 
   return (
     <>
-      {/* Schema.org structured data — in <head> for Google */}
       <ProductSchema product={product} url={productUrl} />
       {faqs.length > 0 && <FAQSchema faqs={faqs} />}
       <BreadcrumbSchema items={breadcrumbs} />
-
-      {/* Client component handles the interactive calculator,
-          cart, wishlist, image gallery, and all user interactions.
-          The server component above provides SEO-critical HTML. */}
       <ProductPageClient
         product={product}
         relatedProducts={relatedProducts}
