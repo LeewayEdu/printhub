@@ -1,16 +1,10 @@
-// ============================================================
-// SHARED SEO COMPONENTS — used by every page template
 // src/components/seo/index.tsx
-// ============================================================
-
 import { Metadata } from 'next'
 
 const SITE_URL = 'https://printhub.cchumedia.com'
 const SITE_NAME = 'PrintHub by C-Chu Media'
 const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.jpg`
 
-// ── generateProductMetadata ──────────────────────────────────
-// Call from each dynamic route's generateMetadata() export.
 export function generateProductMetadata(product: {
   name: string
   seo_title?: string | null
@@ -58,9 +52,8 @@ export function generateIndustryMetadata(industry: {
 }): Metadata {
   const title = industry.seo_title || `${industry.name} Printing Services | PrintHub Abuja`
   const description = industry.meta_description
-    || `Professional printing solutions for ${industry.name} in Abuja and across Nigeria. Fast turnaround, quality guaranteed.`
+    || `Professional printing solutions for ${industry.name} in Abuja and across Nigeria.`
   const url = `${SITE_URL}/industries/${industry.slug}`
-
   return {
     title, description,
     alternates: { canonical: url },
@@ -79,7 +72,6 @@ export function generateCampaignMetadata(campaign: {
   const title = campaign.seo_title || `${campaign.headline} | PrintHub`
   const description = campaign.meta_description || campaign.headline
   const url = `${SITE_URL}/campaigns/${campaign.slug}`
-
   return {
     title, description,
     alternates: { canonical: url },
@@ -87,9 +79,6 @@ export function generateCampaignMetadata(campaign: {
     twitter: { card: 'summary_large_image', title, description, images: [campaign.og_image || DEFAULT_OG_IMAGE] },
   }
 }
-
-// ── Schema.org JSON-LD components ────────────────────────────
-// Drop these inside <head> via Next.js Script or direct <script> tag.
 
 export function ProductSchema({ product, url }: {
   product: { name: string; description?: string | null; images?: string[]; image_url?: string | null; display_price?: number; price?: number; slug: string }
@@ -108,13 +97,11 @@ export function ProductSchema({ product, url }: {
       '@type': 'Offer',
       priceCurrency: 'NGN',
       price: price > 0 ? price : undefined,
-      priceValidUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
       availability: 'https://schema.org/InStock',
       url,
       seller: { '@type': 'Organization', name: 'C-Chu Media Ltd' },
     },
   }
-
   return (
     <script
       type="application/ld+json"
@@ -151,7 +138,6 @@ export function BreadcrumbSchema({ items }: { items: { name: string; url: string
   return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
 }
 
-// ── Breadcrumb UI component ──────────────────────────────────
 export function Breadcrumbs({ items }: { items: { name: string; href?: string }[] }) {
   return (
     <nav aria-label="Breadcrumb" style={{ marginBottom: 20 }}>
