@@ -164,23 +164,25 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
             />
           </div>
 
-          {/* Quantity selector (for non-area products) */}
-          {!['area', 'area_sqin'].includes(resolvedPriceModel) && (
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 8, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>
-                Quantity (min {product.moq || 1})
-              </label>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <button onClick={() => setQty((q: number) => Math.max(product.moq || 1, q - (product.increment || 1)))}
-                  style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid var(--border)', background: '#f7f7f5', cursor: 'pointer', fontSize: 18 }}>−</button>
-                <input type="number" value={qty} min={product.moq || 1} step={product.increment || 1}
-                  onChange={e => setQty(Math.max(product.moq || 1, Number(e.target.value)))}
-                  style={{ width: 72, textAlign: 'center' as const, padding: '8px', border: '1px solid var(--border)', borderRadius: 8, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 16 }} />
-                <button onClick={() => setQty((q: number) => q + (product.increment || 1))}
-                  style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid var(--border)', background: '#f7f7f5', cursor: 'pointer', fontSize: 18 }}>+</button>
-              </div>
+          {/* Quantity selector — all products including area/dimension-based.
+              For area products qty is the piece count ordered at the configured
+              dimensions; the price engine already multiplies baseRate × area × qty. */}
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 8, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>
+              Quantity (min {product.moq || 1})
+            </label>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <button
+                onClick={() => setQty((q: number) => Math.max(product.moq || 1, q - (product.increment || 1)))}
+                disabled={qty <= (product.moq || 1)}
+                style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid var(--border)', background: '#f7f7f5', cursor: qty <= (product.moq || 1) ? 'not-allowed' : 'pointer', fontSize: 18, opacity: qty <= (product.moq || 1) ? 0.4 : 1 }}>−</button>
+              <input type="number" value={qty} min={product.moq || 1} step={product.increment || 1}
+                onChange={e => setQty(Math.max(product.moq || 1, Number(e.target.value)))}
+                style={{ width: 72, textAlign: 'center' as const, padding: '8px', border: '1px solid var(--border)', borderRadius: 8, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 16 }} />
+              <button onClick={() => setQty((q: number) => q + (product.increment || 1))}
+                style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid var(--border)', background: '#f7f7f5', cursor: 'pointer', fontSize: 18 }}>+</button>
             </div>
-          )}
+          </div>
 
           {/* Action buttons */}
           <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
