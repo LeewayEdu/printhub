@@ -20,6 +20,8 @@ interface Props {
 export default function ProductPageClient({ product, relatedProducts, faqs, breadcrumbs }: Props) {
   const [activeImage, setActiveImage] = useState(0)
   const [qty, setQty] = useState(product.moq || 1)
+  const [widthIn, setWidthIn] = useState<number>(product.min_width || 1)
+  const [heightIn, setHeightIn] = useState<number>(product.min_height || 1)
   const [calculatedPrice, setCalculatedPrice] = useState<number | null>(null)
   const [specs, setSpecs] = useState<Record<string, string>>({})
   const [resolvedPriceModel, setResolvedPriceModel] = useState('unit')
@@ -156,6 +158,14 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
               category={product.product_type || product.category}
               productName={product.name}
               qty={qty}
+              widthFt={widthIn}
+              heightFt={heightIn}
+              minWidth={product.min_width || 0.1}
+              minHeight={product.min_height || 0.1}
+              onDimensionChange={(axis, value) => {
+                if (axis === 'width') setWidthIn(value)
+                else setHeightIn(value)
+              }}
               onPriceUpdate={(total, specSummary) => {
                 setCalculatedPrice(total)
                 setSpecs(specSummary)
