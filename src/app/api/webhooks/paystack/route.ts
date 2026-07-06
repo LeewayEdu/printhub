@@ -96,7 +96,94 @@ export async function POST(req: NextRequest) {
 
       console.log(`✅ Order ${order.id} confirmed as paid via webhook. Ref: ${reference}`)
 
-      // ── 8. Send confirmation notifications ───────────────────
+      // ── 8. Affiliate commission ───────────────────────────────
+      const customerId = order.user_id
+      try {
+        if (customerId) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('referred_by')
+            .eq('id', customerId)
+            .single()
+
+          if (profile?.referred_by) {
+            // FK column may be user_id or profile_id depending on when the DB was set up
+            let affiliate: any = null
+            const { data: a1 } = await supabase
+              .from('affiliates')
+              .select('id, total_earnings, pending_payout')
+              .eq('user_id', profile.referred_by)
+              .single()
+            affiliate = a1
+            if (!affiliate) {
+              const { data: a2 } = await supabase
+                .from('affiliates')
+                .select('id, total_earnings, pending_payout')
+                .eq('profile_id', profile.referred_by)
+                .single()
+              affiliate = a2
+            }
+
+            if (affiliate) {
+              // Count prior orders from this customer already attributed to this affiliate
+              const { count: priorCount } = await supabase
+                .from('commissions')
+                .select('id', { count: 'exact', head: true })
+                .eq('affiliate_id', affiliate.id)
+                .eq('referred_customer', customerId)
+
+              const prior = priorCount ?? 0
+              const rate = prior < 5 ? 0.10 : prior < 10 ? 0.05 : 0.03
+              const commissionAmount = Math.round(amountNaira * rate * 100) / 100
+
+              await supabase.from('commissions').insert({
+                affiliate_id: affiliate.id,
+                order_id: order.id,
+                referred_customer: customerId,
+                order_total: amountNaira,
+                rate,
+                amount: commissionAmount,
+                status: 'pending',
+              })
+
+              await supabase
+                .from('affiliates')
+                .update({
+                  total_earnings: (Number(affiliate.total_earnings) || 0) + commissionAmount,
+                  pending_payout: (Number(affiliate.pending_payout) || 0) + commissionAmount,
+                })
+                .eq('id', affiliate.id)
+
+              // Update referrals row if it exists
+              const { data: refRow } = await supabase
+                .from('referrals')
+                .select('total_orders, total_spent, total_commission')
+                .eq('affiliate_id', affiliate.id)
+                .eq('profile_id', customerId)
+                .single()
+
+              if (refRow) {
+                await supabase
+                  .from('referrals')
+                  .update({
+                    total_orders: (refRow.total_orders || 0) + 1,
+                    total_spent: (Number(refRow.total_spent) || 0) + amountNaira,
+                    total_commission: (Number(refRow.total_commission) || 0) + commissionAmount,
+                  })
+                  .eq('affiliate_id', affiliate.id)
+                  .eq('profile_id', customerId)
+              }
+
+              console.log(`✅ Commission ₦${commissionAmount} (${(rate * 100).toFixed(0)}%) created for affiliate ${affiliate.id}`)
+            }
+          }
+        }
+      } catch (commErr: any) {
+        // Non-critical — order is already confirmed, commission can be fixed manually
+        console.error('Commission processing failed:', commErr.message)
+      }
+
+      // ── 9. Send confirmation notifications ───────────────────
       try {
         const { data: items } = await supabase
           .from('order_items')

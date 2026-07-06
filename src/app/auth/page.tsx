@@ -189,14 +189,28 @@ function LoginForm() {
   )
 }
 
+function getCookie(name: string): string | null {
+  if (typeof document === 'undefined') return null
+  const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'))
+  return match ? decodeURIComponent(match[2]) : null
+}
+
+function clearCookie(name: string) {
+  document.cookie = `${name}=; max-age=0; path=/`
+}
+
 function RegisterForm({ onSuccess }: { onSuccess: () => void }) {
   const { signup, isLoading, error, success, setError } = useAuthStore()
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', phone: '', password: '',
     heardFrom: '', isAffiliate: false,
   })
+  const [refCode, setRefCode] = useState<string | null>(null)
 
-  useEffect(() => { setError(null) }, [])
+  useEffect(() => {
+    setError(null)
+    setRefCode(getCookie('ref_code'))
+  }, [])
 
   const set = (field: string, value: string | boolean) =>
     setForm(prev => ({ ...prev, [field]: value }))
@@ -204,7 +218,8 @@ function RegisterForm({ onSuccess }: { onSuccess: () => void }) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      await signup(form.email, form.password, form.firstName, form.lastName, form.phone, form.heardFrom, form.isAffiliate)
+      await signup(form.email, form.password, form.firstName, form.lastName, form.phone, form.heardFrom, form.isAffiliate, refCode)
+      clearCookie('ref_code')
       toast.success('Account created! Check your email to confirm.')
       onSuccess()
     } catch {}

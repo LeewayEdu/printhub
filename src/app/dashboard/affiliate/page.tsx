@@ -59,7 +59,14 @@ export default function AffiliateDashboardPage() {
       const { data: prof } = await supabase.from('profiles').select('*').eq('id', session.user.id).single()
       if (prof) {
         setProfile(prof)
-        const { data: aff } = await supabase.from('affiliates').select('*').eq('profile_id', session.user.id).single()
+        // FK column may be user_id or profile_id depending on live DB setup
+        let aff: any = null
+        const { data: d1 } = await supabase.from('affiliates').select('*').eq('user_id', session.user.id).single()
+        aff = d1
+        if (!aff) {
+          const { data: d2 } = await supabase.from('affiliates').select('*').eq('profile_id', session.user.id).single()
+          aff = d2
+        }
         if (aff) {
           setAffiliate(aff)
           setNewCode(aff.referral_code || '')
@@ -139,8 +146,13 @@ export default function AffiliateDashboardPage() {
       return
     }
 
+    // Detect FK column name (user_id vs profile_id) from any existing row,
+    // defaulting to user_id if the table is empty (matches confirmed live schema).
+    const { data: probe } = await supabase.from('affiliates').select('*').limit(1).maybeSingle()
+    const ownerField = probe !== null && 'profile_id' in probe ? 'profile_id' : 'user_id'
+
     const { error } = await supabase.from('affiliates').insert({
-      profile_id: session.user.id,
+      [ownerField]: session.user.id,
       referral_code: code,
       legal_name: joinForm.legal_name.trim(),
       occupation: joinForm.occupation,

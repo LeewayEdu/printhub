@@ -1,8 +1,10 @@
 import type { Metadata } from 'next'
+import { Suspense } from 'react'
 import './globals.css'
 import { Toaster } from 'react-hot-toast'
 import ThemeProvider from '@/components/layout/ThemeProvider'
 import ChatWidget from '@/components/layout/ChatWidget'
+import ReferralCapture from '@/components/layout/ReferralCapture'
 import Script from 'next/script'
 
 export const metadata: Metadata = {
@@ -40,6 +42,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
+        <Suspense fallback={null}>
+          <ReferralCapture />
+        </Suspense>
         <ThemeProvider>
           {children}
         </ThemeProvider>

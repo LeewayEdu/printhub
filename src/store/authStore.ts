@@ -27,6 +27,7 @@ interface AuthState {
     phone: string,
     heardFrom: string,
     isAffiliate: boolean,
+    referralCode?: string | null,
   ) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -44,9 +45,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   setError: (error) => set({ error }),
   setSuccess: (success) => set({ success }),
 
-  signup: async (email, password, firstName, lastName, phone, heardFrom, isAffiliate) => {
+  signup: async (email, password, firstName, lastName, phone, heardFrom, isAffiliate, referralCode) => {
     set({ isLoading: true, error: null, success: null });
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -62,6 +63,14 @@ export const useAuthStore = create<AuthState>((set) => ({
     if (error) {
       set({ error: error.message, isLoading: false });
       throw error;
+    }
+    // Fire-and-forget referral attribution — user account is created regardless
+    if (referralCode && data.user?.id) {
+      fetch('/api/auth/referral', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: data.user.id, referralCode }),
+      }).catch(() => {/* non-critical */});
     }
     set({ isLoading: false, success: 'Account created! Check your email to confirm.' });
   },
