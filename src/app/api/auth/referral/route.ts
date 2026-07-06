@@ -18,6 +18,7 @@ export async function POST(req: NextRequest) {
       .from('affiliates')
       .select('*')
       .eq('referral_code', String(referralCode).trim().toUpperCase())
+      .eq('is_active', true)
       .single()
 
     if (!aff) {

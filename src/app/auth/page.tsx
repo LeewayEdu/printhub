@@ -205,20 +205,39 @@ function RegisterForm({ onSuccess }: { onSuccess: () => void }) {
     firstName: '', lastName: '', email: '', phone: '', password: '',
     heardFrom: '', isAffiliate: false,
   })
-  const [refCode, setRefCode] = useState<string | null>(null)
+  const [cookieRefCode, setCookieRefCode] = useState<string | null>(null)
+  const [manualRefCode, setManualRefCode] = useState('')
+  const [refCodeStatus, setRefCodeStatus] = useState<'idle' | 'checking' | 'valid' | 'invalid'>('idle')
 
   useEffect(() => {
     setError(null)
-    setRefCode(getCookie('ref_code'))
+    setCookieRefCode(getCookie('ref_code'))
   }, [])
 
   const set = (field: string, value: string | boolean) =>
     setForm(prev => ({ ...prev, [field]: value }))
 
+  const validateRefCode = async (code: string) => {
+    const clean = code.trim().toUpperCase()
+    if (!clean) { setRefCodeStatus('idle'); return }
+    setRefCodeStatus('checking')
+    try {
+      const res = await fetch(`/api/auth/validate-referral?code=${encodeURIComponent(clean)}`)
+      const { valid } = await res.json()
+      setRefCodeStatus(valid ? 'valid' : 'invalid')
+    } catch {
+      setRefCodeStatus('idle')
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    // Manual entry takes priority over cookie; only apply if validated as active
+    const resolvedRefCode = manualRefCode.trim()
+      ? (refCodeStatus === 'valid' ? manualRefCode.trim().toUpperCase() : null)
+      : cookieRefCode
     try {
-      await signup(form.email, form.password, form.firstName, form.lastName, form.phone, form.heardFrom, form.isAffiliate, refCode)
+      await signup(form.email, form.password, form.firstName, form.lastName, form.phone, form.heardFrom, form.isAffiliate, resolvedRefCode)
       clearCookie('ref_code')
       toast.success('Account created! Check your email to confirm.')
       onSuccess()
@@ -270,6 +289,38 @@ function RegisterForm({ onSuccess }: { onSuccess: () => void }) {
             minLength={6}
           />
           <div style={{ fontSize: 11, color: 'var(--gray)', marginTop: 5 }}>Minimum 6 characters</div>
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--dark)', display: 'block', marginBottom: 6 }}>
+            Referral code <span style={{ fontWeight: 400, color: 'var(--gray)' }}>(optional)</span>
+          </label>
+          <div style={{ position: 'relative' as const }}>
+            <input
+              type="text"
+              value={manualRefCode}
+              onChange={e => { setManualRefCode(e.target.value); setRefCodeStatus('idle') }}
+              onBlur={e => validateRefCode(e.target.value)}
+              placeholder="e.g. SILAS"
+              className="form-input"
+              style={{ paddingRight: 32, textTransform: 'uppercase' as const }}
+              autoComplete="off"
+            />
+            {refCodeStatus === 'checking' && (
+              <span style={{ position: 'absolute' as const, right: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--gray)' }}>…</span>
+            )}
+            {refCodeStatus === 'valid' && (
+              <span style={{ position: 'absolute' as const, right: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: '#16a34a' }}>✓</span>
+            )}
+          </div>
+          {refCodeStatus === 'invalid' && (
+            <div style={{ fontSize: 12, color: 'var(--red)', marginTop: 4 }}>Referral code not found</div>
+          )}
+          {refCodeStatus === 'valid' && (
+            <div style={{ fontSize: 12, color: '#16a34a', marginTop: 4 }}>Code applied</div>
+          )}
+          {!manualRefCode && cookieRefCode && (
+            <div style={{ fontSize: 12, color: 'var(--gray)', marginTop: 4 }}>Referral code auto-detected: {cookieRefCode}</div>
+          )}
         </div>
         <div style={{ marginBottom: 16 }}>
           <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--dark)', display: 'block', marginBottom: 6 }}>How did you hear about us?</label>
