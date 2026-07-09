@@ -191,7 +191,6 @@ export function ProductCard({
   href?: string  // when provided, card navigates to this URL instead of opening a modal
 }) {
   const imgs = product.images?.length ? product.images : product.image_url ? [product.image_url] : []
-  const categoryDisplay = marketingTags.length > 0 ? marketingTags : [product.category]
   const handleClick = href ? undefined : () => onOpen(product)
 
   return (
@@ -225,15 +224,6 @@ export function ProductCard({
 
       {/* Info */}
       <div className="card-info" style={{ padding: '12px 14px', flex: 1, display: 'flex', flexDirection: 'column' as const, gap: 4 }}>
-        {/* Category tags — all marketing categories this product belongs to */}
-        <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4 }}>
-          {categoryDisplay.map(tag => (
-            <span key={tag} style={{ fontSize: 9, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', fontWeight: 600, background: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: 6 }}>
-              {tag}
-            </span>
-          ))}
-        </div>
-
         {/* Name */}
         <div className="card-name" style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.4, flex: 1 }}>
           {product.name}

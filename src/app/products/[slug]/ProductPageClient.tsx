@@ -15,9 +15,10 @@ interface Props {
   relatedProducts: any[]
   faqs: { question: string; answer: string }[]
   breadcrumbs: { name: string; href?: string }[]
+  marketingTags: { label: string; slug: string }[]
 }
 
-export default function ProductPageClient({ product, relatedProducts, faqs, breadcrumbs }: Props) {
+export default function ProductPageClient({ product, relatedProducts, faqs, breadcrumbs, marketingTags }: Props) {
   const [activeImage, setActiveImage] = useState(0)
   const [qty, setQty] = useState(product.moq || 1)
   const [widthIn, setWidthIn] = useState<number>(product.min_width || 1)
@@ -110,6 +111,18 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
               style={{ display: 'inline-block', fontSize: 12, color: 'var(--red)', fontWeight: 600, fontFamily: 'Montserrat', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 12, textDecoration: 'none' }}>
               {product.category}
             </Link>
+          )}
+
+          {/* Marketing category tags */}
+          {marketingTags.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6, marginBottom: 14 }}>
+              {marketingTags.map(tag => (
+                <Link key={tag.slug} href={`/shop?cat=${encodeURIComponent(tag.label)}`}
+                  style={{ fontSize: 11, color: 'var(--text-secondary)', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 20, padding: '2px 10px', textDecoration: 'none', fontFamily: 'Open Sans' }}>
+                  {tag.label}
+                </Link>
+              ))}
+            </div>
           )}
 
           <h1 style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 'clamp(22px, 3vw, 32px)', color: 'var(--text-primary)', marginBottom: 12, lineHeight: 1.2 }}>

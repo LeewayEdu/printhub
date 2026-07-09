@@ -53,13 +53,21 @@ export default async function ProductPage({ params }: { params: { slug: string }
     notFound()
   }
 
-  const { data: related } = await db
-    .from('products')
-    .select('id, name, slug, images, image_url, display_price, price')
-    .eq('is_active', true)
-    .eq('category', product.category)
-    .neq('id', product.id)
-    .limit(4)
+  const [{ data: related }, { data: marketingTagRows }] = await Promise.all([
+    db.from('products')
+      .select('id, name, slug, images, image_url, display_price, price')
+      .eq('is_active', true)
+      .eq('category', product.category)
+      .neq('id', product.id)
+      .limit(4),
+    db.from('product_marketing_categories')
+      .select('marketing_categories(label, slug)')
+      .eq('product_id', product.id),
+  ])
+
+  const marketingTags: { label: string; slug: string }[] = (marketingTagRows || []).flatMap((row: any) =>
+    row.marketing_categories ? [{ label: row.marketing_categories.label, slug: row.marketing_categories.slug }] : []
+  )
 
   const faqs: { question: string; answer: string }[] =
     Array.isArray(product.faq) ? product.faq : []
@@ -84,6 +92,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
         relatedProducts={related || []}
         faqs={faqs}
         breadcrumbs={breadcrumbs}
+        marketingTags={marketingTags}
       />
     </>
   )
