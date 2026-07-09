@@ -15,6 +15,7 @@ interface LiveCalculatorV2Props {
   heightFt?: number
   minWidth?: number    // minimum width enforced on dimension inputs (ft or in)
   minHeight?: number   // minimum height enforced on dimension inputs (ft or in)
+  minOrderAmount?: number  // charged price floor — shown as "Minimum order applies" when hit
   isAreaBased?: boolean
   applyPreset?: { specs?: Record<string, string>; addons?: string[] } | null
   onPriceUpdate: (total: number, specs: Record<string, string>, summaryText: string) => void
@@ -44,7 +45,7 @@ const DEFAULT_PAGE_STEPPER = { step: 4, min: 8, max: undefined as number | undef
 
 export default function LiveCalculatorV2({
   category, productName, qty, widthFt = 1, heightFt = 1,
-  minWidth = 0.1, minHeight = 0.1,
+  minWidth = 0.1, minHeight = 0.1, minOrderAmount,
   isAreaBased = false,
   applyPreset, onPriceUpdate, onSpecsUpdate, onDimensionChange, onPriceModelResolved
 }: LiveCalculatorV2Props) {
@@ -67,6 +68,7 @@ export default function LiveCalculatorV2({
   const [total, setTotal] = useState<number | null>(null)
   const [tierLabel, setTierLabel] = useState<string | null>(null)
   const [discountPct, setDiscountPct] = useState(0)
+  const [minimumApplied, setMinimumApplied] = useState(false)
 
   const isBookCategory = priceModel === 'per_page'
   const isAreaCategory = priceModel === 'area' || priceModel === 'area_sqin'
@@ -162,11 +164,13 @@ export default function LiveCalculatorV2({
       minHeight,
       pages,
       tiers,
+      minOrderAmount,
     })
 
     setTotal(result.total)
     setTierLabel(result.tierLabel)
     setDiscountPct(result.discountPct)
+    setMinimumApplied(result.minimumApplied)
 
     const specSummary = buildSpecSummary(
       selection, qty,
@@ -436,6 +440,11 @@ export default function LiveCalculatorV2({
               {discountPct > 0 && tierLabel && (
                 <div style={{ fontSize: 11, color: '#10b981', fontWeight: 600, marginBottom: 2 }}>
                   🎉 {tierLabel} — {discountPct}% discount applied
+                </div>
+              )}
+              {minimumApplied && (
+                <div style={{ fontSize: 11, color: '#92400e', fontWeight: 600 }}>
+                  Minimum order applies
                 </div>
               )}
             </div>

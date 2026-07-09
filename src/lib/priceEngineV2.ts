@@ -41,6 +41,7 @@ export interface CalcResult {
   discountAmount: number
   tierLabel: string | null
   summaryText: string
+  minimumApplied: boolean
 }
 
 // ── CACHE ─────────────────────────────────────────────────────
@@ -122,12 +123,13 @@ export function calculate(params: {
   pages?: number
   tiers: QtyTier[]
   vatRate?: number
+  minOrderAmount?: number  // floor for the final charged price (null/0 = no floor)
 }): CalcResult {
 
   const {
     specs, qty, widthFt = 1, heightFt = 1, pages = 0,
     tiers, vatRate = 7.5, addons = [], priceModel,
-    minWidth = 0, minHeight = 0,
+    minWidth = 0, minHeight = 0, minOrderAmount = 0,
   } = params
 
   // Clamp dimensions to product minimums before calculating
@@ -217,9 +219,12 @@ export function calculate(params: {
   const pctOptions = selectedOptions.filter(s => s.modifier_type === 'percentage' && Number(s.price_modifier) !== 0)
   for (const opt of pctOptions) subtotal += subtotal * (Number(opt.price_modifier) / 100)
 
-  // ADD-ONS — independent quantity per add-on, added after all spec modifiers
+  // ADD-ONS — per-piece: addon.qty is the count per piece (e.g. 4 eyelets per banner),
+  // so total addon cost = addon_qty × unit_price × order_qty.
+  // Previously this was not multiplied by qty, meaning 2 banners cost the same addon
+  // as 1 — fixed here.
   for (const a of addons) {
-    if (a.qty > 0) subtotal += Number(a.option.price_modifier) * a.qty
+    if (a.qty > 0) subtotal += Number(a.option.price_modifier) * a.qty * qty
   }
 
   // ── Quantity tier discount ────────────────────────────────
@@ -230,7 +235,11 @@ export function calculate(params: {
 
   // ── VAT ───────────────────────────────────────────────────
   const vat = Math.round(subtotal * (vatRate / 100))
-  const total = Math.round(subtotal + vat)
+  const rawTotal = Math.round(subtotal + vat)
+
+  // ── Minimum order amount floor ────────────────────────────
+  const minimumApplied = minOrderAmount > 0 && rawTotal < minOrderAmount
+  const total = minimumApplied ? minOrderAmount : rawTotal
 
   // ── Summary text for order ────────────────────────────────
   const specLabels = selectedOptions
@@ -247,6 +256,7 @@ export function calculate(params: {
     discountAmount,
     tierLabel: tier?.label || null,
     summaryText,
+    minimumApplied,
   }
 }
 

@@ -18,6 +18,7 @@ interface ProductForm {
   max_qty: number | '' | null
   min_width: number | ''
   min_height: number | ''
+  min_order_amount: number | ''
   featured: boolean
   badge: string
   collection: string
@@ -55,6 +56,7 @@ interface Product {
   max_qty: number | null
   min_width: number | null
   min_height: number | null
+  min_order_amount: number | null
   featured: boolean
   badge: string
   collection: string
@@ -88,7 +90,7 @@ const emptyForm: ProductForm = {
   display_price: '',
   is_fixed_price: false,
   moq: '', increment: '', max_qty: '',
-  min_width: '', min_height: '',
+  min_width: '', min_height: '', min_order_amount: '',
   featured: false, badge: '', collection: '',
   rating: 0, review_count: 0,
   discount_type: '', discount_value: '',
@@ -312,6 +314,7 @@ export default function AdminProductsPage() {
       max_qty: p.max_qty || '',
       min_width: p.min_width || '',
       min_height: p.min_height || '',
+      min_order_amount: (p as any).min_order_amount || '',
       featured: p.featured || false, badge: p.badge || '', collection: p.collection || '',
       discount_type: (p.discount_type as any) || '', discount_value: p.discount_value || '',
       rating: Number(p.rating) || 0, review_count: Number(p.review_count) || 0,
@@ -363,6 +366,7 @@ export default function AdminProductsPage() {
       max_qty: form.max_qty ? Number(form.max_qty) : null,
       min_width: form.min_width !== '' ? Number(form.min_width) : null,
       min_height: form.min_height !== '' ? Number(form.min_height) : null,
+      min_order_amount: form.min_order_amount !== '' ? Number(form.min_order_amount) : null,
       featured: form.featured,
       badge: form.badge || null,
       collection: form.collection || null,
@@ -1103,6 +1107,24 @@ export default function AdminProductsPage() {
                       </div>
                     </div>
                   )}
+
+                  {/* Minimum order amount — visible for area-based categories but accepted on any product */}
+                  <div>
+                    <label style={labelStyle}>
+                      Minimum order amount (₦)
+                      <span style={{ fontWeight: 400, textTransform: 'none' as const, color: '#888', marginLeft: 6 }}>
+                        — blank = no minimum
+                      </span>
+                    </label>
+                    <input type="number" min="0" step="500"
+                      value={form.min_order_amount}
+                      onChange={e => setF('min_order_amount', e.target.value === '' ? '' : Number(e.target.value))}
+                      placeholder="e.g. 5000"
+                      style={{ ...inputStyle, maxWidth: 200 }} />
+                    <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>
+                      If the calculated price falls below this, customers are charged this amount instead. Useful for small-dimension area orders.
+                    </div>
+                  </div>
 
                   {/* Info about spec options */}
                   {!form.is_fixed_price && form.category && (

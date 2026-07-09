@@ -37,6 +37,7 @@ interface Product {
   product_type?: string
   presets?: ProductPreset[]
   slug?: string
+  min_order_amount?: number | null
   // Fields required by ProductCardData
   discount_type: string | null
   discount_value: number | null
@@ -558,6 +559,7 @@ function ShopContent() {
                         heightFt={h}
                         minWidth={selected.min_width || 0}
                         minHeight={selected.min_height || 0}
+                        minOrderAmount={selected.min_order_amount || undefined}
                         applyPreset={appliedPreset}
                         onDimensionChange={(axis, val) => {
                           if (axis === 'width') setW(val)

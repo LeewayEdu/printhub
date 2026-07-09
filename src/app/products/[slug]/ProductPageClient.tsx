@@ -175,6 +175,7 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
               heightFt={heightIn}
               minWidth={product.min_width || 0.1}
               minHeight={product.min_height || 0.1}
+              minOrderAmount={product.min_order_amount || undefined}
               onDimensionChange={(axis, value) => {
                 if (axis === 'width') setWidthIn(value)
                 else setHeightIn(value)
