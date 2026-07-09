@@ -13,6 +13,7 @@ export default function AdminAffiliatePage() {
   const [expanded, setExpanded] = useState<string | null>(null)
   const [commissions, setCommissions] = useState<Record<string, any[]>>({})
   const [filter, setFilter] = useState<'all' | 'active' | 'pending'>('all')
+  const [togglingId, setTogglingId] = useState<string | null>(null)
 
   useEffect(() => {
     const check = async () => {
@@ -114,6 +115,29 @@ export default function AdminAffiliatePage() {
     setCommissions(prev => ({ ...prev, [affiliateId]: [] }))
   }
 
+  const handleToggleStatus = async (affiliateId: string, currentlyActive: boolean) => {
+    const action = currentlyActive ? 'disable' : 'enable'
+    const aff = affiliates.find(a => a.id === affiliateId)
+    const name = aff?.profiles ? `${aff.profiles.first_name} ${aff.profiles.last_name}` : aff?.referral_code || affiliateId
+    if (!confirm(`${action === 'disable' ? 'Disable' : 'Enable'} affiliate "${name}"?\n\n${action === 'disable' ? 'Their referral code will stop accepting new sign-ups.' : 'Their referral code will resume accepting new sign-ups.'}`)) return
+
+    setTogglingId(affiliateId)
+    const { data: { session } } = await supabase.auth.getSession()
+    const res = await fetch('/api/admin/affiliates/toggle-status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+      body: JSON.stringify({ affiliateId, isActive: !currentlyActive }),
+    })
+    const json = await res.json()
+    if (!res.ok) {
+      toast.error('Failed: ' + (json.error || 'Unknown error'))
+    } else {
+      setAffiliates(prev => prev.map(a => a.id === affiliateId ? { ...a, is_active: !currentlyActive } : a))
+      toast.success(`Affiliate ${action === 'disable' ? 'disabled' : 'enabled'} ✓`)
+    }
+    setTogglingId(null)
+  }
+
   // Summary stats
   const totalEarnings = affiliates.reduce((s, a) => s + Number(a.total_earnings || 0), 0)
   const totalPending = affiliates.reduce((s, a) => s + Number(a.pending_payout || 0), 0)
@@ -212,10 +236,15 @@ export default function AdminAffiliatePage() {
                     </div>
                   </div>
 
-                  {/* Referral code */}
+                  {/* Referral code + status badge */}
                   <div style={{ minWidth: 120 }}>
                     <div style={{ fontSize: 10, color: 'var(--gray)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 2 }}>Referral Code</div>
-                    <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 12, background: '#f3f4f6', padding: '2px 8px', borderRadius: 6, display: 'inline-block' }}>{aff.referral_code}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' as const }}>
+                      <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 12, background: '#f3f4f6', padding: '2px 8px', borderRadius: 6, display: 'inline-block' }}>{aff.referral_code}</div>
+                      <span style={{ fontSize: 10, fontWeight: 700, fontFamily: 'Montserrat', padding: '2px 7px', borderRadius: 10, background: aff.is_active ? '#d1fae5' : '#fee2e2', color: aff.is_active ? '#065f46' : '#991b1b' }}>
+                        {aff.is_active ? 'Active' : 'Disabled'}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Stats */}
@@ -250,7 +279,7 @@ export default function AdminAffiliatePage() {
                     )}
                   </div>
 
-                  {/* Pay button */}
+                  {/* Pay + toggle + expand */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     {hasPending && (
                       <button onClick={e => { e.stopPropagation(); markPaid(aff.id, Number(aff.pending_payout)) }}
@@ -258,6 +287,12 @@ export default function AdminAffiliatePage() {
                         Pay ₦{Number(aff.pending_payout).toLocaleString()}
                       </button>
                     )}
+                    <button
+                      disabled={togglingId === aff.id}
+                      onClick={e => { e.stopPropagation(); handleToggleStatus(aff.id, aff.is_active) }}
+                      style={{ padding: '5px 10px', borderRadius: 7, border: `1px solid ${aff.is_active ? '#fca5a5' : '#6ee7b7'}`, background: aff.is_active ? '#fee2e2' : '#d1fae5', color: aff.is_active ? '#991b1b' : '#065f46', fontSize: 11, fontFamily: 'Montserrat', fontWeight: 700, cursor: togglingId === aff.id ? 'not-allowed' : 'pointer', flexShrink: 0, opacity: togglingId === aff.id ? 0.5 : 1, whiteSpace: 'nowrap' as const }}>
+                      {togglingId === aff.id ? '…' : aff.is_active ? 'Disable' : 'Enable'}
+                    </button>
                     {isExpanded ? <ChevronUp size={16} color="var(--gray)" /> : <ChevronDown size={16} color="var(--gray)" />}
                   </div>
                 </div>

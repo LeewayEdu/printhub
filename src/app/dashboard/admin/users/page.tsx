@@ -12,6 +12,7 @@ export default function AdminUsersPage() {
   const [search, setSearch] = useState('')
   const [currentRole, setCurrentRole] = useState<string>('')
   const [updatingId, setUpdatingId] = useState<string | null>(null)
+  const [resettingId, setResettingId] = useState<string | null>(null)
 
   useEffect(() => {
     const check = async () => {
@@ -30,6 +31,24 @@ export default function AdminUsersPage() {
     const { data } = await supabase.from('profiles').select('*').order('created_at', { ascending: false })
     if (data) setUsers(data)
     setLoading(false)
+  }
+
+  const handleResetPassword = async (userId: string, email: string, name: string) => {
+    if (!confirm(`Send a password reset email to ${name} (${email})?\n\nThey will receive a link to set a new password — you will not see or set the password yourself.`)) return
+    setResettingId(userId)
+    const { data: { session } } = await supabase.auth.getSession()
+    const res = await fetch('/api/admin/users/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+      body: JSON.stringify({ targetEmail: email, targetUserId: userId }),
+    })
+    const json = await res.json()
+    if (!res.ok) {
+      alert('Failed to send reset email: ' + (json.error || 'Unknown error'))
+    } else {
+      alert(`Password reset email sent to ${email}.`)
+    }
+    setResettingId(null)
   }
 
   const updateRole = async (userId: string, newRole: string) => {
@@ -69,7 +88,7 @@ export default function AdminUsersPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse' as const }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
-                {['Name', 'Email', 'Phone', 'Role', 'Loyalty Pts', 'Affiliate', 'Joined'].map(h => (
+                {['Name', 'Email', 'Phone', 'Role', 'Loyalty Pts', 'Affiliate', 'Joined', 'Actions'].map(h => (
                   <th key={h} style={{ padding: '12px 16px', textAlign: 'left' as const, fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', fontFamily: 'Montserrat', whiteSpace: 'nowrap' as const }}>{h}</th>
                 ))}
               </tr>
@@ -112,6 +131,14 @@ export default function AdminUsersPage() {
                   </td>
                   <td style={{ padding: '14px 16px', fontSize: 12, color: 'var(--text-secondary)', whiteSpace: 'nowrap' as const }}>
                     {new Date(user.created_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </td>
+                  <td style={{ padding: '14px 16px' }}>
+                    <button
+                      disabled={resettingId === user.id}
+                      onClick={() => handleResetPassword(user.id, user.email, `${user.first_name} ${user.last_name}`.trim())}
+                      style={{ padding: '5px 12px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', fontSize: 12, fontFamily: 'Montserrat', fontWeight: 600, cursor: resettingId === user.id ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' as const, opacity: resettingId === user.id ? 0.5 : 1 }}>
+                      {resettingId === user.id ? 'Sending…' : 'Reset Password'}
+                    </button>
                   </td>
                 </tr>
               ))}

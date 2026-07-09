@@ -282,6 +282,24 @@ export default function AffiliateDashboardPage() {
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center' as const, color: 'var(--text-secondary)' }}>Loading...</div>
 
+  if (affiliate && affiliate.is_active === false) return (
+    <div style={{ maxWidth: 560 }}>
+      <div style={{ marginBottom: 28 }}>
+        <h1 style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 22, marginBottom: 4, color: 'var(--text-primary)' }}>Affiliate Program</h1>
+      </div>
+      <div style={{ background: 'var(--bg-card)', border: '1px solid #fca5a5', borderRadius: 16, padding: 32 }}>
+        <div style={{ fontSize: 36, marginBottom: 16 }}>🚫</div>
+        <h2 style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 18, marginBottom: 10, color: '#991b1b' }}>Your affiliate account has been deactivated</h2>
+        <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.7 }}>
+          Your referral link is no longer active and will not accept new sign-ups. Your existing referrals and commission history are still on record.
+        </p>
+        <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 12 }}>
+          If you believe this is a mistake, please contact us at <a href="mailto:hello@cchumedia.com" style={{ color: 'var(--red)', textDecoration: 'none' }}>hello@cchumedia.com</a>.
+        </p>
+      </div>
+    </div>
+  )
+
   if (!affiliate) return (
     <div style={{ maxWidth: 560 }}>
       <div style={{ marginBottom: 28 }}>
