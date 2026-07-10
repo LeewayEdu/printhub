@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/lib/supabase/client'
-import { LayoutDashboard, ShoppingBag, User, LogOut, Package, Menu, X, ChevronRight, MessageSquare, TrendingUp, Truck, Tag, Bell, Image, DollarSign, Users, Zap, Star, FileSpreadsheet, Heart, AlignJustify, ShieldAlert } from 'lucide-react'
+import { LayoutDashboard, ShoppingBag, User, LogOut, Package, Menu, X, ChevronRight, MessageSquare, TrendingUp, Truck, Tag, Bell, Image, DollarSign, Users, Zap, Star, FileSpreadsheet, Heart, AlignJustify, ShieldAlert, Palette } from 'lucide-react'
 
 interface NavLink {
   href: string
@@ -50,6 +50,7 @@ const superAdminLinks: NavLink[] = [
   { href: '/dashboard/admin/messages', label: 'Messages', icon: MessageSquare },
   { href: '/dashboard/admin/payouts', label: 'Payouts', icon: DollarSign },
   { href: '/dashboard/admin/spec-options', label: 'Spec Options', icon: Tag },
+  { href: '/dashboard/admin/design-addons', label: 'Design Add-Ons', icon: Palette },
   { href: '/dashboard/admin/affiliates', label: 'Affiliates', icon: TrendingUp },
   { href: '/dashboard/admin/users', label: 'Manage Users', icon: Users },
   { href: '/dashboard/orders', label: 'My Orders', icon: ShoppingBag },

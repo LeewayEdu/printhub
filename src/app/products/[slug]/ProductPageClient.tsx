@@ -6,7 +6,9 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
 import { ShoppingCart, Heart, Share2, ChevronDown, ChevronUp, Star } from 'lucide-react'
 import { useCartStore } from '@/store/cartStore'
+import type { DesignPricingResolved } from '@/store/cartStore'
 import LiveCalculatorV2 from '@/components/shop/LiveCalculatorV2'
+import DesignPricingFlow from '@/components/shop/DesignPricingFlow'
 import { Breadcrumbs } from '@/components/seo'
 import toast from 'react-hot-toast'
 
@@ -28,26 +30,58 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
   const [resolvedPriceModel, setResolvedPriceModel] = useState('unit')
   const [openFaq, setOpenFaq] = useState<number | null>(null)
   const [wishlisted, setWishlisted] = useState(false)
+
+  // Design pricing state
+  const [designPricingResolved, setDesignPricingResolved] = useState<DesignPricingResolved | null>(null)
+  const [linkedAddons, setLinkedAddons] = useState<any[]>([])
+
+  const hasDesignPricing = product.design_pricing_type && product.design_pricing_type !== 'none'
+
   const { addToCart } = useCartStore()
+
+  // Fetch linked design addons for 'dependent' type products
+  useEffect(() => {
+    if (product.design_pricing_type !== 'dependent') return
+    supabase
+      .from('product_design_addons')
+      .select('id, gate_question, gate_when_answer, design_addons(name, price, description)')
+      .eq('product_id', product.id)
+      .then(({ data }) => { if (data) setLinkedAddons(data) })
+  }, [product.id, product.design_pricing_type])
 
   const images = product.images?.length ? product.images
     : product.image_url ? [product.image_url] : []
 
+  const printPrice = calculatedPrice || product.display_price || product.price || 0
+  const designCost = designPricingResolved?.designCostTotal ?? 0
+  const totalPrice = printPrice + designCost
+
+  const canAddToCart = (() => {
+    if (!calculatedPrice && !product.is_fixed_price) return false
+    if (hasDesignPricing && !designPricingResolved) return false
+    return true
+  })()
+
   const handleAddToCart = () => {
-    if (!calculatedPrice && !product.is_fixed_price) {
-      toast.error('Please configure your product first')
+    if (!canAddToCart) {
+      if (!calculatedPrice && !product.is_fixed_price) {
+        toast.error('Please configure your product first')
+      } else if (hasDesignPricing && !designPricingResolved) {
+        toast.error('Please complete the design options above')
+      }
       return
     }
-    const finalPrice = calculatedPrice || product.display_price || product.price || 0
+    const finalPrintPrice = calculatedPrice || product.display_price || product.price || 0
     const displayQty = ['area', 'area_sqin'].includes(resolvedPriceModel)
       ? `${qty} piece${qty !== 1 ? 's' : ''}`
       : `${qty} pcs`
     addToCart(
       product.id,
       product.name,
-      finalPrice,
+      finalPrintPrice,
       displayQty,
       specs,
+      designPricingResolved,
     )
   }
 
@@ -56,7 +90,7 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
       `Hello, I'm interested in ordering:\n\n` +
       `Product: ${product.name}\n` +
       `Quantity: ${qty}\n` +
-      `${calculatedPrice ? `Estimated Total: ₦${calculatedPrice.toLocaleString()}\n` : ''}` +
+      `${calculatedPrice ? `Estimated Total: ₦${totalPrice.toLocaleString()}\n` : ''}` +
       `\nPlease confirm availability and delivery timeline.`
     )
     window.open(`https://wa.me/2348052929523?text=${msg}`, '_blank')
@@ -146,22 +180,47 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
             </p>
           )}
 
-          {/* Price display */}
-          {calculatedPrice ? (
+          {/* Price display — shows breakdown when design pricing is resolved */}
+          {calculatedPrice || product.display_price || product.price ? (
             <div style={{ marginBottom: 20 }}>
-              <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 28, color: 'var(--red)' }}>
-                ₦{calculatedPrice.toLocaleString()}
-              </div>
-              <div style={{ fontSize: 12, color: 'var(--gray)', marginTop: 2 }}>
-                {qty} {qty === 1 ? 'piece' : 'pieces'} · VAT inclusive
-              </div>
-            </div>
-          ) : product.display_price || product.price ? (
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 13, color: 'var(--gray)', marginBottom: 4 }}>Starting from</div>
-              <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 28, color: 'var(--red)' }}>
-                ₦{Number(product.display_price || product.price).toLocaleString()}
-              </div>
+              {hasDesignPricing && designPricingResolved ? (
+                // Full breakdown
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--gray)', marginBottom: 4 }}>
+                    <span>Print subtotal</span>
+                    <span>₦{printPrice.toLocaleString()}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--gray)', marginBottom: 8 }}>
+                    <span>Design</span>
+                    <span>{designCost === 0 ? '₦0 (your file)' : `₦${designCost.toLocaleString()}`}</span>
+                  </div>
+                  <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 28, color: 'var(--red)' }}>
+                    ₦{totalPrice.toLocaleString()}
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--gray)', marginTop: 2 }}>
+                    {qty} {qty === 1 ? 'piece' : 'pieces'} · VAT inclusive
+                  </div>
+                </div>
+              ) : calculatedPrice ? (
+                <div>
+                  <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 28, color: 'var(--red)' }}>
+                    ₦{calculatedPrice.toLocaleString()}
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--gray)', marginTop: 2 }}>
+                    {qty} {qty === 1 ? 'piece' : 'pieces'} · VAT inclusive
+                    {hasDesignPricing && !designPricingResolved && (
+                      <span style={{ color: '#d97706', marginLeft: 6 }}>+ design fee (see below)</span>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ fontSize: 13, color: 'var(--gray)', marginBottom: 4 }}>Starting from</div>
+                  <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 28, color: 'var(--red)' }}>
+                    ₦{Number(product.display_price || product.price).toLocaleString()}
+                  </div>
+                </div>
+              )}
             </div>
           ) : null}
 
@@ -183,14 +242,14 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
               onPriceUpdate={(total, specSummary) => {
                 setCalculatedPrice(total)
                 setSpecs(specSummary)
+                // Reset design resolution when print config changes
+                if (designPricingResolved) setDesignPricingResolved(null)
               }}
               onPriceModelResolved={setResolvedPriceModel}
             />
           </div>
 
-          {/* Quantity selector — all products including area/dimension-based.
-              For area products qty is the piece count ordered at the configured
-              dimensions; the price engine already multiplies baseRate × area × qty. */}
+          {/* Quantity selector */}
           <div style={{ marginBottom: 20 }}>
             <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 8, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>
               Quantity (min {product.moq || 1})
@@ -208,11 +267,31 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
             </div>
           </div>
 
+          {/* Design pricing flow — shown when product has design pricing configured */}
+          {hasDesignPricing && (
+            <DesignPricingFlow
+              product={product}
+              linkedAddons={linkedAddons}
+              resolved={designPricingResolved}
+              onResolved={setDesignPricingResolved}
+              onReset={() => setDesignPricingResolved(null)}
+            />
+          )}
+
           {/* Action buttons */}
           <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
-            <button onClick={handleAddToCart}
-              style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px 20px', background: 'var(--red)', color: 'white', border: 'none', borderRadius: 10, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>
-              <ShoppingCart size={18} /> Add to Cart
+            <button
+              onClick={handleAddToCart}
+              disabled={!canAddToCart}
+              style={{
+                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                padding: '14px 20px', border: 'none', borderRadius: 10, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 15,
+                cursor: canAddToCart ? 'pointer' : 'not-allowed',
+                background: canAddToCart ? 'var(--red)' : '#e5e7eb',
+                color: canAddToCart ? 'white' : '#9ca3af',
+              }}>
+              <ShoppingCart size={18} />
+              {hasDesignPricing && !designPricingResolved ? 'Complete Design Options First' : 'Add to Cart'}
             </button>
             <button onClick={() => setWishlisted(w => !w)}
               style={{ width: 48, height: 48, borderRadius: 10, border: '1px solid var(--border)', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

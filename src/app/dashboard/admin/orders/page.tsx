@@ -9,6 +9,10 @@ import { RefreshCw, FileText, MessageSquare, CheckCircle, Image, ExternalLink, C
 
 const STATUSES: (OrderStatus | 'all')[] = ['all', 'pending', 'paid', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded']
 
+function itemNeedsDesign(item: any): boolean {
+  return item.has_own_design === false
+}
+
 const statusColor: Record<string, string> = {
   pending: '#f59e0b', paid: '#3b82f6', processing: '#8b5cf6',
   shipped: '#06b6d4', delivered: '#10b981', cancelled: '#ef4444', refunded: '#6b7280',
@@ -72,6 +76,7 @@ export default function AdminOrdersPage() {
   const [expanded, setExpanded] = useState<string | null>(null)
   const [noteInput, setNoteInput] = useState<Record<string, string>>({})
   const [savingNote, setSavingNote] = useState<string | null>(null)
+  const [filterDesign, setFilterDesign] = useState(false)
 
   useEffect(() => {
     const check = async () => {
@@ -121,13 +126,27 @@ export default function AdminOrdersPage() {
       )}
 
       {/* Status filter tabs */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' as const }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' as const }}>
         {STATUSES.map(s => (
           <button key={s} onClick={() => setFilter(s)}
             style={{ padding: '6px 16px', borderRadius: 20, border: `1px solid ${filter === s ? (statusColor[s] || 'var(--red)') : 'var(--border)'}`, background: filter === s ? `${statusColor[s] || 'var(--red)'}15` : 'white', color: filter === s ? (statusColor[s] || 'var(--red)') : 'var(--gray)', fontSize: 13, fontWeight: filter === s ? 700 : 400, fontFamily: 'Montserrat', cursor: 'pointer', textTransform: 'capitalize' as const }}>
             {s}
           </button>
         ))}
+      </div>
+
+      {/* Design work queue filter */}
+      <div style={{ marginBottom: 24 }}>
+        <button
+          onClick={() => setFilterDesign(f => !f)}
+          style={{ padding: '6px 16px', borderRadius: 20, border: `1px solid ${filterDesign ? '#7c3aed' : 'var(--border)'}`, background: filterDesign ? '#ede9fe' : 'white', color: filterDesign ? '#7c3aed' : 'var(--gray)', fontSize: 13, fontWeight: filterDesign ? 700 : 400, fontFamily: 'Montserrat', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          🎨 Needs Design Work
+        </button>
+        {filterDesign && (
+          <span style={{ fontSize: 12, color: 'var(--gray)', marginLeft: 10 }}>
+            Showing orders where customer requested design service
+          </span>
+        )}
       </div>
 
       {isLoading ? (
@@ -139,10 +158,13 @@ export default function AdminOrdersPage() {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
-          {filteredOrders.map(order => {
+          {filteredOrders
+            .filter(order => !filterDesign || (order.items || []).some((i: any) => itemNeedsDesign(i)))
+            .map(order => {
             const isExpanded = expanded === order.id
             const isBankPending = order.status === 'pending' && !(order as any).paystack_reference && !(order as any).receipt_verified
             const designItems = (order.items || []).filter((i: any) => i.design_file_url || i.design_link || i.design_brief)
+            const needsDesignCount = (order.items || []).filter((i: any) => itemNeedsDesign(i)).length
 
             return (
               <div key={order.id} style={{ background: 'white', border: `1px solid ${isBankPending ? '#fbbf24' : 'var(--border)'}`, borderRadius: 14, overflow: 'hidden' }}>
@@ -166,6 +188,11 @@ export default function AdminOrdersPage() {
                       <div style={{ fontSize: 12, color: 'var(--gray)' }}>Items</div>
                       <div style={{ fontSize: 13, fontWeight: 500 }}>{(order.items || []).length} item{(order.items || []).length !== 1 ? 's' : ''}</div>
                     </div>
+                    {needsDesignCount > 0 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: '#fef3c7', borderRadius: 20, padding: '3px 10px' }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: '#92400e' }}>🎨 {needsDesignCount} needs design</span>
+                      </div>
+                    )}
                     {designItems.length > 0 && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: '#ede9fe', borderRadius: 20, padding: '3px 10px' }}>
                         <Image size={12} color="#7c3aed" />
@@ -242,7 +269,42 @@ export default function AdminOrdersPage() {
                               )}
                             </div>
                             <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, color: 'var(--red)', flexShrink: 0 }}>₦{Number(item.price).toLocaleString()}</div>
-                            {/* Design files */}
+                            {/* Design pricing details — from pre-cart DesignPricingFlow */}
+                            {item.has_own_design !== null && item.has_own_design !== undefined && (
+                              <div style={{ width: '100%', background: item.has_own_design ? '#f0fdf4' : '#fefce8', border: `1px solid ${item.has_own_design ? '#86efac' : '#fde68a'}`, borderRadius: 8, padding: '10px 14px', fontSize: 12 }}>
+                                <div style={{ fontWeight: 700, marginBottom: 6, fontSize: 11, textTransform: 'uppercase' as const, letterSpacing: '0.06em', color: item.has_own_design ? '#166534' : '#92400e' }}>
+                                  Design Details
+                                </div>
+                                {item.has_own_design ? (
+                                  <div style={{ color: '#166534' }}>✓ Customer is supplying their own print-ready file</div>
+                                ) : (
+                                  <div style={{ color: '#92400e' }}>
+                                    <div style={{ marginBottom: 4 }}>🎨 Customer requested design service</div>
+                                    {item.design_units != null && (
+                                      <div><strong>Units:</strong> {item.design_units}</div>
+                                    )}
+                                    {Array.isArray(item.design_addons_selected) && item.design_addons_selected.length > 0 && (
+                                      <div style={{ marginTop: 4 }}>
+                                        <strong>Add-ons:</strong>{' '}
+                                        {item.design_addons_selected.map((a: any) => `${a.name} (₦${Number(a.price).toLocaleString()})`).join(', ')}
+                                      </div>
+                                    )}
+                                    {item.design_cost_total > 0 && (
+                                      <div style={{ marginTop: 6, fontFamily: 'Montserrat', fontWeight: 700 }}>
+                                        Design total: ₦{Number(item.design_cost_total).toLocaleString()}
+                                      </div>
+                                    )}
+                                    {item.design_request_notes && (
+                                      <div style={{ marginTop: 6, background: 'white', border: '1px solid #fde68a', borderRadius: 6, padding: '6px 10px', fontStyle: 'italic', color: '#78350f' }}>
+                                        Notes: {item.design_request_notes}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Design files — uploaded or linked after cart */}
                             <div style={{ width: '100%', display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
                               {item.design_file_url && (
                                 <a href={item.design_file_url} target="_blank" rel="noopener noreferrer"
@@ -266,7 +328,7 @@ export default function AdminOrdersPage() {
                                   {item.design_brief.referenceUrl && <a href={item.design_brief.referenceUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#7c3aed' }}>Reference →</a>}
                                 </div>
                               )}
-                              {!item.design_file_url && !item.design_link && !item.design_brief && (
+                              {item.has_own_design === null && !item.design_file_url && !item.design_link && !item.design_brief && (
                                 <span style={{ fontSize: 11, color: 'var(--gray)', fontStyle: 'italic' }}>No design submitted yet</span>
                               )}
                             </div>

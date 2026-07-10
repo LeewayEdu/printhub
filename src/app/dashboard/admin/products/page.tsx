@@ -38,6 +38,12 @@ interface ProductForm {
   turnaround_time?: string
   delivery_information?: string
   faq?: any[]
+  // Design pricing fields
+  design_pricing_type: 'none' | 'flat' | 'unit_based' | 'dependent'
+  design_flat_fee: number | ''
+  design_unit_label: string
+  design_unit_rate: number | ''
+  design_min_units: number | ''
 }
 
 interface Product {
@@ -99,6 +105,8 @@ const emptyForm: ProductForm = {
   slug: '', short_description: '', full_description: '',
   seo_title: '', meta_description: '', turnaround_time: '',
   delivery_information: '', faq: [],
+  design_pricing_type: 'none',
+  design_flat_fee: '', design_unit_label: '', design_unit_rate: '', design_min_units: '',
 }
 
 // ── GATED FIELDS ──────────────────────────────────────────────
@@ -204,6 +212,15 @@ export default function AdminProductsPage() {
   const [pending, setPending] = useState<Record<string, Record<string, any>>>({})
   const [savingInline, setSavingInline] = useState(false)
 
+  // ── Design pricing add-on state ──
+  const [allDesignAddons, setAllDesignAddons] = useState<any[]>([])
+  const [productDesignAddons, setProductDesignAddons] = useState<{
+    id?: string; design_addon_id: string; gate_question: string; gate_when_answer: 'yes' | 'no';
+    _addonName?: string; _addonPrice?: number
+  }[]>([])
+  const [addingLinkedAddon, setAddingLinkedAddon] = useState(false)
+  const [newLinkedAddon, setNewLinkedAddon] = useState({ design_addon_id: '', gate_question: '', gate_when_answer: 'no' as 'yes' | 'no' })
+
   useEffect(() => {
     const check = async () => {
       const { data: { session } } = await supabase.auth.getSession()
@@ -231,6 +248,10 @@ export default function AdminProductsPage() {
     // Marketing categories — for product tagging
     supabase.from('marketing_categories').select('id, label, icon').eq('is_active', true).order('sort_order')
       .then(({ data }) => { if (data) setMarketingCats(data as any) })
+
+    // Design add-ons — for the design pricing section in the product editor
+    supabase.from('design_addons').select('id, name, price').eq('is_active', true).order('name')
+      .then(({ data }) => { if (data) setAllDesignAddons(data) })
     // Restore preferred view mode + sort
     if (typeof window !== 'undefined') {
       const savedView = window.localStorage.getItem(VIEW_MODE_KEY)
@@ -328,7 +349,29 @@ export default function AdminProductsPage() {
       turnaround_time: (p as any).turnaround_time || '',
       delivery_information: (p as any).delivery_information || '',
       faq: (p as any).faq || [],
+      design_pricing_type: (p as any).design_pricing_type || 'none',
+      design_flat_fee: (p as any).design_flat_fee || '',
+      design_unit_label: (p as any).design_unit_label || '',
+      design_unit_rate: (p as any).design_unit_rate || '',
+      design_min_units: (p as any).design_min_units || '',
     })
+
+    // Fetch linked design addons for this product
+    setProductDesignAddons([])
+    const { data: linkedAddons } = await supabase
+      .from('product_design_addons')
+      .select('id, gate_question, gate_when_answer, design_addon_id, design_addons(name, price)')
+      .eq('product_id', p.id)
+    if (linkedAddons) {
+      setProductDesignAddons(linkedAddons.map((la: any) => ({
+        id: la.id,
+        design_addon_id: la.design_addon_id,
+        gate_question: la.gate_question,
+        gate_when_answer: la.gate_when_answer,
+        _addonName: la.design_addons?.name,
+        _addonPrice: la.design_addons?.price,
+      })))
+    }
     setShowModal(true)
   }
 
@@ -386,6 +429,12 @@ export default function AdminProductsPage() {
       ...(form.turnaround_time && { turnaround_time: form.turnaround_time }),
       ...(form.delivery_information && { delivery_information: form.delivery_information }),
       ...(form.faq?.length && { faq: form.faq }),
+      // Design pricing
+      design_pricing_type: form.design_pricing_type || 'none',
+      design_flat_fee: form.design_flat_fee !== '' ? Number(form.design_flat_fee) : null,
+      design_unit_label: form.design_unit_label || null,
+      design_unit_rate: form.design_unit_rate !== '' ? Number(form.design_unit_rate) : null,
+      design_min_units: form.design_min_units !== '' ? Number(form.design_min_units) : null,
     }
 
     let savedId = editing?.id
@@ -447,6 +496,24 @@ export default function AdminProductsPage() {
       savedId = data.id
       await logAudit(savedId!, fullPayload, null, true)
       toast.success('Product added!')
+    }
+
+    // Sync product_design_addons — replace all links for this product
+    if (savedId && form.design_pricing_type === 'dependent') {
+      await supabase.from('product_design_addons').delete().eq('product_id', savedId)
+      if (productDesignAddons.length > 0) {
+        await supabase.from('product_design_addons').insert(
+          productDesignAddons.map(la => ({
+            product_id: savedId,
+            design_addon_id: la.design_addon_id,
+            gate_question: la.gate_question,
+            gate_when_answer: la.gate_when_answer,
+          }))
+        )
+      }
+    } else if (savedId && form.design_pricing_type !== 'dependent') {
+      // Remove any stale linked addons if pricing type changed away from 'dependent'
+      await supabase.from('product_design_addons').delete().eq('product_id', savedId)
     }
 
     if (form.collection && savedId) {
@@ -1159,6 +1226,158 @@ export default function AdminProductsPage() {
                       </div>
                     )}
                   </div>
+                </div>
+              </div>
+
+              {/* DESIGN PRICING */}
+              <div style={sectionStyle}>
+                <div style={sectionTitle}>Design Pricing</div>
+                <div style={{ fontSize: 12, color: '#888', marginBottom: 14 }}>
+                  Configure if and how design fees are collected before customers add this product to cart.
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 14 }}>
+                  <div>
+                    <label style={labelStyle}>Design Pricing Type</label>
+                    <select value={form.design_pricing_type} onChange={e => setF('design_pricing_type', e.target.value as any)} style={{ ...inputStyle, cursor: 'pointer' }}>
+                      <option value="none">None — no design fee (print-only product)</option>
+                      <option value="flat">Flat fee — one fixed design charge</option>
+                      <option value="unit_based">Unit-based — fee × number of units (pages, panels…)</option>
+                      <option value="dependent">Dependent — base fee + conditional add-ons (logo, copywriting…)</option>
+                    </select>
+                  </div>
+
+                  {(form.design_pricing_type === 'flat' || form.design_pricing_type === 'dependent') && (
+                    <div>
+                      <label style={labelStyle}>{form.design_pricing_type === 'dependent' ? 'Base Design Fee (₦)' : 'Design Flat Fee (₦)'}</label>
+                      <input type="number" min={0} value={form.design_flat_fee}
+                        onChange={e => setF('design_flat_fee', e.target.value === '' ? '' : Number(e.target.value))}
+                        placeholder="e.g. 15000" style={{ ...inputStyle, maxWidth: 220 }} />
+                    </div>
+                  )}
+
+                  {form.design_pricing_type === 'unit_based' && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+                      <div>
+                        <label style={labelStyle}>Unit Label</label>
+                        <input value={form.design_unit_label} onChange={e => setF('design_unit_label', e.target.value)}
+                          placeholder="e.g. Number of pages" style={inputStyle} />
+                      </div>
+                      <div>
+                        <label style={labelStyle}>Rate per Unit (₦)</label>
+                        <input type="number" min={0} value={form.design_unit_rate}
+                          onChange={e => setF('design_unit_rate', e.target.value === '' ? '' : Number(e.target.value))}
+                          placeholder="e.g. 3000" style={inputStyle} />
+                      </div>
+                      <div>
+                        <label style={labelStyle}>Minimum Units</label>
+                        <input type="number" min={1} value={form.design_min_units}
+                          onChange={e => setF('design_min_units', e.target.value === '' ? '' : Number(e.target.value))}
+                          placeholder="e.g. 4" style={inputStyle} />
+                      </div>
+                    </div>
+                  )}
+
+                  {form.design_pricing_type === 'dependent' && (
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 10 }}>
+                        Conditional Add-Ons
+                        <span style={{ fontWeight: 400, color: '#888', marginLeft: 6 }}>— each is shown to the customer only when relevant</span>
+                      </div>
+
+                      {productDesignAddons.length === 0 && (
+                        <div style={{ fontSize: 12, color: '#9ca3af', fontStyle: 'italic', marginBottom: 10 }}>No add-ons linked yet.</div>
+                      )}
+
+                      {productDesignAddons.map((la, idx) => {
+                        const addonInfo = allDesignAddons.find(a => a.id === la.design_addon_id)
+                        return (
+                          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#fafafa', border: '1px solid var(--border-color)', borderRadius: 8, marginBottom: 8, flexWrap: 'wrap' as const }}>
+                            <div style={{ flex: 1, fontSize: 13, fontWeight: 600 }}>
+                              {la._addonName || addonInfo?.name || la.design_addon_id}
+                              {(la._addonPrice || addonInfo?.price) && (
+                                <span style={{ fontWeight: 400, color: '#6b7280', marginLeft: 6 }}>₦{Number(la._addonPrice || addonInfo?.price).toLocaleString()}</span>
+                              )}
+                            </div>
+                            <div style={{ fontSize: 12, color: '#374151' }}>
+                              <span style={{ fontStyle: 'italic' }}>{la.gate_question}</span>
+                              <span style={{ marginLeft: 6, fontWeight: 600, color: 'var(--red)' }}>→ applies when: {la.gate_when_answer}</span>
+                            </div>
+                            <button onClick={() => setProductDesignAddons(prev => prev.filter((_, i) => i !== idx))}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: 18, lineHeight: 1, padding: '0 4px' }}>×</button>
+                          </div>
+                        )
+                      })}
+
+                      {addingLinkedAddon ? (
+                        <div style={{ border: '1px solid var(--border-color)', borderRadius: 9, padding: '14px', background: '#fafafa' }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                            <div>
+                              <label style={labelStyle}>Add-On</label>
+                              <select value={newLinkedAddon.design_addon_id}
+                                onChange={e => setNewLinkedAddon(p => ({ ...p, design_addon_id: e.target.value }))}
+                                style={{ ...inputStyle, cursor: 'pointer' }}>
+                                <option value="">Select add-on…</option>
+                                {allDesignAddons.map(a => (
+                                  <option key={a.id} value={a.id}>{a.name} (₦{Number(a.price).toLocaleString()})</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label style={labelStyle}>Applies When Answer Is</label>
+                              <select value={newLinkedAddon.gate_when_answer}
+                                onChange={e => setNewLinkedAddon(p => ({ ...p, gate_when_answer: e.target.value as 'yes' | 'no' }))}
+                                style={{ ...inputStyle, cursor: 'pointer' }}>
+                                <option value="no">No</option>
+                                <option value="yes">Yes</option>
+                              </select>
+                            </div>
+                          </div>
+                          <div style={{ marginBottom: 10 }}>
+                            <label style={labelStyle}>Gate Question (shown to customer)</label>
+                            <input value={newLinkedAddon.gate_question}
+                              onChange={e => setNewLinkedAddon(p => ({ ...p, gate_question: e.target.value }))}
+                              placeholder="e.g. Do you already have a logo?"
+                              style={inputStyle} />
+                          </div>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button onClick={() => setAddingLinkedAddon(false)}
+                              style={{ padding: '7px 14px', border: '1px solid #d1d5db', borderRadius: 7, background: 'white', cursor: 'pointer', fontSize: 12, fontFamily: 'Montserrat', fontWeight: 600, color: '#666' }}>
+                              Cancel
+                            </button>
+                            <button
+                              disabled={!newLinkedAddon.design_addon_id || !newLinkedAddon.gate_question.trim()}
+                              onClick={() => {
+                                const addon = allDesignAddons.find(a => a.id === newLinkedAddon.design_addon_id)
+                                setProductDesignAddons(prev => [...prev, {
+                                  design_addon_id: newLinkedAddon.design_addon_id,
+                                  gate_question: newLinkedAddon.gate_question.trim(),
+                                  gate_when_answer: newLinkedAddon.gate_when_answer,
+                                  _addonName: addon?.name,
+                                  _addonPrice: addon?.price,
+                                }])
+                                setNewLinkedAddon({ design_addon_id: '', gate_question: '', gate_when_answer: 'no' })
+                                setAddingLinkedAddon(false)
+                              }}
+                              style={{ padding: '7px 14px', border: 'none', borderRadius: 7, background: 'var(--red)', color: 'white', cursor: 'pointer', fontSize: 12, fontFamily: 'Montserrat', fontWeight: 700, opacity: !newLinkedAddon.design_addon_id || !newLinkedAddon.gate_question.trim() ? 0.5 : 1 }}>
+                              Add
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button onClick={() => setAddingLinkedAddon(true)}
+                          style={{ fontSize: 12, color: 'var(--red)', background: 'none', border: '1px dashed var(--red)', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontFamily: 'Montserrat', fontWeight: 600 }}>
+                          + Link an Add-On
+                        </button>
+                      )}
+
+                      {allDesignAddons.length === 0 && (
+                        <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 8 }}>
+                          No design add-ons exist yet.{' '}
+                          <a href="/dashboard/admin/design-addons" target="_blank" style={{ color: 'var(--red)' }}>Create them first →</a>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 

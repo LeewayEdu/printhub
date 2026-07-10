@@ -150,6 +150,14 @@ export default function CheckoutPage() {
         design_file_url: item.design?.fileUrl || null,
         design_link: item.design?.link || null,
         design_brief: item.design?.brief || null,
+        // Design pricing fields — resolved pre-cart via DesignPricingFlow
+        has_own_design: item.designPricing?.hasOwnDesign ?? null,
+        design_addons_selected: item.designPricing?.designAddons?.length
+          ? item.designPricing.designAddons
+          : null,
+        design_units: item.designPricing?.designUnits ?? null,
+        design_cost_total: item.designPricing?.designCostTotal ?? 0,
+        design_request_notes: item.designPricing?.designRequestNotes ?? null,
       }))
     )
 

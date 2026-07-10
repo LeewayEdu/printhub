@@ -18,15 +18,25 @@ export interface DesignDetails {
   } | null
 }
 
+export interface DesignPricingResolved {
+  hasOwnDesign: boolean
+  designCostTotal: number
+  designAddons: { name: string; price: number }[]
+  designUnits?: number
+  designRequestNotes?: string
+}
+
 export interface CartItem {
   cartItemId: string
   productId: string
   name: string
-  price: number        // TOTAL calculated price for this line item
+  price: number        // TOTAL calculated price including design cost
+  printPrice: number   // Print-only portion (for breakdown display)
   displayQty: string   // Human readable e.g. "100 pcs" or "5x7 sqft"
   quantity: number     // Always 1 for print jobs, can be more for simple items
   specs?: Record<string, string>
   design?: DesignDetails | null
+  designPricing?: DesignPricingResolved | null
 }
 
 interface CartState {
@@ -37,6 +47,7 @@ interface CartState {
     price: number,
     displayQty: string,
     specs?: Record<string, string>,
+    designPricing?: DesignPricingResolved | null,
   ) => void
   removeFromCart: (cartItemId: string) => void
   updateDesign: (cartItemId: string, design: DesignDetails) => void
@@ -50,16 +61,19 @@ export const useCartStore = create<CartState>()(
     (set, get) => ({
       items: [],
 
-      addToCart: (productId, name, price, displayQty, specs = {}) => {
+      addToCart: (productId, name, price, displayQty, specs = {}, designPricing = null) => {
+        const designCost = designPricing?.designCostTotal ?? 0
         const newItem: CartItem = {
           cartItemId: crypto.randomUUID(),
           productId,
           name,
-          price,        // total calculated price
-          displayQty,   // e.g. "100 pcs" or "5×7 sqft"
-          quantity: 1,  // always 1 per line item
+          price: price + designCost,  // total = print + design
+          printPrice: price,
+          displayQty,
+          quantity: 1,
           specs,
           design: null,
+          designPricing,
         }
         set({ items: [...get().items, newItem] })
         toast.success(`${name} added to cart!`)
