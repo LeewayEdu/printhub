@@ -47,6 +47,9 @@ export default async function ProductPage({ params }: { params: { slug: string }
     .eq('is_active', true)
     .single()
 
+  // Temporary diagnostic log — visible in Vercel function logs
+  console.log('[product-page] design_pricing_type for', params.slug, '=', (product as any)?.design_pricing_type)
+
   // PGRST116 = no rows found; any other error is unexpected — log but still 404
   if (error || !product) {
     if (error && error.code !== 'PGRST116') console.error('[product-page]', params.slug, error.code, error.message)
