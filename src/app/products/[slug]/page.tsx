@@ -17,7 +17,12 @@ const SUPABASE_KEY =
   ''
 
 function serverClient() {
-  return createClient(SUPABASE_URL, SUPABASE_KEY)
+  return createClient(SUPABASE_URL, SUPABASE_KEY, {
+    global: {
+      fetch: (url: RequestInfo | URL, options: RequestInit = {}) =>
+        fetch(url, { ...options, cache: 'no-store' }),
+    },
+  })
 }
 
 export async function generateMetadata(
@@ -46,9 +51,6 @@ export default async function ProductPage({ params }: { params: { slug: string }
     .eq('slug', params.slug)
     .eq('is_active', true)
     .single()
-
-  // Temporary diagnostic log — visible in Vercel function logs
-  console.log('[product-page] design_pricing_type for', params.slug, '=', (product as any)?.design_pricing_type)
 
   // PGRST116 = no rows found; any other error is unexpected — log but still 404
   if (error || !product) {

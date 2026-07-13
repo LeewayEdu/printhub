@@ -35,7 +35,6 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
   const [designPricingResolved, setDesignPricingResolved] = useState<DesignPricingResolved | null>(null)
   const [linkedAddons, setLinkedAddons] = useState<any[]>([])
 
-  console.log('DEBUG design_pricing_type:', JSON.stringify(product.design_pricing_type))
   const hasDesignPricing = product.design_pricing_type && product.design_pricing_type !== 'none'
 
   const { addToCart } = useCartStore()
