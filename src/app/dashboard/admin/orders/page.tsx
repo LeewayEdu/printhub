@@ -304,7 +304,7 @@ export default function AdminOrdersPage() {
                               </div>
                             )}
 
-                            {/* Design files — uploaded or linked after cart */}
+                            {/* Design files — uploaded or linked from cart page */}
                             <div style={{ width: '100%', display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
                               {item.design_file_url && (
                                 <a href={item.design_file_url} target="_blank" rel="noopener noreferrer"
@@ -320,12 +320,18 @@ export default function AdminOrdersPage() {
                               )}
                               {item.design_brief && (
                                 <div style={{ width: '100%', background: '#faf5ff', border: '1px solid #e9d5ff', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: '#6b21a8' }}>
-                                  <div style={{ fontWeight: 700, marginBottom: 6, fontSize: 11, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Design Brief</div>
+                                  <div style={{ fontWeight: 700, marginBottom: 6, fontSize: 11, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Design Notes</div>
                                   {item.design_brief.businessName && <div><strong>Business:</strong> {item.design_brief.businessName}</div>}
                                   {item.design_brief.colors && <div><strong>Colors:</strong> {item.design_brief.colors}</div>}
                                   {item.design_brief.slogan && <div><strong>Slogan:</strong> {item.design_brief.slogan}</div>}
                                   {item.design_brief.notes && <div><strong>Notes:</strong> {item.design_brief.notes}</div>}
                                   {item.design_brief.referenceUrl && <a href={item.design_brief.referenceUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#7c3aed' }}>Reference →</a>}
+                                </div>
+                              )}
+                              {/* Customer said they have a file but haven't uploaded/linked it yet */}
+                              {item.has_own_design === true && !item.design_file_url && !item.design_link && (
+                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 7, fontSize: 11, fontWeight: 700, color: '#92400e' }}>
+                                  <AlertCircle size={11} color="#d97706" /> Awaiting design file from customer
                                 </div>
                               )}
                               {item.has_own_design === null && !item.design_file_url && !item.design_link && !item.design_brief && (
