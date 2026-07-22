@@ -7,11 +7,11 @@ import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
 import { generateCampaignMetadata, BreadcrumbSchema } from '@/components/seo'
+import { SITE_URL } from '@/lib/site-url'
 
 export const dynamic = 'force-dynamic'
 
 
-const SITE_URL = 'https://printhub.cchumedia.com'
 const supabaseServer = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!

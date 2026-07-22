@@ -6,6 +6,7 @@ import ThemeProvider from '@/components/layout/ThemeProvider'
 import ChatWidget from '@/components/layout/ChatWidget'
 import ReferralCapture from '@/components/layout/ReferralCapture'
 import Script from 'next/script'
+import { SITE_URL } from '@/lib/site-url'
 
 export const metadata: Metadata = {
   title: {
@@ -13,7 +14,7 @@ export const metadata: Metadata = {
     template: '%s | PrintHub Abuja',
   },
   description: 'Order professional printing online in Abuja, Nigeria. Banners, business cards, branded souvenirs, uniforms, campaign materials, book publishing and more. Free design review. Trusted since 2011.',
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://printhub.cchumedia.com'),
+  metadataBase: new URL(SITE_URL),
   keywords: ['printing abuja', 'print shop abuja', 'business cards abuja', 'banners abuja', 'branded souvenirs nigeria', 'campaign materials abuja', 'book publishing nigeria', 'printhub'],
   openGraph: {
     type: 'website',

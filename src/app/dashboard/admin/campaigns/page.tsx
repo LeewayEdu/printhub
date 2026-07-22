@@ -6,8 +6,8 @@ import { supabase } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Plus, Pencil, Trash2, X, ExternalLink } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { SITE_URL } from '@/lib/site-url'
 
-const SITE_URL = 'https://printhub.cchumedia.com'
 
 const empty = {
   slug: '', headline: '', subheadline: '', body_content: '', hero_image: '',

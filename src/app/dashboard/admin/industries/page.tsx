@@ -5,8 +5,8 @@ import { supabase } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Plus, Pencil, Trash2, X, ExternalLink, Package } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { SITE_URL } from '@/lib/site-url'
 
-const SITE_URL = 'https://printhub.cchumedia.com'
 
 const ICONS = ['🏫','⛪','🗳️','🏢','🎉','🏥','🏨','🤝','🏠','👗','🍽️','⚖️','🎓','🏋️','💄','🚗','📦','🎨']
 

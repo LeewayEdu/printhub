@@ -5,8 +5,8 @@
 
 import { MetadataRoute } from 'next'
 import { createClient } from '@supabase/supabase-js'
+import { SITE_URL } from '@/lib/site-url'
 
-const SITE_URL = 'https://printhub.cchumedia.com'
 
 // Use the service role key for sitemap generation (server-side, never
 // exposed to the browser) — bypasses RLS to ensure all active pages
@@ -24,12 +24,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: SITE_URL,                          lastModified: now, changeFrequency: 'weekly',  priority: 1.0 },
     { url: `${SITE_URL}/shop`,                lastModified: now, changeFrequency: 'daily',   priority: 0.9 },
     { url: `${SITE_URL}/products`,            lastModified: now, changeFrequency: 'daily',   priority: 0.9 },
+    { url: `${SITE_URL}/how-it-works`,        lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
     { url: `${SITE_URL}/starter-kits`,        lastModified: now, changeFrequency: 'weekly',  priority: 0.8 },
     { url: `${SITE_URL}/election-campaign`,   lastModified: now, changeFrequency: 'weekly',  priority: 0.8 },
     { url: `${SITE_URL}/book-publishing`,     lastModified: now, changeFrequency: 'weekly',  priority: 0.8 },
+    { url: `${SITE_URL}/affiliate`,           lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
     { url: `${SITE_URL}/industries`,          lastModified: now, changeFrequency: 'weekly',  priority: 0.7 },
     { url: `${SITE_URL}/categories`,          lastModified: now, changeFrequency: 'weekly',  priority: 0.7 },
     { url: `${SITE_URL}/blog`,                lastModified: now, changeFrequency: 'daily',   priority: 0.7 },
+    { url: `${SITE_URL}/about`,               lastModified: now, changeFrequency: 'monthly', priority: 0.5 },
     { url: `${SITE_URL}/contact`,             lastModified: now, changeFrequency: 'monthly', priority: 0.5 },
     { url: `${SITE_URL}/terms`,               lastModified: now, changeFrequency: 'monthly', priority: 0.3 },
     { url: `${SITE_URL}/privacy`,             lastModified: now, changeFrequency: 'monthly', priority: 0.3 },

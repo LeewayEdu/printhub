@@ -3,10 +3,10 @@ import { createClient } from '@supabase/supabase-js'
 import type { Metadata } from 'next'
 import { generateProductMetadata, ProductSchema, BreadcrumbSchema } from '@/components/seo'
 import ProductPageClient from './ProductPageClient'
+import { SITE_URL } from '@/lib/site-url'
 
 export const dynamic = 'force-dynamic'
 
-const SITE_URL = 'https://printhub.cchumedia.com'
 
 // Use the service role key for server-side fetches; fall back to the anon key.
 // Both are read at REQUEST time so they work on Vercel serverless functions.

@@ -1,7 +1,7 @@
 // src/components/seo/index.tsx
 import { Metadata } from 'next'
+import { SITE_URL } from '@/lib/site-url'
 
-const SITE_URL = 'https://printhub.cchumedia.com'
 const SITE_NAME = 'PrintHub by C-Chu Media'
 const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.jpg`
 
