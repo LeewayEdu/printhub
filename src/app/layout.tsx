@@ -7,6 +7,7 @@ import ChatWidget from '@/components/layout/ChatWidget'
 import ReferralCapture from '@/components/layout/ReferralCapture'
 import Script from 'next/script'
 import { SITE_URL } from '@/lib/site-url'
+import MetaPixel from '@/components/analytics/MetaPixel'
 
 export const metadata: Metadata = {
   title: {
@@ -43,6 +44,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
+        <MetaPixel />
         <Suspense fallback={null}>
           <ReferralCapture />
         </Suspense>

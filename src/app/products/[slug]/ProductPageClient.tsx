@@ -10,6 +10,7 @@ import type { DesignPricingResolved } from '@/store/cartStore'
 import LiveCalculatorV2 from '@/components/shop/LiveCalculatorV2'
 import DesignPricingFlow from '@/components/shop/DesignPricingFlow'
 import { Breadcrumbs } from '@/components/seo'
+import { fbTrack } from '@/lib/meta-pixel'
 import toast from 'react-hot-toast'
 
 interface Props {
@@ -38,6 +39,14 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
   const hasDesignPricing = product.design_pricing_type && product.design_pricing_type !== 'none'
 
   const { addToCart } = useCartStore()
+
+  useEffect(() => {
+    fbTrack('ViewContent', {
+      content_name: product.name,
+      value: product.display_price || product.price || 0,
+      currency: 'NGN',
+    })
+  }, [product.id])
 
   // Fetch linked design addons for 'dependent' type products
   useEffect(() => {

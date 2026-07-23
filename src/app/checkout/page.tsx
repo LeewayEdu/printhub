@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 import { ShoppingBag, MapPin, CreditCard, Check, Upload } from 'lucide-react'
 import Script from 'next/script'
+import { fbTrack } from '@/lib/meta-pixel'
 
 const STEPS = ['Review', 'Delivery', 'Payment']
 
@@ -76,6 +77,15 @@ export default function CheckoutPage() {
     })
     supabase.from('delivery_settings').select('*').eq('is_active', true).order('sort_order')
       .then(({ data }) => { if (data) setDeliveryOptions(data) })
+  }, [])
+
+  // Fires once when the customer lands on checkout with items in cart —
+  // i.e. the moment checkout actually starts. Kept as its own effect so it
+  // never interferes with the auth/redirect effect above.
+  useEffect(() => {
+    if (items.length === 0) return
+    fbTrack('InitiateCheckout', { value: totalPrice(), currency: 'NGN' })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // ── HANDLERS ─────────────────────────────────────────────────

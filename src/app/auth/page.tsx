@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
 import { Eye, EyeOff } from 'lucide-react'
+import { fbTrack } from '@/lib/meta-pixel'
 import toast from 'react-hot-toast'
 
 // ── Reusable password input with show/hide toggle ──────────────
@@ -238,6 +239,7 @@ function RegisterForm({ onSuccess }: { onSuccess: () => void }) {
       : cookieRefCode
     try {
       await signup(form.email, form.password, form.firstName, form.lastName, form.phone, form.heardFrom, form.isAffiliate, resolvedRefCode)
+      if (form.isAffiliate) fbTrack('CompleteRegistration', { content_name: 'Affiliate Signup' })
       clearCookie('ref_code')
       toast.success('Account created! Check your email to confirm.')
       onSuccess()
