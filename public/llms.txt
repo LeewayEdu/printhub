@@ -1,0 +1,31 @@
+# PrintHub by C-Chu Media
+
+> PrintHub is the online print ordering portal of C-Chu Media Limited, a printing, branding and publishing company based in Karu, Abuja, Nigeria, operating since 2011. Customers browse the catalogue, configure specifications (size, material, quantity, finishing), see a live price, upload or request a design, pay online and collect or have orders delivered.
+
+## What is offered
+- Banners and large-format printing, business cards, stationery, stickers and labels
+- Branded souvenirs and promotional items, shirts, uniforms and caps
+- Signage, vehicle branding, event and campaign materials
+- Book printing and publishing, graphic design, business starter kits
+
+## Key pages
+- [Home](https://printhub.cchumedia.com/)
+- [Shop - all products](https://printhub.cchumedia.com/shop)
+- [How it works and FAQ](https://printhub.cchumedia.com/how-it-works)
+- [Business starter kits](https://printhub.cchumedia.com/starter-kits)
+- [Election campaign printing](https://printhub.cchumedia.com/election-campaign)
+- [Book publishing](https://printhub.cchumedia.com/book-publishing)
+- [Affiliate programme](https://printhub.cchumedia.com/affiliate)
+- [About](https://printhub.cchumedia.com/about)
+- [Contact](https://printhub.cchumedia.com/contact)
+- [Terms of service](https://printhub.cchumedia.com/terms)
+- [Privacy policy](https://printhub.cchumedia.com/privacy)
+- [Sitemap](https://printhub.cchumedia.com/sitemap.xml)
+
+## Practical details
+- Prices are in Nigerian Naira and shown on each product page; delivery fees are shown at checkout. Pickup from the Karu office is free.
+- Payment: Paystack (card, bank transfer, USSD) or direct bank transfer.
+- Location: Suite 38, Mazfallah Shopping Complex, Karu, AMAC 900110, Abuja FCT, Nigeria
+- Hours: Monday to Saturday, 8:00AM to 7:00PM
+- Phone and WhatsApp: +234 805 292 9523
+- Email: info@cchumedia.com

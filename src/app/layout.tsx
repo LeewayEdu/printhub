@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Suspense } from 'react'
 import './globals.css'
 import { Toaster } from 'react-hot-toast'
@@ -9,11 +9,16 @@ import Script from 'next/script'
 import { Montserrat, Open_Sans } from 'next/font/google'
 import { SITE_URL } from '@/lib/site-url'
 import MetaPixel from '@/components/analytics/MetaPixel'
+import ConsentBanner from '@/components/analytics/ConsentBanner'
 
 // Self-hosted by Next at build time (no render-blocking request to Google Fonts).
 // Both are variable fonts, so every weight the site uses is available.
 const montserrat = Montserrat({ subsets: ['latin'], display: 'swap', variable: '--font-montserrat', style: ['normal', 'italic'] })
 const openSans = Open_Sans({ subsets: ['latin'], display: 'swap', variable: '--font-open-sans', style: ['normal', 'italic'] })
+
+export const viewport: Viewport = {
+  themeColor: '#C0392B',
+}
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://printhub.cchumedia.com'),
@@ -67,6 +72,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
         <ChatWidget />
+        <ConsentBanner />
       </body>
     </html>
   )
