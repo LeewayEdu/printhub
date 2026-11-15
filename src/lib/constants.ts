@@ -13,6 +13,13 @@ export const BRAND = {
   email: 'info@cchumedia.com',
   address: 'Suite 38, Mazfallah Shopping Complex, Karu, AMAC 900110, Abuja FCT, Nigeria',
   hours: 'Monday – Saturday: 8:00AM – 7:00PM',
+  // Machine-readable form of `hours` above (used for structured data). Keep in sync.
+  hoursSpec: { days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'], opens: '08:00', closes: '19:00' },
+  social: {
+    facebook: 'https://www.facebook.com/cchumedia',
+    instagram: 'https://www.instagram.com/cchumedia',
+    x: 'https://x.com/cchumedia',
+  },
   stats: {
     years: '13+',
     jobs: '3,000+',

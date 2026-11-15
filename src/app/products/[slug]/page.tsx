@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
 import type { Metadata } from 'next'
-import { generateProductMetadata, ProductSchema, BreadcrumbSchema } from '@/components/seo'
+import { generateProductMetadata, ProductSchema, BreadcrumbSchema, type ShippingRange } from '@/components/seo'
 import ProductPageClient from './ProductPageClient'
 import { SITE_URL } from '@/lib/site-url'
 
@@ -59,7 +59,7 @@ async function loadProduct(slug: string) {
     if (error) console.error('[product-page]', slug, error.code, error.message)
     if (error || !product) return null
 
-    const [{ data: related }, { data: marketingTagRows }] = await Promise.all([
+    const [{ data: related }, { data: marketingTagRows }, { data: categoryRow }, { data: deliveryRows }] = await Promise.all([
       db.from('products')
         .select('id, name, slug, images, image_url, display_price, price')
         .eq('is_active', true)
@@ -69,8 +69,14 @@ async function loadProduct(slug: string) {
       db.from('product_marketing_categories')
         .select('marketing_categories(label, slug)')
         .eq('product_id', product.id),
+      // Real category record for this product's type (label + slug for the /categories page)
+      db.from('categories').select('label, slug').eq('slug', product.product_type ?? '').eq('is_active', true).maybeSingle(),
+      // Active delivery fees (excluding free pickup) give the shipping cost range
+      db.from('delivery_settings').select('price, type').eq('is_active', true).neq('type', 'pickup'),
     ])
-    return { product, related: related || [], marketingTagRows: marketingTagRows || [] }
+    const fees = (deliveryRows || []).map((r: any) => Number(r.price)).filter((n: number) => n > 0)
+    const shipping: ShippingRange = fees.length ? { min: Math.min(...fees), max: Math.max(...fees) } : null
+    return { product, related: related || [], marketingTagRows: marketingTagRows || [], category: categoryRow, shipping }
   } catch (e) {
     console.error('[product-page]', slug, e)
     return null
@@ -80,7 +86,7 @@ async function loadProduct(slug: string) {
 export default async function ProductPage({ params }: { params: { slug: string } }) {
   const loaded = await loadProduct(params.slug)
   if (!loaded) notFound()
-  const { product, related, marketingTagRows } = loaded
+  const { product, related, marketingTagRows, category, shipping } = loaded
 
   const marketingTags: { label: string; slug: string }[] = (marketingTagRows || []).flatMap((row: any) =>
     row.marketing_categories ? [{ label: row.marketing_categories.label, slug: row.marketing_categories.slug }] : []
@@ -89,21 +95,29 @@ export default async function ProductPage({ params }: { params: { slug: string }
   const faqs: { question: string; answer: string }[] =
     Array.isArray(product.faq) ? product.faq : []
 
-  const breadcrumbs = [
-    { name: 'Home', href: '/' },
-    { name: 'Shop', href: '/shop' },
-    ...(product.category
-      ? [{ name: product.category, href: `/shop?cat=${encodeURIComponent(product.category)}` }]
-      : []),
-    { name: product.name },
-  ]
+  // Breadcrumb category: prefer the customer-facing marketing category, then the
+  // real category record for the product type, then the stored category name.
+  const crumbCategory = marketingTags[0]
+    ? { name: marketingTags[0].label, href: `${SITE_URL}/shop?cat=${encodeURIComponent(marketingTags[0].label)}` }
+    : category
+      ? { name: category.label as string, href: `${SITE_URL}/categories/${category.slug}` }
+      : product.category
+        ? { name: product.category as string, href: `${SITE_URL}/shop` }
+        : null
 
   const pageUrl = `${SITE_URL}/products/${product.slug}`
 
+  const breadcrumbs: { name: string; href?: string }[] = [
+    { name: 'Home', href: SITE_URL },
+    { name: 'Shop', href: `${SITE_URL}/shop` },
+    ...(crumbCategory ? [crumbCategory] : []),
+    { name: product.name },
+  ]
+
   return (
     <>
-      <ProductSchema product={product} url={pageUrl} />
-      <BreadcrumbSchema items={breadcrumbs.filter(b => b.href).map(b => ({ name: b.name, url: b.href! }))} />
+      <ProductSchema product={product} url={pageUrl} shipping={shipping} sku={product.id} />
+      <BreadcrumbSchema items={breadcrumbs.map(b => ({ name: b.name, url: b.href ?? pageUrl }))} />
       <ProductPageClient
         product={product}
         relatedProducts={related}

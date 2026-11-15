@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
-import { pageMetadata } from '@/components/seo'
+import { pageMetadata, FAQSchema } from '@/components/seo'
+import { FAQS } from './faqs'
 
 export const metadata: Metadata = pageMetadata({
   title: 'How It Works — Order Print Online',
@@ -8,5 +9,10 @@ export const metadata: Metadata = pageMetadata({
 })
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>
+  return (
+    <>
+      <FAQSchema faqs={FAQS.map(f => ({ question: f.q, answer: f.a }))} />
+      {children}
+    </>
+  )
 }

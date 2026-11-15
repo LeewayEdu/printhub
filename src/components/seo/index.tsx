@@ -1,6 +1,7 @@
 // src/components/seo/index.tsx
 import { Metadata } from 'next'
 import { SITE_URL } from '@/lib/site-url'
+import { BRAND } from '@/lib/constants'
 
 const SITE_NAME = 'PrintHub by C-Chu Media'
 const TITLE_SUFFIX = 'PrintHub'
@@ -118,18 +119,77 @@ export function generateCampaignMetadata(campaign: {
   })
 }
 
-export function ProductSchema({ product, url }: {
-  product: { name: string; description?: string | null; images?: string[]; image_url?: string | null; display_price?: number; price?: number; slug: string }
+// Serialise JSON-LD safely: "<" is escaped so content can never close the script tag.
+export function JsonLd({ data }: { data: Record<string, unknown> }) {
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(data).replace(/</g, '\\u003c') }}
+    />
+  )
+}
+
+const absoluteUrl = (u: string) => (/^https?:\/\//.test(u) ? u : `${SITE_URL}${u.startsWith('/') ? '' : '/'}${u === '/' ? '' : u}`)
+
+export function LocalBusinessSchema() {
+  const { hoursSpec } = BRAND
+  return (
+    <JsonLd data={{
+      '@context': 'https://schema.org',
+      '@type': 'LocalBusiness',
+      '@id': `${SITE_URL}/#business`,
+      name: 'C-Chu Media Ltd',
+      alternateName: 'PrintHub',
+      url: SITE_URL,
+      logo: `${SITE_URL}/C-Chu_media_Logo_.png`,
+      image: `${SITE_URL}/og-image.png`,
+      telephone: BRAND.phone1,
+      email: BRAND.email,
+      foundingDate: BRAND.since,
+      address: {
+        '@type': 'PostalAddress',
+        streetAddress: 'Suite 38, Mazfallah Shopping Complex',
+        addressLocality: 'Karu',
+        addressRegion: 'Abuja FCT',
+        postalCode: '900110',
+        addressCountry: 'NG',
+      },
+      contactPoint: [
+        { '@type': 'ContactPoint', contactType: 'customer service', telephone: BRAND.phone1, availableLanguage: 'English' },
+        { '@type': 'ContactPoint', contactType: 'WhatsApp', telephone: `+${BRAND.whatsapp}`, url: `https://wa.me/${BRAND.whatsapp}` },
+      ],
+      openingHoursSpecification: [{
+        '@type': 'OpeningHoursSpecification',
+        dayOfWeek: hoursSpec.days,
+        opens: hoursSpec.opens,
+        closes: hoursSpec.closes,
+      }],
+      areaServed: { '@type': 'Country', name: 'Nigeria' },
+      sameAs: Object.values(BRAND.social),
+    }} />
+  )
+}
+
+export type ShippingRange = { min: number; max: number } | null
+
+export function ProductSchema({ product, url, shipping, sku }: {
+  product: { name: string; description?: string | null; images?: string[]; image_url?: string | null; display_price?: number; price?: number; slug: string; rating?: number | null; review_count?: number | null }
   url: string
+  shipping?: ShippingRange
+  sku?: string
 }) {
   const price = product.display_price || product.price || 0
-  const schema = {
+  const images = product.images?.length ? product.images : product.image_url ? [product.image_url] : []
+  const reviews = Number(product.review_count) || 0
+  const rating = Number(product.rating) || 0
+  const schema: Record<string, unknown> = {
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: product.name,
-    description: product.description,
-    image: product.images?.length ? product.images : product.image_url ? [product.image_url] : [],
+    description: product.description || undefined,
+    image: images.length ? images.map(i => absoluteImage(i)) : undefined,
     url,
+    sku: sku || undefined,
     brand: { '@type': 'Brand', name: 'PrintHub by C-Chu Media' },
     offers: {
       '@type': 'Offer',
@@ -138,42 +198,62 @@ export function ProductSchema({ product, url }: {
       availability: 'https://schema.org/InStock',
       url,
       seller: { '@type': 'Organization', name: 'C-Chu Media Ltd' },
+      // Delivery fee range comes from the active rows in the delivery_settings table.
+      shippingDetails: shipping ? {
+        '@type': 'OfferShippingDetails',
+        shippingDestination: { '@type': 'DefinedRegion', addressCountry: 'NG' },
+        shippingRate: {
+          '@type': 'MonetaryAmount',
+          currency: 'NGN',
+          minValue: shipping.min,
+          maxValue: shipping.max,
+        },
+      } : undefined,
+      // Mirrors section 3 of the Terms page: defects reported within 48 hours are reprinted or refunded.
+      hasMerchantReturnPolicy: {
+        '@type': 'MerchantReturnPolicy',
+        applicableCountry: 'NG',
+        returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
+        merchantReturnDays: 2,
+        merchantReturnLink: `${SITE_URL}/terms`,
+      },
     },
   }
-  return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
-    />
-  )
+  // Only emit a rating when the product has real reviews.
+  if (reviews > 0 && rating > 0) {
+    schema.aggregateRating = { '@type': 'AggregateRating', ratingValue: rating, reviewCount: reviews }
+  }
+  return <JsonLd data={schema} />
 }
 
 export function FAQSchema({ faqs }: { faqs: { question: string; answer: string }[] }) {
   if (!faqs?.length) return null
-  const schema = {
-    '@context': 'https://schema.org',
-    '@type': 'FAQPage',
-    mainEntity: faqs.map(f => ({
-      '@type': 'Question',
-      name: f.question,
-      acceptedAnswer: { '@type': 'Answer', text: f.answer },
-    })),
-  }
-  return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
+  return (
+    <JsonLd data={{
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: faqs.map(f => ({
+        '@type': 'Question',
+        name: f.question,
+        acceptedAnswer: { '@type': 'Answer', text: f.answer },
+      })),
+    }} />
+  )
 }
 
 export function BreadcrumbSchema({ items }: { items: { name: string; url: string }[] }) {
-  const schema = {
-    '@context': 'https://schema.org',
-    '@type': 'BreadcrumbList',
-    itemListElement: items.map((item, i) => ({
-      '@type': 'ListItem',
-      position: i + 1,
-      name: item.name,
-      item: item.url,
-    })),
-  }
-  return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
+  return (
+    <JsonLd data={{
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: items.map((item, i) => ({
+        '@type': 'ListItem',
+        position: i + 1,
+        name: item.name,
+        item: absoluteUrl(item.url),
+      })),
+    }} />
+  )
 }
 
 export function Breadcrumbs({ items }: { items: { name: string; href?: string }[] }) {
