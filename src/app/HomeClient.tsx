@@ -534,10 +534,10 @@ export default function HomePage({ data }: { data: HomeData }) {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }} className="why-grid">
               {[
-                { icon: '⚡', title: 'Lightning Fast', desc: '24hr rush service available. Same-day pickup in Abuja. We work on your timeline, not ours.' },
+                { icon: '⚡', title: 'Rush Service Available', desc: 'Rush service available — message us on WhatsApp for turnaround on your job.' },
                 { icon: '🎨', title: 'Free Design Review', desc: 'Expert preflight on every file before production. 300 DPI quality check guaranteed. No surprises.' },
                 { icon: '💰', title: 'Transparent Pricing', desc: `Prices shown up front with no hidden charges${data.minPrice ? `, from ₦${data.minPrice.toLocaleString('en-NG')}` : ''}.${data.maxBulkDiscount ? ` Bulk discounts of up to ${data.maxBulkDiscount}% on selected products.` : ''}` },
-                { icon: '🔄', title: 'Free Reprint Guarantee', desc: "If your print doesn't match your approved proof, we reprint for free. Zero risk." },
+                { icon: '🔄', title: 'Free Reprint if the Error Is Ours', desc: 'If a bad job is our fault, such as the wrong material, wrong size or a printing fault, we reprint it free. Report it within 48 hours of delivery or pickup.' },
                 { icon: '📦', title: 'Nationwide Delivery', desc: 'Pickup from Karu, Abuja or delivered to any of the 36 states via trusted logistics.' },
                 { icon: '⭐', title: 'Loyalty Rewards', desc: 'Earn 2% of every order as loyalty points. Redeem on future orders. The more you print, the more you save.' },
               ].map((item, i) => (

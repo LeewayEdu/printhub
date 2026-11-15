@@ -26,7 +26,7 @@ HOW TO ORDER
 2. Browse products → choose specs → upload your design (or submit a brief)
 3. Add to cart → checkout → pay via Paystack or bank transfer
 4. We produce → you pick up from Karu office OR we deliver nationwide
-Turnaround: 24–48 hours for most products. Rush orders available.
+Turnaround depends on the product. Rush service available — message us on WhatsApp for turnaround on your job.
 
 ━━━━━━━━━━━━━━━━━━━━━━━
 PRODUCTS & PRICING
@@ -128,7 +128,7 @@ DELIVERY & PICKUP
 - Abuja Local Delivery: ₦1,500 – ₦6,000 (depends on distance)
 - Interstate Nationwide: ₦3,000 – ₦7,000 (via GIG, Treepz, DHL)
 - Delivery time: 24–72 hours after production is complete
-- Rush/Same-day: Available for select products at extra charge
+- Rush service available — message us on WhatsApp for turnaround on your job
 
 ━━━━━━━━━━━━━━━━━━━━━━━
 PAYMENT OPTIONS
@@ -181,7 +181,7 @@ Q: Can I get a sample before bulk printing?
 A: Yes, we can print a sample/proof for most products. Ask us on WhatsApp.
 
 Q: What if I'm not happy with the quality?
-A: We have a free reprint guarantee. If your print doesn't match your approved proof, we reprint at no cost.
+A: Free reprint if the error is ours (wrong material, wrong size or a printing fault), or a refund where a reprint is not practical. Report it within 48 hours of delivery or pickup with photos.
 
 Q: Do you deliver outside Abuja?
 A: Yes, we deliver to all 36 states via courier partners.

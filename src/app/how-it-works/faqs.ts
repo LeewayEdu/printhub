@@ -2,7 +2,7 @@
 export const FAQS = [
   {
     q: 'How long does printing take?',
-    a: 'Turnaround time depends on the product. Business cards and flyers are typically ready in 2-3 working days. Banners and branded items take 3-5 working days. Books and signage take 7-14 working days. Rush orders can be discussed via WhatsApp.',
+    a: 'Turnaround time depends on the product. Business cards and flyers are typically ready in 2-3 working days. Banners and branded items take 3-5 working days. Books and signage take 7-14 working days. Rush service is available — message us on WhatsApp for turnaround on your job.',
   },
   {
     q: 'What file formats do you accept for designs?',
@@ -42,7 +42,7 @@ export const FAQS = [
   },
   {
     q: 'What if I am not happy with my order?',
-    a: 'We take quality very seriously. If there is a production error on our part, we reprint at no cost. Contact us via WhatsApp or email within 48 hours of receiving your order with photos of the issue.',
+    a: 'We take quality very seriously. If the error is ours, we reprint for free (or refund where a reprint is not practical). Contact us via WhatsApp or email within 48 hours of receiving your order with photos of the issue.',
   },
   {
     q: 'Do you offer bulk discounts?',
