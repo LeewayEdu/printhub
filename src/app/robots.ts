@@ -7,7 +7,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: '*',
         allow: '/',
-        disallow: ['/dashboard/', '/auth/', '/cart/', '/api/'],
+        disallow: ['/dashboard/', '/auth/', '/cart/', '/api/', '/pro-forma'],
       },
     ],
     sitemap: 'https://printhub.cchumedia.com/sitemap.xml',

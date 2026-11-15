@@ -1,3 +1,6 @@
+// VAT rate (%) applied by calculate(); prices shown on the site are VAT inclusive.
+export const VAT_RATE = 7.5
+
 // Pure price calculation: no imports, no data fetching, so the browser and the server
 // run exactly the same code. Data loading lives in priceEngineV2.ts (browser) and
 // pricing-server.ts (server).
@@ -66,7 +69,7 @@ export function calculate(params: {
 
   const {
     specs, qty, widthFt = 1, heightFt = 1, pages = 0,
-    tiers, vatRate = 7.5, addons = [], priceModel,
+    tiers, vatRate = VAT_RATE, addons = [], priceModel,
     minWidth = 0, minHeight = 0, minOrderAmount = 0,
   } = params
 

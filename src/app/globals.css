@@ -271,6 +271,8 @@ main:focus { outline: none; }
 [style*="Montserrat"] { font-family: var(--font-montserrat), 'Montserrat', sans-serif !important; }
 [style*="Open Sans"]  { font-family: var(--font-open-sans), 'Open Sans', sans-serif !important; }
 
+@media print { .no-print { display: none !important; } }
+
 /* ── STICKY MOBILE BUY BAR (product pages) ── */
 .mobile-buy-bar { display: none; }
 @media (max-width: 767px) {

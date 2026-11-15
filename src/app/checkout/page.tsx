@@ -10,14 +10,11 @@ import toast from 'react-hot-toast'
 import { ShoppingBag, MapPin, CreditCard, Check, Upload } from 'lucide-react'
 import Script from 'next/script'
 import { fbTrack } from '@/lib/meta-pixel'
+import { BANK_DETAILS } from '@/lib/constants'
+import ProformaRequest from '@/components/shop/ProformaRequest'
 
 const STEPS = ['Review', 'Delivery', 'Payment']
 
-const BANK_DETAILS = {
-  bankName: 'MoniePoint',
-  accountNumber: '6727587825',
-  accountName: 'C-Chu Media Limited',
-}
 
 export default function CheckoutPage() {
   const router = useRouter()
@@ -534,6 +531,11 @@ export default function CheckoutPage() {
                   <span style={{ color: 'var(--red)' }}>₦{total.toLocaleString()}</span>
                 </div>
               </div>
+              <ProformaRequest
+                items={items}
+                delivery={selectedDelivery ? { label: selectedDelivery.name || 'Delivery', fee: deliveryFee } : null}
+                prefill={{ name: `${firstName} ${lastName}`.trim(), phone, email }}
+              />
             </div>
           </div>
         </div>

@@ -7,6 +7,7 @@ import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import { useCartStore, type DesignDetails } from '@/store/cartStore'
 import { supabase } from '@/lib/supabase/client'
+import ProformaRequest from '@/components/shop/ProformaRequest'
 import { Trash2, ShoppingBag, ArrowRight, Upload, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -338,6 +339,8 @@ export default function CartPage() {
                 }}>
                 Proceed to Checkout <ArrowRight size={18} />
               </button>
+
+              <ProformaRequest items={items} />
 
               <Link href="/shop" style={{ display: 'block', textAlign: 'center' as const, marginTop: 12, fontSize: 13, color: 'var(--text-secondary)', textDecoration: 'none' }}>
                 Continue shopping

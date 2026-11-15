@@ -159,6 +159,18 @@ export const CLIENTS = [
 
 // Delivery fees live in the delivery_settings table (editable in the admin dashboard).
 
+// Bank account shown for bank-transfer payments and on pro-forma invoices
+export const BANK_DETAILS = {
+  bankName: 'MoniePoint',
+  accountNumber: '6727587825',
+  accountName: 'C-Chu Media Limited',
+}
+
+// How long a pro-forma invoice quote stays valid. ASSUMPTION: not stored anywhere else,
+// so this is a placeholder for the owner to confirm. The Terms page only says prices may
+// change for future orders.
+export const PROFORMA_VALIDITY_DAYS = 7
+
 // Smallest affiliate payout request, as enforced in the affiliate dashboard (₦)
 export const AFFILIATE_MIN_PAYOUT = 5000
 

@@ -114,7 +114,7 @@ export default function ChatWidget() {
     <>
       {/* One launcher: opens a small menu with the assistant and WhatsApp */}
       {!open && (
-        <div style={{ position: 'fixed', bottom: 'calc(28px + var(--launcher-lift, 0px))', right: 28, zIndex: 998, display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: 10 }}>
+        <div className="no-print" style={{ position: 'fixed', bottom: 'calc(28px + var(--launcher-lift, 0px))', right: 28, zIndex: 998, display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: 10 }}>
           {menuOpen && (
             <div role="menu" aria-label="Chat options"
               style={{ background: 'white', border: '1px solid var(--border-color)', borderRadius: 12, boxShadow: '0 8px 30px rgba(0,0,0,0.2)', overflow: 'hidden', minWidth: 210 }}>

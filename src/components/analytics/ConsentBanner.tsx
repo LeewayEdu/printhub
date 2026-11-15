@@ -29,7 +29,7 @@ export default function ConsentBanner() {
   // A slim one-line bar in normal page flow at the very top (not fixed), so it can never
   // cover the sticky buy bar, the chat launcher or the footer; it scrolls away with the page.
   return (
-    <div role="region" aria-label="Tracking preferences"
+    <div role="region" aria-label="Tracking preferences" className="no-print"
       style={{ background: '#111', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '6px 12px', fontFamily: 'Open Sans, sans-serif', fontSize: 12, lineHeight: 1.3 }}>
       <span>
         <span className="consent-long">We use the Meta Pixel to measure our adverts. It only loads if you accept.</span>
