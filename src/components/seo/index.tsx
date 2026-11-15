@@ -3,7 +3,58 @@ import { Metadata } from 'next'
 import { SITE_URL } from '@/lib/site-url'
 
 const SITE_NAME = 'PrintHub by C-Chu Media'
-const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.jpg`
+const TITLE_SUFFIX = 'PrintHub'
+export const DEFAULT_OG_IMAGE = `${SITE_URL}/og-image.png`
+export const MAX_DESCRIPTION = 155
+
+// Trim to a whole word under `max` characters.
+export function clampText(text: string, max: number): string {
+  if (text.length <= max) return text
+  const cut = text.slice(0, max - 1)
+  return cut.slice(0, cut.lastIndexOf(' ')).replace(/[,;:\s-]+$/, '') + '…'
+}
+
+// The root layout adds " | PrintHub" through its title template, so strip any
+// brand suffix a stored title already carries (avoids "… | PrintHub | PrintHub").
+export function cleanTitle(title: string): string {
+  return title.replace(/(\s*[|\-–—]\s*PrintHub(\s+Abuja)?)+\s*$/i, '').trim()
+}
+
+// openGraph/twitter titles do not go through the template, so add the suffix.
+export function fullTitle(title: string): string {
+  return `${cleanTitle(title)} | ${TITLE_SUFFIX}`
+}
+
+// Social images must be absolute; fall back to the site image for anything else.
+export function absoluteImage(src?: string | null): string {
+  if (!src) return DEFAULT_OG_IMAGE
+  if (src.startsWith('/')) return `${SITE_URL}${src}`
+  return /^https?:\/\//.test(src) ? src : DEFAULT_OG_IMAGE
+}
+
+// One place to build complete page metadata with a canonical URL.
+export function pageMetadata(opts: {
+  title: string
+  description: string
+  path: string
+  image?: string | null
+  imageAlt?: string
+}): Metadata {
+  const title = cleanTitle(opts.title)
+  const description = clampText(opts.description, MAX_DESCRIPTION)
+  const url = `${SITE_URL}${opts.path === '/' ? '' : opts.path}`
+  const image = absoluteImage(opts.image)
+  return {
+    title,
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      title: fullTitle(title), description, url, siteName: SITE_NAME, type: 'website', locale: 'en_NG',
+      images: [{ url: image, width: 1200, height: 630, alt: opts.imageAlt || SITE_NAME }],
+    },
+    twitter: { card: 'summary_large_image', title: fullTitle(title), description, images: [image] },
+  }
+}
 
 export function generateProductMetadata(product: {
   name: string
@@ -14,40 +65,16 @@ export function generateProductMetadata(product: {
   image_url?: string | null
   short_description?: string | null
 }): Metadata {
-  const title = product.seo_title || `${product.name} | PrintHub Abuja`
   const description = product.meta_description
     || product.short_description
     || `Order ${product.name} online from PrintHub — professional printing in Abuja, Nigeria. Fast turnaround, competitive prices.`
-  const url = `${SITE_URL}/products/${product.slug}`
-  const image = product.images?.[0] || product.image_url || DEFAULT_OG_IMAGE
-
-  return {
-    title,
+  return pageMetadata({
+    title: product.seo_title || product.name,
     description,
-    alternates: { canonical: url },
-    openGraph: {
-      title,
-      description,
-      url,
-      siteName: SITE_NAME,
-      images: [{ url: image, width: 1200, height: 630, alt: product.name }],
-      type: 'website',
-      locale: 'en_NG',
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title,
-      description,
-      images: [image],
-    },
-  }
-}
-
-// Trim to a whole word under `max` characters.
-function clampText(text: string, max: number): string {
-  if (text.length <= max) return text
-  const cut = text.slice(0, max - 1)
-  return cut.slice(0, cut.lastIndexOf(' ')).replace(/[,;:\s-]+$/, '') + '…'
+    path: `/products/${product.slug}`,
+    image: product.images?.[0] || product.image_url,
+    imageAlt: product.name,
+  })
 }
 
 export function generateIndustryMetadata(industry: {
@@ -58,7 +85,6 @@ export function generateIndustryMetadata(industry: {
   hero_image?: string | null
   subheadline?: string | null
 }): Metadata {
-  const title = industry.seo_title || `${industry.name} Printing Services in Abuja`
   const lead = industry.subheadline ? `${industry.subheadline.replace(/\.$/, '')}. ` : ''
   // Pick the first wording that lands in the 120-155 character window.
   const candidates = [
@@ -66,15 +92,14 @@ export function generateIndustryMetadata(industry: {
     `Order print materials for ${industry.name} online from PrintHub by C-Chu Media in Abuja, with a free design review before printing.`,
     `Print materials for ${industry.name} from PrintHub by C-Chu Media in Abuja. Order online and get a free design review before printing.`,
   ]
-  const fitted = candidates.find(c => c.length >= 120 && c.length <= 155)
-  const description = industry.meta_description || fitted || clampText(candidates[1], 155)
-  const url = `${SITE_URL}/industries/${industry.slug}`
-  return {
-    title, description,
-    alternates: { canonical: url },
-    openGraph: { title, description, url, siteName: SITE_NAME, images: [{ url: industry.hero_image || DEFAULT_OG_IMAGE, width: 1200, height: 630, alt: industry.name }], type: 'website' },
-    twitter: { card: 'summary_large_image', title, description, images: [industry.hero_image || DEFAULT_OG_IMAGE] },
-  }
+  const fitted = candidates.find(c => c.length >= 120 && c.length <= MAX_DESCRIPTION)
+  return pageMetadata({
+    title: industry.seo_title || `${industry.name} Printing Services in Abuja`,
+    description: industry.meta_description || fitted || candidates[1],
+    path: `/industries/${industry.slug}`,
+    image: industry.hero_image,
+    imageAlt: industry.name,
+  })
 }
 
 export function generateCampaignMetadata(campaign: {
@@ -84,15 +109,13 @@ export function generateCampaignMetadata(campaign: {
   slug: string
   og_image?: string | null
 }): Metadata {
-  const title = campaign.seo_title || `${campaign.headline} | PrintHub`
-  const description = campaign.meta_description || campaign.headline
-  const url = `${SITE_URL}/campaigns/${campaign.slug}`
-  return {
-    title, description,
-    alternates: { canonical: url },
-    openGraph: { title, description, url, siteName: SITE_NAME, images: [{ url: campaign.og_image || DEFAULT_OG_IMAGE, width: 1200, height: 630, alt: campaign.headline }], type: 'website' },
-    twitter: { card: 'summary_large_image', title, description, images: [campaign.og_image || DEFAULT_OG_IMAGE] },
-  }
+  return pageMetadata({
+    title: campaign.seo_title || campaign.headline,
+    description: campaign.meta_description || campaign.headline,
+    path: `/campaigns/${campaign.slug}`,
+    image: campaign.og_image,
+    imageAlt: campaign.headline,
+  })
 }
 
 export function ProductSchema({ product, url }: {

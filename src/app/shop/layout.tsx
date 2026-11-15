@@ -1,8 +1,12 @@
 import type { Metadata } from 'next'
-export const metadata: Metadata = {
-  title: 'Shop — Banners, Business Cards, Branded Souvenirs & More | PrintHub',
-  description: 'Browse and order professional printing in Abuja. Business cards, banners, branded souvenirs, uniforms, campaign materials, book publishing and more.',
-}
-export default function ShopLayout({ children }: { children: React.ReactNode }) {
+import { pageMetadata } from '@/components/seo'
+
+export const metadata: Metadata = pageMetadata({
+  title: 'Shop Print Products Online',
+  description: 'Browse and order professional printing in Abuja: business cards, banners, branded souvenirs, uniforms, campaign materials and more.',
+  path: '/shop',
+})
+
+export default function Layout({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }

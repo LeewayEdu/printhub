@@ -3,7 +3,7 @@ import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
-import { Breadcrumbs, BreadcrumbSchema } from '@/components/seo'
+import { Breadcrumbs, BreadcrumbSchema, pageMetadata } from '@/components/seo'
 import { SITE_URL } from '@/lib/site-url'
 
 export const dynamic = 'force-dynamic'
@@ -48,9 +48,13 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const loaded = await loadCategory(params.slug)
   if (!loaded) return { title: 'Page not found' }
   const cat = loaded.category
-  const title = cat.seo_title || `${cat.label} Printing`
-  const description = cat.meta_description || `Browse our full range of ${cat.label} products. Professional printing in Abuja, Nigeria — fast turnaround, competitive prices.`
-  return { title, description, alternates: { canonical: `${SITE_URL}/categories/${cat.slug}` } }
+  return pageMetadata({
+    title: cat.seo_title || (/print/i.test(cat.label) ? cat.label : `${cat.label} Printing`),
+    description: cat.meta_description || `Browse our full range of ${cat.label} products. Professional printing in Abuja, Nigeria — fast turnaround, competitive prices.`,
+    path: `/categories/${cat.slug}`,
+    image: cat.hero_image,
+    imageAlt: cat.label,
+  })
 }
 
 export default async function CategoryPage({ params }: { params: { slug: string } }) {

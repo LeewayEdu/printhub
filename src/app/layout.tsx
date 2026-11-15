@@ -10,23 +10,27 @@ import { SITE_URL } from '@/lib/site-url'
 import MetaPixel from '@/components/analytics/MetaPixel'
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://printhub.cchumedia.com'),
   title: {
-    default: 'PrintHub — Professional Printing & Branding in Abuja | C-Chu Media',
-    template: '%s | PrintHub Abuja',
+    default: 'PrintHub — Professional Printing in Abuja | C-Chu Media',
+    template: '%s | PrintHub',
   },
-  description: 'Order professional printing online in Abuja, Nigeria. Banners, business cards, branded souvenirs, uniforms, campaign materials, book publishing and more. Free design review. Trusted since 2011.',
-  metadataBase: new URL(SITE_URL),
+  description: 'Order professional printing online in Abuja: banners, business cards, branded souvenirs, uniforms and campaign materials. Trusted since 2011.',
   keywords: ['printing abuja', 'print shop abuja', 'business cards abuja', 'banners abuja', 'branded souvenirs nigeria', 'campaign materials abuja', 'book publishing nigeria', 'printhub'],
   openGraph: {
     type: 'website',
     locale: 'en_NG',
-    url: 'https://printhub.cchumedia.com',
     siteName: 'PrintHub by C-Chu Media',
-    title: 'PrintHub — Professional Printing & Branding in Abuja',
-    description: 'Order professional printing online. Banners, business cards, branded souvenirs, campaign materials and more. Free design review. Trusted since 2011.',
+    title: 'PrintHub — Professional Printing in Abuja | C-Chu Media',
+    description: 'Order professional printing online in Abuja: banners, business cards, branded souvenirs, uniforms and campaign materials. Trusted since 2011.',
     images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'PrintHub by C-Chu Media' }],
   },
-  twitter: { card: 'summary_large_image', title: 'PrintHub Abuja', description: 'Professional printing & branding in Abuja, Nigeria.' },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'PrintHub — Professional Printing in Abuja',
+    description: 'Professional printing and branding in Abuja, Nigeria. Order online.',
+    images: ['/og-image.png'],
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
