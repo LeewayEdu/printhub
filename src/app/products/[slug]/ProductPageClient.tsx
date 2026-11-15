@@ -4,7 +4,7 @@
 import { visibleBadge } from '@/lib/catalog'
 import { BRAND } from '@/lib/constants'
 import { yearsLabel } from '@/lib/company'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
 import { ShoppingCart, Heart, Share2, ChevronDown, ChevronUp, Star, MessageCircle } from 'lucide-react'
@@ -118,6 +118,16 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
   const handleWhatsApp = () => {
     window.open(buildWhatsAppUrl(), '_blank', 'noopener')
   }
+
+  // The floating launcher's WhatsApp item asks the page to handle the click, so it
+  // sends this product's message. Kept in a ref so the listener always sees fresh values.
+  const whatsappRef = useRef(handleWhatsApp)
+  whatsappRef.current = handleWhatsApp
+  useEffect(() => {
+    const onLauncher = (e: Event) => { e.preventDefault(); whatsappRef.current() }
+    window.addEventListener('printhub:whatsapp', onLauncher)
+    return () => window.removeEventListener('printhub:whatsapp', onLauncher)
+  }, [])
 
   // Tells the rest of the page (chat launcher, consent banner) to sit above the mobile bar
   useEffect(() => {

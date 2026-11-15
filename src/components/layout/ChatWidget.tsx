@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { MessageCircle, X, Send, Loader } from 'lucide-react'
+import { MessageCircle, X, Send, Loader, Phone } from 'lucide-react'
 import { BRAND } from '@/lib/constants'
 import SiteImage from '@/components/ui/SiteImage'
 
@@ -12,6 +12,7 @@ interface Message {
 
 export default function ChatWidget() {
   const [open, setOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([
     { role: 'assistant', content: 'Hi! I am the PrintHub Assistant. How can I help you today? I can answer questions about our products, pricing, and services.' }
   ])
@@ -84,26 +85,53 @@ export default function ChatWidget() {
     }])
   }
 
+  // A page can take over the WhatsApp action (the product page sends its own
+  // pre-filled message). If no page handles the event, open a plain greeting.
+  const openWhatsApp = () => {
+    setMenuOpen(false)
+    const handled = !window.dispatchEvent(new CustomEvent('printhub:whatsapp', { cancelable: true }))
+    if (!handled) {
+      const text = encodeURIComponent("Hello, I'd like to ask about printing with PrintHub.")
+      window.open(`https://wa.me/${BRAND.whatsapp}?text=${text}`, '_blank', 'noopener')
+    }
+  }
+
   return (
     <>
-      {/* Chat button */}
+      {/* One launcher: opens a small menu with the assistant and WhatsApp */}
       {!open && (
-        <button
-          onClick={() => setOpen(true)}
-          style={{
-            position: 'fixed', bottom: 'calc(28px + var(--launcher-lift, 0px))', right: 28, zIndex: 998,
-            width: 52, height: 52, background: 'var(--red)',
-            borderRadius: '50%', border: 'none', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
-            transition: 'transform 0.2s',
-          }}
-          onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.1)')}
-          onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
-          aria-label="Open chat"
-        >
-         <MessageCircle size={22} color="white" />
-        </button>
+        <div style={{ position: 'fixed', bottom: 'calc(28px + var(--launcher-lift, 0px))', right: 28, zIndex: 998, display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: 10 }}>
+          {menuOpen && (
+            <div role="menu" aria-label="Chat options"
+              style={{ background: 'white', border: '1px solid var(--border-color)', borderRadius: 12, boxShadow: '0 8px 30px rgba(0,0,0,0.2)', overflow: 'hidden', minWidth: 210 }}>
+              <button role="menuitem" onClick={() => { setMenuOpen(false); setOpen(true) }}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '13px 16px', background: 'white', border: 'none', borderBottom: '1px solid var(--border-color)', cursor: 'pointer', fontFamily: 'Montserrat', fontWeight: 600, fontSize: 14, color: 'var(--text-primary)', textAlign: 'left' as const }}>
+                <MessageCircle size={18} color="#C0392B" /> Ask our assistant
+              </button>
+              <button role="menuitem" onClick={openWhatsApp}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '13px 16px', background: 'white', border: 'none', cursor: 'pointer', fontFamily: 'Montserrat', fontWeight: 600, fontSize: 14, color: 'var(--text-primary)', textAlign: 'left' as const }}>
+                <Phone size={18} color="#25D366" /> Chat on WhatsApp
+              </button>
+            </div>
+          )}
+          <button
+            onClick={() => setMenuOpen(o => !o)}
+            style={{
+              width: 52, height: 52, background: 'var(--red)',
+              borderRadius: '50%', border: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+              transition: 'transform 0.2s',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.1)')}
+            onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
+            aria-label={menuOpen ? 'Close chat options' : 'Chat with us'}
+            aria-expanded={menuOpen}
+            aria-haspopup="menu"
+          >
+            {menuOpen ? <X size={22} color="white" /> : <MessageCircle size={22} color="white" />}
+          </button>
+        </div>
       )}
 
       {/* Chat panel */}
