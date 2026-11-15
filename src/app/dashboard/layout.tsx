@@ -6,6 +6,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/lib/supabase/client'
 import { LayoutDashboard, ShoppingBag, User, LogOut, Package, Menu, X, ChevronRight, MessageSquare, TrendingUp, Truck, Tag, Bell, Image, DollarSign, Users, Zap, Star, FileSpreadsheet, Heart, AlignJustify, ShieldAlert, Palette } from 'lucide-react'
+import SiteImage from '@/components/ui/SiteImage'
 
 interface NavLink {
   href: string
@@ -130,7 +131,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Logo */}
         <div style={{ padding: '24px 24px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
-            <img src="/C-Chu_media_Logo_.png" alt="C-Chu Media" style={{ width: 32, height: 32, objectFit: 'contain' }} />
+            <SiteImage src="/C-Chu_media_Logo_.png" alt="C-Chu Media" width={32} height={32} style={{ width: 32, height: 32, objectFit: 'contain' }} />
             <div>
               <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 15, color: 'white' }}>PrintHub</div>
               <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>by C-Chu Media</div>

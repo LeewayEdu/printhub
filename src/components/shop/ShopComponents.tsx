@@ -230,7 +230,8 @@ export function ProductCard({
       <div className="card-info" style={{ padding: '12px 14px', flex: 1, display: 'flex', flexDirection: 'column' as const, gap: 4 }}>
         {/* Name */}
         <div className="card-name" style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.4, flex: 1 }}>
-          {product.name}
+          {/* A real anchor so search engines can follow the product link */}
+          {href ? <Link href={href} style={{ color: 'inherit', textDecoration: 'none' }}>{product.name}</Link> : product.name}
         </div>
 
         {/* Stars + sold */}

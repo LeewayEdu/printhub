@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { generateIndustryMetadata, Breadcrumbs, BreadcrumbSchema } from '@/components/seo'
 import { SITE_URL } from '@/lib/site-url'
 import { visibleBadge } from '@/lib/catalog'
+import SiteImage from '@/components/ui/SiteImage'
 
 export const dynamic = 'force-dynamic'
 
@@ -82,7 +83,7 @@ export default async function IndustryPage({ params }: { params: { slug: string 
       <div style={{ position: 'relative' as const, minHeight: 380, display: 'flex', alignItems: 'center', background: industry.hero_image ? undefined : '#111', overflow: 'hidden' }}>
         {industry.hero_image && (
           <>
-            <img src={industry.hero_image} alt={industry.name} style={{ position: 'absolute' as const, inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+            <SiteImage src={industry.hero_image} alt={industry.name} width={1600} height={600} sizes="100vw" priority style={{ position: 'absolute' as const, inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
             <div style={{ position: 'absolute' as const, inset: 0, background: 'rgba(0,0,0,0.65)' }} />
           </>
         )}
@@ -118,7 +119,7 @@ export default async function IndustryPage({ params }: { params: { slug: string 
                   <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', height: '100%', }} className="lift-card">
                     <div style={{ aspectRatio: '4/3', overflow: 'hidden', background: '#f7f7f5' }}>
                       {(p.images?.[0] || p.image_url)
-                        ? <img src={p.images?.[0] || p.image_url} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ? <SiteImage src={p.images?.[0] || p.image_url} alt={p.name} width={400} height={300} sizes="(max-width: 768px) 50vw, 25vw" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 }}>🖨️</div>
                       }
                     </div>

@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Breadcrumbs, BreadcrumbSchema, pageMetadata } from '@/components/seo'
 import { SITE_URL } from '@/lib/site-url'
 import { visibleBadge } from '@/lib/catalog'
+import SiteImage from '@/components/ui/SiteImage'
 
 export const dynamic = 'force-dynamic'
 
@@ -92,7 +93,7 @@ export default async function CategoryPage({ params }: { params: { slug: string 
                 <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', height: '100%', }} className="lift-card">
                   <div style={{ aspectRatio: '1/1', overflow: 'hidden', background: '#f7f7f5' }}>
                     {(p.images?.[0] || p.image_url)
-                      ? <img src={p.images?.[0] || p.image_url} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} loading="lazy" />
+                      ? <SiteImage src={p.images?.[0] || p.image_url} alt={p.name} width={400} height={400} sizes="(max-width: 768px) 50vw, 25vw" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40 }}>🖨️</div>
                     }
                   </div>

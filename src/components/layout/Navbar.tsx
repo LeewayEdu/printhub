@@ -9,6 +9,7 @@ import { useThemeStore } from '@/store/themeStore'
 import { Sun, Moon } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import NotificationBar from './NotificationBar'
+import SiteImage from '@/components/ui/SiteImage'
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false)
@@ -55,11 +56,14 @@ useEffect(() => {
       >
         {/* LOGO */}
         <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
-          <img
-  src="/C-Chu_media_Logo_.png"
-  alt="C-Chu Media"
-  style={{ width: 40, height: 40, objectFit: 'contain' }}
-/>
+          <SiteImage
+            src="/C-Chu_media_Logo_.png"
+            alt="C-Chu Media"
+            width={40}
+            height={40}
+            priority
+            style={{ width: 40, height: 40, objectFit: 'contain' }}
+          />
           <div>
             <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 16, color: 'var(--black)', lineHeight: 1.2 }}>
               PrintHub

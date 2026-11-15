@@ -7,6 +7,7 @@ import { useAuthStore } from '@/store/authStore'
 import { Eye, EyeOff } from 'lucide-react'
 import { fbTrack } from '@/lib/meta-pixel'
 import toast from 'react-hot-toast'
+import SiteImage from '@/components/ui/SiteImage'
 
 // ── Reusable password input with show/hide toggle ──────────────
 function PasswordInput({
@@ -88,7 +89,7 @@ function AuthNav() {
   return (
     <nav style={{ padding: '0 40px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'white', borderBottom: '1px solid var(--border)' }}>
       <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
-        <img src="/C-Chu_media_Logo_.png" alt="C-Chu Media" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+        <SiteImage src="/C-Chu_media_Logo_.png" alt="C-Chu Media" width={36} height={36} style={{ width: 36, height: 36, objectFit: 'contain' }} />
         <div>
           <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 15, color: 'var(--black)' }}>PrintHub</div>
           <div style={{ fontSize: 12, color: 'var(--gray)' }}>by C-Chu Media Ltd</div>

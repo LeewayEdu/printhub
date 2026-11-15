@@ -12,6 +12,7 @@ import { yearsPlus, freshenYears } from '@/lib/company'
 import type { HomeData } from '@/lib/home-data'
 import { ProductCard, ShopSidebar, ProductCardData } from '@/components/shop/ShopComponents'
 import { useFlashSaleStore } from '@/store/flashSaleStore'
+import SiteImage from '@/components/ui/SiteImage'
 
 
 // ─── TYPES ───────────────────────────────────────────────────
@@ -131,7 +132,7 @@ export default function HomePage({ data }: { data: HomeData }) {
           {/* Background image layer — always behind, never affects layout */}
           {heroBanners.map((banner, i) => (
             <div key={banner.id} style={{ position: 'absolute' as const, inset: 0, transition: 'opacity 1s ease', opacity: i === heroIdx ? 1 : 0, zIndex: 0 }}>
-              <img src={banner.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <SiteImage src={banner.image_url} alt="" width={1920} height={900} sizes="100vw" priority={i === 0} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               <div style={{ position: 'absolute' as const, inset: 0, background: `rgba(0,0,0,${banner.overlay_opacity ?? 0.62})` }} />
             </div>
           ))}
@@ -204,7 +205,7 @@ export default function HomePage({ data }: { data: HomeData }) {
                             onMouseEnter={e => (e.currentTarget.style.background = '#fef5f5')}
                             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                             <div style={{ width: 40, height: 40, borderRadius: 8, overflow: 'hidden', flexShrink: 0, background: '#f5f5f3' }}>
-                              {img ? <img src={img} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>🖨️</div>}
+                              {img ? <SiteImage src={img} alt={p.name} width={40} height={40} sizes="40px" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>🖨️</div>}
                             </div>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13, color: '#1A1A1A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{p.name}</div>
@@ -340,11 +341,14 @@ export default function HomePage({ data }: { data: HomeData }) {
                     STEP {step.num}
                   </div>
                   <div style={{ height: 180, overflow: 'hidden', position: 'relative' as const, background: 'var(--light)' }}>
-                    <img
+                    <SiteImage
                       src={step.local}
                       alt={step.title}
+                      width={600}
+                      height={400}
+                      sizes="(max-width: 768px) 100vw, 33vw"
+                      fallbackSrc={step.fallback}
                       style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.4s' }}
-                      onError={e => { (e.target as HTMLImageElement).src = step.fallback }}
                       onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.05)')}
                       onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
                     />
@@ -500,9 +504,8 @@ export default function HomePage({ data }: { data: HomeData }) {
                   <Link key={i} href="/shop" className="card-hover" style={{ background: 'white', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', textDecoration: 'none', display: 'block' }}>
                     <div style={{ height: 140, overflow: 'hidden', position: 'relative' as const, background: 'var(--light)' }}>
                       {imgSrc
-                        ? <img src={imgSrc} alt={service.name}
+                        ? <SiteImage src={imgSrc} alt={service.name} width={400} height={140} sizes="(max-width: 768px) 50vw, 25vw" fallbackSrc={imgFallback}
                             style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.4s' }}
-                            onError={e => { (e.target as HTMLImageElement).src = imgFallback }}
                             onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.06)')}
                             onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')} />
                         : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 }}>{service.icon}</div>

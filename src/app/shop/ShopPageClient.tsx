@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useEffect, useRef, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import { supabase } from '@/lib/supabase/client'
@@ -11,6 +11,22 @@ import { getCategories } from '@/lib/categories'
 import { useCartStore } from '@/store/cartStore'
 import { ShoppingCart, Search, ChevronLeft, ChevronRight, Minus, Plus, Upload, Link as LinkIcon, Pen, X } from 'lucide-react'
 import toast from 'react-hot-toast'
+import SiteImage from '@/components/ui/SiteImage'
+
+const PAGE_SIZE = 24
+
+// Reads ?cat= and ?search= from the URL after hydration. The page itself is
+// statically generated (so the server cannot see query strings); this applies
+// the filter on the client, and the canonical URL stays /shop.
+function UrlFilterSync({ onParams }: { onParams: (cat: string, search: string) => void }) {
+  const sp = useSearchParams()
+  const cat = sp.get('cat') || 'All Products'
+  const search = sp.get('search') || ''
+  const cb = useRef(onParams)
+  cb.current = onParams
+  useEffect(() => { cb.current(cat, search) }, [cat, search])
+  return null
+}
 
 interface SpecOption { label: string; price: number }
 interface SpecGroup { name: string; options: SpecOption[] }
@@ -108,6 +124,8 @@ export default function ShopPageClient({
   const [search, setSearch] = useState(initialSearch)
   const [cat, setCat] = useState(initialCat)
   const [sort, setSort] = useState('default')
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
+  useEffect(() => { setVisibleCount(PAGE_SIZE) }, [cat, search, sort])
   const [selected, setSelected] = useState<Product | null>(null)
 
   // Product config state
@@ -247,6 +265,9 @@ export default function ShopPageClient({
   return (
     <>
       <Navbar />
+      <Suspense fallback={null}>
+        <UrlFilterSync onParams={(c, q) => { setCat(c); setSearch(q) }} />
+      </Suspense>
       <main id="main-content">
 
         {/* Hero */}
@@ -255,7 +276,7 @@ export default function ShopPageClient({
             <>
               {heroBanners.map((banner, i) => (
                 <div key={banner.id} style={{ position: 'absolute' as const, inset: 0, transition: 'opacity 0.8s ease', opacity: i === heroIdx ? 1 : 0, zIndex: i === heroIdx ? 1 : 0 }}>
-                  <img src={banner.image_url} alt={banner.title || 'Banner'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <SiteImage src={banner.image_url} alt={banner.title || 'Banner'} width={1920} height={320} sizes="100vw" priority={i === 0} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   <div style={{ position: 'absolute' as const, inset: 0, background: 'rgba(0,0,0,0.45)' }} />
                   {(banner.title || banner.subtitle) && (
                     <div style={{ position: 'absolute' as const, inset: 0, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', padding: '0 clamp(16px, 4vw, 40px)', textAlign: 'center' as const, zIndex: 2 }}>
@@ -341,7 +362,7 @@ export default function ShopPageClient({
                 </div>
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }} className="pg">
-                  {filtered.map(p => (
+                  {filtered.slice(0, visibleCount).map(p => (
                     <SharedProductCard
                       key={p.id}
                       product={p}
@@ -351,6 +372,25 @@ export default function ShopPageClient({
                       href={p.slug ? `/products/${p.slug}` : undefined}
                     />
                   ))}
+                </div>
+              )}
+
+              {/* 24 products at a time; every product still has a real link for crawlers */}
+              {filtered.length > visibleCount && (
+                <div style={{ textAlign: 'center' as const, marginTop: 28 }}>
+                  <button onClick={() => setVisibleCount(c => c + PAGE_SIZE)} className="btn btn-outline" style={{ fontSize: 14 }}>
+                    Show more products ({filtered.length - visibleCount} remaining)
+                  </button>
+                  <nav aria-label="All products" style={{ marginTop: 28, textAlign: 'left' as const }}>
+                    <details>
+                      <summary style={{ cursor: 'pointer', fontSize: 13, color: 'var(--text-secondary)' }}>Browse the full product list</summary>
+                      <ul style={{ listStyle: 'none', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '6px 16px', marginTop: 12, fontSize: 13 }}>
+                        {filtered.slice(visibleCount).map(p => p.slug && (
+                          <li key={p.id}><a href={`/products/${p.slug}`} style={{ color: 'var(--text-primary)' }}>{p.name}</a></li>
+                        ))}
+                      </ul>
+                    </details>
+                  </nav>
                 </div>
               )}
             </div>
@@ -395,7 +435,7 @@ export default function ShopPageClient({
                   <div>
                     <div style={{ borderRadius: 12, overflow: 'hidden', background: 'var(--bg-secondary)', aspectRatio: '1 / 1', width: '100%', position: 'relative' as const }}>
                       {imgs[imgIdx]
-                        ? <img src={imgs[imgIdx]} alt={selected.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ? <SiteImage src={imgs[imgIdx]} alt={selected.name} width={800} height={800} sizes="(max-width: 768px) 100vw, 480px" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 56 }}>🖨️</div>}
                       {imgs.length > 1 && (
                         <>
@@ -415,7 +455,7 @@ export default function ShopPageClient({
                         {imgs.map((img, i) => (
                           <div key={i} onClick={() => setImgIdx(i)}
                             style={{ width: 44, height: 44, borderRadius: 6, overflow: 'hidden', cursor: 'pointer', border: `2px solid ${imgIdx === i ? 'var(--red)' : 'var(--border-color)'}` }}>
-                            <img src={img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <SiteImage src={img} alt="" width={64} height={64} sizes="64px" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                           </div>
                         ))}
                       </div>

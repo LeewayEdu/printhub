@@ -6,8 +6,14 @@ import ThemeProvider from '@/components/layout/ThemeProvider'
 import ChatWidget from '@/components/layout/ChatWidget'
 import ReferralCapture from '@/components/layout/ReferralCapture'
 import Script from 'next/script'
+import { Montserrat, Open_Sans } from 'next/font/google'
 import { SITE_URL } from '@/lib/site-url'
 import MetaPixel from '@/components/analytics/MetaPixel'
+
+// Self-hosted by Next at build time (no render-blocking request to Google Fonts).
+// Both are variable fonts, so every weight the site uses is available.
+const montserrat = Montserrat({ subsets: ['latin'], display: 'swap', variable: '--font-montserrat', style: ['normal', 'italic'] })
+const openSans = Open_Sans({ subsets: ['latin'], display: 'swap', variable: '--font-open-sans', style: ['normal', 'italic'] })
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://printhub.cchumedia.com'),
@@ -35,17 +41,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${montserrat.variable} ${openSans.variable}`}>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="icon" href="/favicon.png" type="image/png" />
-        <link rel="apple-touch-icon" href="/favicon.png" /> 
-        <link
-          href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400&family=Open+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&display=swap"
-          rel="stylesheet"
-        
-        />
+        <link rel="apple-touch-icon" href="/favicon.png" />
       </head>
       <body>
         <a href="#main-content" className="skip-link">Skip to content</a>

@@ -8,8 +8,8 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        display: ['Montserrat', 'sans-serif'],
-        body: ['Open Sans', 'sans-serif'],
+        display: ['var(--font-montserrat)', 'Montserrat', 'sans-serif'],
+        body: ['var(--font-open-sans)', 'Open Sans', 'sans-serif'],
       },
       colors: {
         red: {

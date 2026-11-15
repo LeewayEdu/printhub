@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Heart, ShoppingCart, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import SiteImage from '@/components/ui/SiteImage'
 
 export default function WishlistPage() {
   const router = useRouter()
@@ -69,7 +70,7 @@ export default function WishlistPage() {
                 {/* Image */}
                 <div style={{ height: 160, background: 'var(--light)', position: 'relative' as const, overflow: 'hidden' }}>
                   {img
-                    ? <img src={img} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ? <SiteImage src={img} alt={p.name} width={300} height={300} sizes="300px" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40 }}>🖨️</div>}
                   <button aria-label="Remove from wishlist" onClick={() => remove(item.id, p.name)}
                     style={{ position: 'absolute' as const, top: 8, right: 8, width: 30, height: 30, borderRadius: '50%', background: 'rgba(255,255,255,0.92)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>

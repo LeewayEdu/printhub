@@ -6,6 +6,7 @@ import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import { supabase } from '@/lib/supabase/client'
 import { Check, ShoppingCart } from 'lucide-react'
+import SiteImage from '@/components/ui/SiteImage'
 
 // ============================================================
 // PUBLISHING SERVICES — these are fixed, ONE-TIME service fees,
@@ -231,7 +232,7 @@ export default function BookPublishingPage() {
                     <Link key={product.id} href="/shop" className="card-hover"
                       style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, overflow: 'hidden', textDecoration: 'none', display: 'block' }}>
                       <div style={{ height: 140, background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, overflow: 'hidden' }}>
-                        {img ? <img src={img} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '📚'}
+                        {img ? <SiteImage src={img} alt={product.name} width={400} height={400} sizes="(max-width: 768px) 50vw, 25vw" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '📚'}
                       </div>
                       <div style={{ padding: 16 }}>
                         <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, marginBottom: 12, color: 'var(--text-primary)' }}>{product.name}</div>

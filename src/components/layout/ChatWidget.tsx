@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { MessageCircle, X, Send, Loader } from 'lucide-react'
 import { BRAND } from '@/lib/constants'
+import SiteImage from '@/components/ui/SiteImage'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -121,7 +122,7 @@ export default function ChatWidget() {
           <div style={{ padding: '14px 16px', background: 'var(--black)', borderRadius: '16px 16px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ width: 36, height: 36, borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}>
-                <img src="/C-Chu_media_Logo_.png" alt="PrintHub" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+                <SiteImage src="/C-Chu_media_Logo_.png" alt="PrintHub" width={36} height={36} style={{ width: 36, height: 36, objectFit: 'contain' }} />
                 </div>
               <div>
                 <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13, color: 'white' }}>PrintHub Assistant</div>

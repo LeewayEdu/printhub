@@ -8,6 +8,7 @@ import { notFound } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
 import { generateCampaignMetadata, BreadcrumbSchema } from '@/components/seo'
 import { SITE_URL } from '@/lib/site-url'
+import SiteImage from '@/components/ui/SiteImage'
 
 export const dynamic = 'force-dynamic'
 
@@ -52,7 +53,7 @@ export default async function CampaignPage({ params }: { params: { slug: string 
         <div style={{ position: 'relative' as const, minHeight: 480, display: 'flex', alignItems: 'center', justifyContent: 'center', background: campaign.hero_image ? undefined : '#111', overflow: 'hidden' }}>
           {campaign.hero_image && (
             <>
-              <img src={campaign.hero_image} alt={campaign.headline} style={{ position: 'absolute' as const, inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+              <SiteImage src={campaign.hero_image} alt={campaign.headline} width={1600} height={700} sizes="100vw" priority style={{ position: 'absolute' as const, inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
               <div style={{ position: 'absolute' as const, inset: 0, background: 'rgba(0,0,0,0.6)' }} />
             </>
           )}

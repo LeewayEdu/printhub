@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { BRAND } from '@/lib/constants'
+import SiteImage from '@/components/ui/SiteImage'
 
 export default function Footer() {
   return (
@@ -13,7 +14,7 @@ export default function Footer() {
           {/* Brand */}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-              <img src="/C-Chu_media_Logo_.png" alt="C-Chu Media" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+              <SiteImage src="/C-Chu_media_Logo_.png" alt="C-Chu Media" width={36} height={36} style={{ width: 36, height: 36, objectFit: 'contain' }} />
               <div>
                 <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 18, color: 'white' }}>PrintHub</div>
                 <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', fontStyle: 'italic' }}>by C-Chu Media Limited</div>

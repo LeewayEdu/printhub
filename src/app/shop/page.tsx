@@ -4,7 +4,8 @@ import ShopPageClient, { Product } from './ShopPageClient'
 // Server-rendered so crawlers (and curl) see full product names/prices in
 // the initial HTML — this page was previously client-only and shipped an
 // empty shell to search engines.
-export const revalidate = 3600
+// Static page rebuilt at most every 5 minutes (filters are applied in the browser from ?cat=)
+export const revalidate = 300
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
 const SUPABASE_KEY =
@@ -16,11 +17,14 @@ function serverClient() {
   return createClient(SUPABASE_URL, SUPABASE_KEY)
 }
 
-export default async function ShopPage({
-  searchParams,
-}: {
-  searchParams: { cat?: string; search?: string }
-}) {
+// Only what the product cards and filters need (the full database row is ~10x larger)
+const CARD_FIELDS = [
+  'id', 'name', 'slug', 'category', 'product_type', 'pricing_model', 'price', 'display_price', 'is_fixed_price',
+  'area_rate', 'area_unit', 'images', 'image_url', 'badge', 'featured', 'discount_type', 'discount_value',
+  'rating', 'review_count', 'total_orders', 'is_active', 'moq', 'created_at', 'sort_order',
+]
+
+export default async function ShopPage() {
   const db = serverClient()
 
   const [
@@ -35,6 +39,14 @@ export default async function ShopPage({
     db.from('marketing_categories').select('id, label, slug, icon').eq('is_active', true).order('sort_order'),
     db.from('product_marketing_categories').select('product_id, marketing_categories(label)'),
   ])
+
+  const slim = (products || []).map((p: any) => {
+    const o: Record<string, unknown> = {}
+    CARD_FIELDS.forEach(k => { o[k] = p[k] })
+    // descriptions are only used for search, so a short excerpt is enough
+    o.description = typeof p.description === 'string' ? p.description.slice(0, 200) : null
+    return o
+  })
 
   const productTags: Record<string, string[]> = {}
   ;(tagRows || []).forEach((row: any) => {
@@ -59,14 +71,14 @@ export default async function ShopPage({
 
   return (
     <ShopPageClient
-      initialProducts={(products || []) as Product[]}
+      initialProducts={slim as unknown as Product[]}
       heroBanners={heroBanners || []}
       marketingCategories={marketingCategories || []}
       productTags={productTags}
       catCounts={catCounts}
       catIcons={catIcons}
-      initialCat={searchParams.cat || 'All Products'}
-      initialSearch={searchParams.search || ''}
+      initialCat="All Products"
+      initialSearch=""
     />
   )
 }

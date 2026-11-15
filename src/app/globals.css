@@ -33,7 +33,7 @@ html {
 }
 
 body {
-  font-family: 'Open Sans', sans-serif;
+  font-family: var(--font-open-sans), 'Open Sans', sans-serif;
   color: var(--black);
   background: var(--white);
   line-height: 1.6;
@@ -62,8 +62,8 @@ body {
 
 /* ── TYPOGRAPHY UTILITIES ── */
 @layer utilities {
-  .font-display { font-family: 'Montserrat', sans-serif; }
-  .font-body    { font-family: 'Open Sans', sans-serif; }
+  .font-display { font-family: var(--font-montserrat), 'Montserrat', sans-serif; }
+  .font-body    { font-family: var(--font-open-sans), 'Open Sans', sans-serif; }
 
   .text-balance { text-wrap: balance; }
 
@@ -139,7 +139,7 @@ body {
   gap: 8px;
   padding: 12px 24px;
   border-radius: 9px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: var(--font-montserrat), 'Montserrat', sans-serif;
   font-weight: 700;
   font-size: 14px;
   cursor: pointer;
@@ -194,7 +194,7 @@ body {
   padding: 12px 16px;
   border: 1px solid var(--border);
   border-radius: 9px;
-  font-family: 'Open Sans', sans-serif;
+  font-family: var(--font-open-sans), 'Open Sans', sans-serif;
   font-size: 14px;
   color: var(--dark);
   background: white;
@@ -218,7 +218,7 @@ body {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  font-family: 'Montserrat', sans-serif;
+  font-family: var(--font-montserrat), 'Montserrat', sans-serif;
 }
 .badge-red   { background: var(--red-pale); color: var(--red); }
 .badge-dark  { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.7); }
@@ -247,7 +247,7 @@ body {
   color: #fff;
   padding: 10px 16px;
   border-radius: 6px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: var(--font-montserrat), 'Montserrat', sans-serif;
   font-weight: 700;
   font-size: 14px;
   text-decoration: none;
@@ -263,3 +263,10 @@ main:focus { outline: none; }
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ── FONTS ──
+   next/font self-hosts Montserrat and Open Sans under generated family names.
+   Most components set fontFamily: 'Montserrat' / 'Open Sans' inline, so these
+   rules point those names at the self-hosted files. */
+[style*="Montserrat"] { font-family: var(--font-montserrat), 'Montserrat', sans-serif !important; }
+[style*="Open Sans"]  { font-family: var(--font-open-sans), 'Open Sans', sans-serif !important; }

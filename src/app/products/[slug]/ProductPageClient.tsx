@@ -13,6 +13,7 @@ import DesignPricingFlow from '@/components/shop/DesignPricingFlow'
 import { Breadcrumbs } from '@/components/seo'
 import { fbTrack } from '@/lib/meta-pixel'
 import toast from 'react-hot-toast'
+import SiteImage from '@/components/ui/SiteImage'
 
 interface Props {
   product: any
@@ -126,7 +127,7 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
         <div>
           <div style={{ borderRadius: 16, overflow: 'hidden', background: '#f7f7f5', aspectRatio: '1/1', marginBottom: 12, position: 'relative' as const }}>
             {images[activeImage]
-              ? <img src={images[activeImage]} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ? <SiteImage src={images[activeImage]} alt={product.name} width={800} height={800} sizes="(max-width: 768px) 100vw, 50vw" priority style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 64 }}>🖨️</div>
             }
             {visibleBadge(product) && (
@@ -140,7 +141,7 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
               {images.map((img: string, i: number) => (
                 <button key={i} onClick={() => setActiveImage(i)}
                   style={{ width: 64, height: 64, borderRadius: 8, overflow: 'hidden', border: `2px solid ${activeImage === i ? 'var(--red)' : 'transparent'}`, background: '#f7f7f5', cursor: 'pointer', padding: 0 }}>
-                  <img src={img} alt={`${product.name} view ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <SiteImage src={img} alt={`${product.name} view ${i + 1}`} width={64} height={64} sizes="64px" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 </button>
               ))}
             </div>
@@ -382,7 +383,7 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
                   onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'none'; (e.currentTarget as HTMLElement).style.boxShadow = 'none' }}>
                   <div style={{ aspectRatio: '1/1', background: '#f7f7f5', overflow: 'hidden' }}>
                     {(p.images?.[0] || p.image_url)
-                      ? <img src={p.images?.[0] || p.image_url} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ? <SiteImage src={p.images?.[0] || p.image_url} alt={p.name} width={400} height={400} sizes="(max-width: 768px) 50vw, 25vw" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32 }}>🖨️</div>
                     }
                   </div>
