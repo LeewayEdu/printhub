@@ -155,10 +155,6 @@ export const CLIENTS = [
   'Nigerian Bulk SMS', "Anaconda's Place", 'Nigerian-Canadian Association',
 ]
 
-// Names shown on the public home page. Political-party clients are intentionally
-// left out here (they remain in CLIENTS for the About page).
-export const HOME_CLIENTS = CLIENTS.filter(c => c !== 'Labour Party' && c !== 'ADC Party')
-
 // Delivery fees live in the delivery_settings table (editable in the admin dashboard).
 
 // ── LOYALTY POINTS ───────────────────────────

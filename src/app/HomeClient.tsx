@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase/client'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import { Star } from 'lucide-react'
-import { BRAND, HOME_SERVICES, STARTER_KITS, AFFILIATE_TIERS, HOME_CLIENTS } from '@/lib/constants'
+import { BRAND, HOME_SERVICES, STARTER_KITS, AFFILIATE_TIERS, CLIENTS } from '@/lib/constants'
 import { yearsPlus, freshenYears } from '@/lib/company'
 import type { HomeData } from '@/lib/home-data'
 import { ProductCard, ShopSidebar, ProductCardData } from '@/components/shop/ShopComponents'
@@ -644,9 +644,10 @@ export default function HomePage({ data }: { data: HomeData }) {
                 <div style={{ fontSize: 16, color: 'rgba(255,255,255,0.5)', lineHeight: 1.6, marginTop: 8 }}>Jobs delivered since {BRAND.since}</div>
                 <div style={{ width: 40, height: 3, background: 'var(--red)', borderRadius: 2, margin: '20px 0' }} />
                 <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', lineHeight: 1.7 }}>Trusted by 50+ organisations, agencies, businesses and campaigns</p>
+                <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', lineHeight: 1.6, marginTop: 10 }}>Clients we have worked with. Listing a name does not imply endorsement.</p>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10 }} className="clients-inner-grid">
-                {HOME_CLIENTS.map(client => (
+                {CLIENTS.map(client => (
                   <div key={client} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: '14px 10px', textAlign: 'center' as const }}>
                     <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', lineHeight: 1.4 }}>{client}</span>
                   </div>

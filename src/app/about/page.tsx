@@ -95,7 +95,7 @@ export default function AboutPage() {
                 Clients who have trusted us
               </h2>
               <p style={{ fontSize: 15, color: 'var(--gray)', maxWidth: 480, margin: '0 auto' }}>
-                From government agencies to churches, schools, and businesses across Nigeria.
+                From government agencies to churches, schools, and businesses across Nigeria. These are clients we have worked with; listing a name does not imply endorsement.
               </p>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12 }} className="clients-grid">

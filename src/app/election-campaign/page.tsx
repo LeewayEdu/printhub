@@ -133,7 +133,7 @@ export default function ElectionCampaignPage() {
               { icon: '⚡', title: 'Fast turnaround', desc: 'Most orders ready in 3–5 working days' },
               { icon: '🇳🇬', title: 'Nationwide delivery', desc: 'We ship to all 36 states' },
               { icon: '💰', title: 'Bulk discounts', desc: 'Better prices on larger quantities' },
-              { icon: '✅', title: 'Trusted by parties', desc: 'APC, LP, ADC and more have used us' },
+              { icon: '✅', title: 'Worked with several parties', desc: 'We have printed for APC, LP, ADC and others. Not an endorsement of any party.' },
             ].map((item, i) => (
               <div key={i} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 12, padding: 20, textAlign: 'center' as const }}>
                 <div style={{ fontSize: 32, marginBottom: 10 }}>{item.icon}</div>
