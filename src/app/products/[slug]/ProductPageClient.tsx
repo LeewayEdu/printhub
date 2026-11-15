@@ -116,6 +116,21 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
   }
 
   const handleWhatsApp = () => {
+    // Record the lead first, but never wait for it: if it fails, WhatsApp still opens.
+    try {
+      const options = Object.entries(specs).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join(', ')
+      fetch('/api/leads', {
+        method: 'POST',
+        keepalive: true,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          source: 'whatsapp',
+          product_interest: product.name,
+          quantity: qty,
+          notes: [options && `Options: ${options}`, calculatedPrice ? `Estimated total: ₦${totalPrice.toLocaleString()}` : '', `Page: ${window.location.href}`].filter(Boolean).join('\n'),
+        }),
+      }).catch(() => {})
+    } catch { /* ignore */ }
     window.open(buildWhatsAppUrl(), '_blank', 'noopener')
   }
 
