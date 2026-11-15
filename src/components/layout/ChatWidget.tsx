@@ -23,6 +23,8 @@ export default function ChatWidget() {
   const [leadCaptured, setLeadCaptured] = useState(false)
   const [leadName, setLeadName] = useState('')
   const [leadPhone, setLeadPhone] = useState('')
+  const [leadHp, setLeadHp] = useState('')        // honeypot: stays empty for real visitors
+  const [leadError, setLeadError] = useState('')
   const [showLeadForm, setShowLeadForm] = useState(false)
   const [leadSaving, setLeadSaving] = useState(false)
 
@@ -65,17 +67,29 @@ export default function ChatWidget() {
     setLeadSaving(true)
     try {
       // Save to Supabase leads table
-      await fetch('/api/leads', {
+      const res = await fetch('/api/leads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: leadName.trim(),
           phone: leadPhone.trim(),
+          website: leadHp,
           source: 'chatbot',
           conversation: messages.map(m => `${m.role}: ${m.content}`).join('\n'),
         })
       })
+      if (res.status === 400) {
+        setLeadError('Please enter a valid phone number, for example 0803 123 4567.')
+        setLeadSaving(false)
+        return
+      }
+      if (res.status === 429) {
+        setLeadError('Too many submissions from this device. Please message us on WhatsApp instead.')
+        setLeadSaving(false)
+        return
+      }
     } catch (e) { /* non-critical */ }
+    setLeadError('')
     setLeadSaving(false)
     setLeadCaptured(true)
     setShowLeadForm(false)
@@ -207,6 +221,9 @@ export default function ChatWidget() {
                 <input value={leadName} onChange={e => setLeadName(e.target.value)}
                   placeholder="Your name"
                   style={{ padding: '7px 10px', border: '1px solid #e8e8e5', borderRadius: 7, fontSize: 12, outline: 'none', fontFamily: 'Open Sans' }} />
+                <input name="website" value={leadHp} onChange={e => setLeadHp(e.target.value)} tabIndex={-1} autoComplete="off" aria-hidden="true"
+                  style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, opacity: 0 }} />
+                {leadError && <div role="alert" style={{ fontSize: 12, color: '#b91c1c' }}>{leadError}</div>}
                 <input value={leadPhone} onChange={e => setLeadPhone(e.target.value)}
                   placeholder="WhatsApp / phone number"
                   style={{ padding: '7px 10px', border: '1px solid #e8e8e5', borderRadius: 7, fontSize: 12, outline: 'none', fontFamily: 'Open Sans' }} />
