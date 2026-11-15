@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import ShopPageClient, { Product } from './ShopPageClient'
+import { withFromPrices } from '@/lib/pricing-server'
 
 // Server-rendered so crawlers (and curl) see full product names/prices in
 // the initial HTML — this page was previously client-only and shipped an
@@ -44,7 +45,10 @@ export default async function ShopPage() {
   const { data: catRows } = await db.from('categories').select('slug, price_model')
   const modelBySlug = Object.fromEntries((catRows || []).map((c: any) => [c.slug, c.price_model]))
 
-  const slim = (products || []).map((p: any) => {
+  // "From" prices come from the same function the product page uses
+  const priced = await withFromPrices(products || [])
+
+  const slim = priced.map((p: any) => {
     const o: Record<string, unknown> = {}
     CARD_FIELDS.forEach(k => { o[k] = p[k] })
     o.price_model = modelBySlug[p.product_type] ?? null

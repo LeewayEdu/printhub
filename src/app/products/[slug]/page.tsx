@@ -4,6 +4,7 @@ import type { Metadata } from 'next'
 import { generateProductMetadata, ProductSchema, BreadcrumbSchema, type ShippingRange } from '@/components/seo'
 import ProductPageClient from './ProductPageClient'
 import { SITE_URL } from '@/lib/site-url'
+import { withFromPrices } from '@/lib/pricing-server'
 
 export const dynamic = 'force-dynamic'
 
@@ -61,7 +62,7 @@ async function loadProduct(slug: string) {
 
     const [{ data: related }, { data: marketingTagRows }, { data: categoryRow }, { data: deliveryRows }, { data: reviewRows }] = await Promise.all([
       db.from('products')
-        .select('id, name, slug, images, image_url, display_price, price')
+        .select('id, name, slug, images, image_url, display_price, price, product_type, category, moq, min_width, min_height, min_order_amount, is_fixed_price')
         .eq('is_active', true)
         .eq('category', product.category)
         .neq('id', product.id)
@@ -82,7 +83,10 @@ async function loadProduct(slug: string) {
     const reviewStats = ratings.length
       ? { count: ratings.length, average: Math.round((ratings.reduce((a: number, b: number) => a + b, 0) / ratings.length) * 10) / 10 }
       : null
-    return { product, related: related || [], marketingTagRows: marketingTagRows || [], category: categoryRow, shipping, reviewStats }
+    // The page's own "from" price and its related products' prices use the shared function
+    const [pricedProduct] = await withFromPrices([product])
+    const pricedRelated = await withFromPrices(related || [])
+    return { product: pricedProduct, related: pricedRelated, marketingTagRows: marketingTagRows || [], category: categoryRow, shipping, reviewStats }
   } catch (e) {
     console.error('[product-page]', slug, e)
     return null

@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { generateIndustryMetadata, Breadcrumbs, BreadcrumbSchema } from '@/components/seo'
 import { SITE_URL } from '@/lib/site-url'
 import { visibleBadge } from '@/lib/catalog'
+import { withFromPrices } from '@/lib/pricing-server'
 import SiteImage from '@/components/ui/SiteImage'
 
 export const dynamic = 'force-dynamic'
@@ -39,10 +40,10 @@ async function loadIndustry(slug: string): Promise<{ industry: Industry; product
     if (industryProducts?.length) {
       const { data } = await supabaseServer
         .from('products')
-        .select('id, name, slug, display_price, price, images, image_url, short_description, badge, pricing_model, area_rate, area_unit')
+        .select('id, name, slug, display_price, price, images, image_url, short_description, badge, pricing_model, area_rate, area_unit, product_type, category, moq, min_width, min_height, min_order_amount, is_fixed_price')
         .in('id', industryProducts.map(ip => ip.product_id))
         .eq('is_active', true)
-      products = data || []
+      products = await withFromPrices(data || [])
     }
     return { industry, products }
   } catch {

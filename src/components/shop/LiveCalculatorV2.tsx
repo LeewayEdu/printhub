@@ -6,6 +6,7 @@ import {
   SpecOption, SpecSelection, QtyTier, AddonSelection
 } from '@/lib/priceEngineV2'
 import { getCategoryPriceModel } from '@/lib/categories'
+import { PAGE_STEPPER_CONFIG, DEFAULT_PAGE_STEPPER } from '@/lib/priceCalc'
 
 export interface TierRow {
   qty: number          // smallest orderable quantity inside this tier
@@ -37,25 +38,6 @@ interface LiveCalculatorV2Props {
   onDimensionChange?: (axis: 'width' | 'height', value: number) => void
   onPriceModelResolved?: (priceModel: string) => void
 }
-
-// ── PER-CATEGORY PAGE STEPPER CONFIG ──────────────────────────
-// Previously the "Number of Pages" stepper was hardcoded to step=4,
-// min=8 for EVERY per_page category — magazines, brochures, book
-// printing, and jotters all behaved identically. That's wrong for
-// jotters/diaries, which are only sold in fixed leaf-count tiers
-// (50/100/150/200), not arbitrary page counts in steps of 4.
-//
-// This config is keyed by category slug (the same `category` prop
-// already passed into this component as product_type). Any category
-// NOT listed here falls back to the original magazines/brochures
-// behavior (step 4, min 8, default 100) — so existing categories are
-// unaffected by this change.
-const PAGE_STEPPER_CONFIG: Record<string, { step: number; min: number; max?: number; default: number; label: string }> = {
-  'jotter-printing': { step: 50, min: 50, max: 200, default: 50, label: 'leaves' },
-  // Add other leaf/page-tiered categories here the same way, e.g.:
-  // 'notebook-stationery': { step: 50, min: 50, max: 300, default: 100, label: 'leaves' },
-}
-const DEFAULT_PAGE_STEPPER = { step: 4, min: 8, max: undefined as number | undefined, default: 100, label: 'pages' }
 
 export default function LiveCalculatorV2({
   category, productName, qty, widthFt = 1, heightFt = 1,

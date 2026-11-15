@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Breadcrumbs, BreadcrumbSchema, pageMetadata } from '@/components/seo'
 import { SITE_URL } from '@/lib/site-url'
 import { visibleBadge } from '@/lib/catalog'
+import { withFromPrices } from '@/lib/pricing-server'
 import SiteImage from '@/components/ui/SiteImage'
 
 export const dynamic = 'force-dynamic'
@@ -27,11 +28,11 @@ async function loadCategory(slug: string): Promise<{ category: Record<string, an
     if (error || !category) return null
     const { data: products } = await supabaseServer
       .from('products')
-      .select('id, name, slug, display_price, price, images, image_url, short_description, badge, pricing_model, area_rate, area_unit, rating, review_count')
+      .select('id, name, slug, display_price, price, images, image_url, short_description, badge, pricing_model, area_rate, area_unit, rating, review_count, product_type, category, moq, min_width, min_height, min_order_amount, is_fixed_price')
       .eq('product_type', slug)
       .eq('is_active', true)
       .order('sort_order', { ascending: true })
-    return { category, products: products || [] }
+    return { category, products: await withFromPrices(products || []) }
   } catch {
     return null
   }
