@@ -40,9 +40,14 @@ export default async function ShopPage() {
     db.from('product_marketing_categories').select('product_id, marketing_categories(label)'),
   ])
 
+  // Price model of each product's category (e.g. per_100) so cards can show a per-piece price
+  const { data: catRows } = await db.from('categories').select('slug, price_model')
+  const modelBySlug = Object.fromEntries((catRows || []).map((c: any) => [c.slug, c.price_model]))
+
   const slim = (products || []).map((p: any) => {
     const o: Record<string, unknown> = {}
     CARD_FIELDS.forEach(k => { o[k] = p[k] })
+    o.price_model = modelBySlug[p.product_type] ?? null
     // descriptions are only used for search, so a short excerpt is enough
     o.description = typeof p.description === 'string' ? p.description.slice(0, 200) : null
     return o

@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { NAV_LINKS } from '@/lib/constants'
-import { ShoppingCart, User, Menu, X } from 'lucide-react'
+import { ShoppingCart, User, Menu, X, Search } from 'lucide-react'
 import { useCartStore } from '@/store/cartStore'
 import { useThemeStore } from '@/store/themeStore'
 import { Sun, Moon } from 'lucide-react'
@@ -14,6 +15,9 @@ import SiteImage from '@/components/ui/SiteImage'
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchText, setSearchText] = useState('')
+  const router = useRouter()
   const cartCount = useCartStore(state => state.totalItems())
   const { theme, toggleTheme } = useThemeStore()
   const [isLoggedIn, setIsLoggedIn] = useState(false)
@@ -192,6 +196,17 @@ useEffect(() => {
             Order Now →
           </Link>
 
+          {/* Search (mobile) */}
+          <button
+            onClick={() => setSearchOpen(o => !o)}
+            style={{ display: 'none', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--dark)', padding: 4 }}
+            className="mobile-search-btn"
+            aria-label={searchOpen ? 'Close search' : 'Search products'}
+            aria-expanded={searchOpen}
+          >
+            {searchOpen ? <X size={20} /> : <Search size={20} />}
+          </button>
+
           {/* Hamburger (mobile) */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
@@ -206,6 +221,33 @@ useEffect(() => {
           </button>
         </div>
       </nav>
+
+      {/* MOBILE SEARCH FIELD */}
+      {searchOpen && (
+        <form
+          className="mobile-search-panel"
+          onSubmit={e => {
+            e.preventDefault()
+            const q = searchText.trim()
+            if (!q) return
+            setSearchOpen(false)
+            router.push(`/shop?search=${encodeURIComponent(q)}`)
+          }}
+          style={{ position: 'sticky', top: 68, zIndex: 99, background: 'white', padding: '8px 16px', borderBottom: '1px solid var(--border)', gap: 8, display: 'none' }}
+        >
+          <input
+            autoFocus
+            type="search"
+            aria-label="Search products"
+            value={searchText}
+            onChange={e => setSearchText(e.target.value)}
+            placeholder="Search products…"
+            className="form-input"
+            style={{ flex: 1, minWidth: 0 }}
+          />
+          <button type="submit" className="btn btn-primary" style={{ padding: '0 16px' }}>Search</button>
+        </form>
+      )}
 
       {/* MOBILE MENU OVERLAY */}
       {menuOpen && (
@@ -271,6 +313,8 @@ useEffect(() => {
         @media (max-width: 940px) {
           .desktop-nav { display: none !important; }
           .mobile-menu-btn { display: flex !important; }
+          .mobile-search-btn { display: flex !important; }
+          .mobile-search-panel { display: flex !important; }
           nav { padding: 0 16px !important; }
           .nav-order-btn { display: none !important; }
         }

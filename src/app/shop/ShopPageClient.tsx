@@ -271,7 +271,7 @@ export default function ShopPageClient({
       <main id="main-content">
 
         {/* Hero */}
-        <section style={{ position: 'relative', overflow: 'hidden', height: 320 }}>
+        <section style={{ position: 'relative', overflow: 'hidden', height: 'clamp(140px, 24vw, 240px)' }}>
           {heroBanners.length > 0 ? (
             <>
               {heroBanners.map((banner, i) => (
@@ -303,11 +303,11 @@ export default function ShopPageClient({
               <div style={{ position: 'absolute' as const, inset: 0, backgroundImage: 'linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
               <div style={{ position: 'absolute' as const, inset: 0, display: 'flex', flexDirection: 'column' as const, justifyContent: 'center', padding: '0 clamp(16px, 4vw, 40px)', zIndex: 2 }}>
                 <div style={{ maxWidth: 1100, margin: '0 auto', width: '100%' }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.55)', marginBottom: 12 }}>Our services</div>
-                  <p style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 'clamp(32px, 5vw, 52px)', color: 'white', lineHeight: 1.05, marginBottom: 12 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.55)', marginBottom: 12 }} className="hero-eyebrow">Our services</div>
+                  <p style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 'clamp(20px, 3.4vw, 38px)', color: 'white', lineHeight: 1.1, marginBottom: 12 }}>
                     Everything you need,<br /><span style={{ color: 'var(--red)' }}>printed with precision.</span>
                   </p>
-                  <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.5)', maxWidth: 480, lineHeight: 1.75 }}>Browse our catalogue. Choose specs, see live pricing, add to cart.</p>
+                  <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.5)', maxWidth: 480, lineHeight: 1.75 }} className="hero-sub">Browse our catalogue. Choose specs, see live pricing, add to cart.</p>
                 </div>
               </div>
             </>
@@ -332,6 +332,16 @@ export default function ShopPageClient({
               <h1 style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 'clamp(22px, 3vw, 30px)', color: 'var(--text-primary)', marginBottom: 16 }}>
                 {cat === 'All Products' ? 'Shop Print Products' : cat}
               </h1>
+              <div className="shop-sticky">
+              {/* Category chips: scrollable row, shown where the sidebar is hidden */}
+              <div className="cat-chips" role="group" aria-label="Categories">
+                {Object.keys(catCounts).filter(k => k === 'All Products' || catCounts[k] > 0).map(k => (
+                  <button key={k} type="button" onClick={() => changeCategory(k)} aria-pressed={cat === k}
+                    style={{ flexShrink: 0, padding: '7px 14px', borderRadius: 20, border: `1.5px solid ${cat === k ? 'var(--red)' : 'var(--border-color)'}`, background: cat === k ? 'var(--red)' : 'var(--bg-card)', color: cat === k ? 'white' : 'var(--text-primary)', fontFamily: 'Montserrat', fontWeight: 600, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
+                    {k}
+                  </button>
+                ))}
+              </div>
               <div className="shop-search-row" style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' as const, alignItems: 'center' }}>
                 <div style={{ position: 'relative' as const, flex: 1, minWidth: 200 }}>
                   <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
@@ -344,6 +354,7 @@ export default function ShopPageClient({
                   <option value="price-desc">Price: High to low</option>
                   <option value="name">Name A-Z</option>
                 </select>
+              </div>
               </div>
 
               <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>
@@ -653,8 +664,9 @@ export default function ShopPageClient({
           .mg { grid-template-columns: 1fr !important; }
         }
         @media (max-width: 600px) {
-          .shop-search-row { flex-direction: column !important; }
-          .shop-search-row > * { width: 100% !important; max-width: 100% !important; }
+          .shop-search-row > div { flex: 1 1 130px !important; min-width: 0 !important; }
+          .shop-search-row > select { flex: 0 0 120px !important; }
+          .hero-eyebrow, .hero-sub { display: none !important; }
         }
         @media (max-width: 480px) {
           .pg { gap: 8px !important; grid-template-columns: repeat(2, 1fr) !important; }
@@ -666,6 +678,12 @@ export default function ShopPageClient({
         @media (max-width: 600px) {
           .pg { grid-template-columns: repeat(2, 1fr) !important; }
         }
+        /* filter + sort bar and category chips stay in view while scrolling */
+        .shop-sticky { position: sticky; top: 68px; z-index: 20; background: var(--bg-secondary); padding: 8px 0 2px; margin-bottom: 14px; }
+        .shop-sticky .shop-search-row { margin-bottom: 8px !important; }
+        .cat-chips { display: none; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 4px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+        .cat-chips::-webkit-scrollbar { display: none; }
+        @media (max-width: 1024px) { .cat-chips { display: flex; } }
         .no-spinners::-webkit-outer-spin-button,
         .no-spinners::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         .no-spinners { -moz-appearance: textfield; }

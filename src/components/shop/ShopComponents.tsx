@@ -33,6 +33,7 @@ export interface ProductCardData {
   created_at?: string
   is_active: boolean
   moq?: number
+  price_model?: string | null   // category price model (per_100, per_piece, area, ...)
 }
 
 // ─── HELPERS ──────────────────────────────────────────────────
@@ -204,7 +205,7 @@ export function ProductCard({
       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = 'none'; (e.currentTarget as HTMLElement).style.transform = 'none' }}>
 
       {/* Image — square 1:1 */}
-      <div className="card-img" style={{ width: '100%', aspectRatio: '1 / 1', background: 'var(--bg-secondary)', position: 'relative' as const, overflow: 'hidden', cursor: 'pointer' }}
+      <div className="card-img" style={{ width: '100%', aspectRatio: '4 / 3', background: 'var(--bg-secondary)', position: 'relative' as const, overflow: 'hidden', cursor: 'pointer' }}
         onClick={href ? () => window.location.href = href : () => onOpen(product)}>
         <CardImage imgs={imgs} name={product.name} />
 
@@ -268,11 +269,17 @@ export function ProductCard({
               </div>
             )
           })()}
-          {product.moq && product.moq > 1 && (
-            <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontFamily: 'Open Sans', marginTop: 1 }}>
-              Min: {product.moq} pcs
-            </div>
-          )}
+          {product.moq && product.moq > 1 && (() => {
+            // Per-piece figure only where it can be derived safely: 'per 100' categories,
+            // taking the card price as the price at the minimum quantity.
+            const base = Number(product.display_price || product.price)
+            const each = product.price_model === 'per_100' && base > 0 ? Math.round(base / product.moq) : 0
+            return (
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontFamily: 'Open Sans', marginTop: 1 }}>
+                Min {product.moq} pcs{each > 0 ? ` · about ₦${each.toLocaleString()} each` : ''}
+              </div>
+            )
+          })()}
         </div>
 
         {/* Order button */}
@@ -280,7 +287,7 @@ export function ProductCard({
           style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px', background: 'var(--red)', color: 'white', border: 'none', borderRadius: 8, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 12, cursor: 'pointer', marginTop: 8, transition: 'background 0.2s' }}
           onMouseEnter={e => (e.currentTarget.style.background = 'var(--red-dark)')}
           onMouseLeave={e => (e.currentTarget.style.background = 'var(--red)')}>
-          <ShoppingCart size={13} /> Order Now
+          <ShoppingCart size={13} /> {product.is_fixed_price ? 'See price' : 'Choose options'}
         </button>
       </div>
     </div>
