@@ -13,6 +13,12 @@ export default function ProformaPage() {
   const [doc, setDoc] = useState<Proforma | null>(null)
   const [missing, setMissing] = useState(false)
 
+  // the chat launcher would sit on top of the totals
+  useEffect(() => {
+    document.body.classList.add('hide-launcher')
+    return () => document.body.classList.remove('hide-launcher')
+  }, [])
+
   useEffect(() => {
     try {
       const raw = sessionStorage.getItem(PROFORMA_STORAGE_KEY)

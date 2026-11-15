@@ -272,6 +272,7 @@ main:focus { outline: none; }
 [style*="Open Sans"]  { font-family: var(--font-open-sans), 'Open Sans', sans-serif !important; }
 
 @media print { .no-print { display: none !important; } }
+body.hide-launcher .chat-launcher { display: none !important; }
 
 /* ── STICKY MOBILE BUY BAR (product pages) ── */
 .mobile-buy-bar { display: none; }
