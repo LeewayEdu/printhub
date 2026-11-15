@@ -9,7 +9,7 @@ import { supabase } from '@/lib/supabase/client'
 import { ShoppingCart, Heart, Share2, ChevronDown, ChevronUp, Star, MessageCircle } from 'lucide-react'
 import { useCartStore } from '@/store/cartStore'
 import type { DesignPricingResolved } from '@/store/cartStore'
-import LiveCalculatorV2 from '@/components/shop/LiveCalculatorV2'
+import LiveCalculatorV2, { type TierRow } from '@/components/shop/LiveCalculatorV2'
 import DesignPricingFlow from '@/components/shop/DesignPricingFlow'
 import { Breadcrumbs } from '@/components/seo'
 import { fbTrack } from '@/lib/meta-pixel'
@@ -34,6 +34,7 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
   const [resolvedPriceModel, setResolvedPriceModel] = useState('unit')
   const [openFaq, setOpenFaq] = useState<number | null>(null)
   const [wishlisted, setWishlisted] = useState(false)
+  const [tierRows, setTierRows] = useState<TierRow[]>([])
 
   // Design pricing state
   const [designPricingResolved, setDesignPricingResolved] = useState<DesignPricingResolved | null>(null)
@@ -252,6 +253,10 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
               minHeight={product.min_height || 0.1}
               minOrderAmount={product.min_order_amount || undefined}
               hideTotal
+              moq={product.moq || 1}
+              increment={product.increment || 1}
+              maxQty={product.max_qty || null}
+              onTierTable={setTierRows}
               onDimensionChange={(axis, value) => {
                 if (axis === 'width') setWidthIn(value)
                 else setHeightIn(value)
@@ -281,6 +286,34 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
                 style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid var(--border)', background: '#f7f7f5', cursor: 'pointer', fontSize: 18 }}>+</button>
             </div>
           </div>
+
+          {/* Bulk pricing: real tiers from the pricing engine, figures for the options chosen above */}
+          {tierRows.length > 1 && (() => {
+            const activeIdx = Math.max(0, tierRows.findIndex(r => qty >= r.minQty && (r.maxQty === null || qty <= r.maxQty)))
+            const next = tierRows[activeIdx + 1]
+            const currentEach = calculatedPrice && qty ? printPrice / qty : 0
+            const saving = next && currentEach ? Math.round(currentEach * next.qty - next.total) : 0
+            return (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 6 }}>Bulk pricing</div>
+                <table style={{ width: '100%', borderCollapse: 'collapse' as const, fontSize: 13 }}>
+                  <tbody>
+                    {tierRows.map((r, i) => (
+                      <tr key={r.qty} style={{ background: i === activeIdx ? 'rgba(192,57,43,0.08)' : 'transparent', fontWeight: i === activeIdx ? 700 : 400 }}>
+                        <td style={{ padding: '6px 10px', borderRadius: '6px 0 0 6px' }}>{r.qty} pcs{r.discountPct > 0 ? ` · ${r.discountPct}% off` : ''}</td>
+                        <td style={{ padding: '6px 10px', textAlign: 'right' as const, borderRadius: '0 6px 6px 0' }}>₦{r.each.toLocaleString()} each</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {next && qty < next.qty && saving > 0 && (
+                  <div style={{ fontSize: 13, color: '#047857', marginTop: 6 }}>
+                    Order {(next.qty - qty).toLocaleString()} more to save ₦{saving.toLocaleString()}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
 
           {/* Design pricing flow — shown when product has design pricing configured */}
           {hasDesignPricing && (

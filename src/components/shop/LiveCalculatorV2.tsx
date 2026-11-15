@@ -7,6 +7,15 @@ import {
 } from '@/lib/priceEngineV2'
 import { getCategoryPriceModel } from '@/lib/categories'
 
+export interface TierRow {
+  qty: number          // smallest orderable quantity inside this tier
+  minQty: number
+  maxQty: number | null
+  each: number         // price per piece at that quantity, for the options currently chosen
+  total: number
+  discountPct: number
+}
+
 interface LiveCalculatorV2Props {
   category: string
   productName: string
@@ -18,6 +27,10 @@ interface LiveCalculatorV2Props {
   minOrderAmount?: number  // charged price floor — shown as "Minimum order applies" when hit
   isAreaBased?: boolean
   hideTotal?: boolean   // the host page shows the price itself
+  moq?: number
+  increment?: number
+  maxQty?: number | null
+  onTierTable?: (rows: TierRow[]) => void
   applyPreset?: { specs?: Record<string, string>; addons?: string[] } | null
   onPriceUpdate: (total: number, specs: Record<string, string>, summaryText: string) => void
   onSpecsUpdate?: (specs: SpecSelection) => void
@@ -47,7 +60,7 @@ const DEFAULT_PAGE_STEPPER = { step: 4, min: 8, max: undefined as number | undef
 export default function LiveCalculatorV2({
   category, productName, qty, widthFt = 1, heightFt = 1,
   minWidth = 0.1, minHeight = 0.1, minOrderAmount,
-  isAreaBased = false, hideTotal = false,
+  isAreaBased = false, hideTotal = false, moq = 1, increment = 1, maxQty = null, onTierTable,
   applyPreset, onPriceUpdate, onSpecsUpdate, onDimensionChange, onPriceModelResolved
 }: LiveCalculatorV2Props) {
 
@@ -167,6 +180,27 @@ export default function LiveCalculatorV2({
       tiers,
       minOrderAmount,
     })
+
+    // Tier table: the same calculate() at the first orderable quantity of each real tier
+    if (onTierTable) {
+      const sorted = [...tiers].sort((a, b) => a.min_qty - b.min_qty)
+      const orderable = (min: number) => {
+        let q = Math.max(min, moq)
+        if (increment > 1) q = moq + Math.ceil((q - moq) / increment) * increment
+        return q
+      }
+      const rows: TierRow[] = []
+      const push = (q: number, minQty: number, maxQ: number | null) => {
+        if ((maxQty && q > maxQty) || rows.some(r => r.qty === q)) return
+        const r = calculate({ category, priceModel, specs: selection, addons: addonSelections, qty: q, widthFt, heightFt, minWidth, minHeight, pages, tiers, minOrderAmount })
+        rows.push({ qty: q, minQty, maxQty: maxQ, each: Math.round(r.total / q), total: r.total, discountPct: r.discountPct })
+      }
+      if (sorted.length) {
+        if (sorted[0].min_qty > moq) push(orderable(moq), 0, sorted[0].min_qty - 1)
+        sorted.forEach(t => push(orderable(t.min_qty), t.min_qty, t.max_qty))
+      }
+      onTierTable(rows.length > 1 ? rows : [])
+    }
 
     setTotal(result.total)
     setTierLabel(result.tierLabel)
