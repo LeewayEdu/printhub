@@ -71,7 +71,7 @@ export default function WishlistPage() {
                   {img
                     ? <img src={img} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40 }}>🖨️</div>}
-                  <button onClick={() => remove(item.id, p.name)}
+                  <button aria-label="Remove from wishlist" onClick={() => remove(item.id, p.name)}
                     style={{ position: 'absolute' as const, top: 8, right: 8, width: 30, height: 30, borderRadius: '50%', background: 'rgba(255,255,255,0.92)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                     <Heart size={14} fill="#C0392B" color="#C0392B" />
                   </button>
@@ -79,7 +79,7 @@ export default function WishlistPage() {
 
                 {/* Info */}
                 <div style={{ padding: '12px 14px' }}>
-                  <div style={{ fontSize: 10, color: 'var(--gray)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 4 }}>{p.category}</div>
+                  <div style={{ fontSize: 12, color: 'var(--gray)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 4 }}>{p.category}</div>
                   <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13, marginBottom: 6, color: 'var(--black)' }}>{p.name}</div>
                   <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 15, color: 'var(--red)', marginBottom: 12 }}>{displayPrice(p)}</div>
                   <div style={{ display: 'flex', gap: 8 }}>
@@ -87,7 +87,7 @@ export default function WishlistPage() {
                       style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px', background: 'var(--red)', color: 'white', borderRadius: 8, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 12, textDecoration: 'none' }}>
                       <ShoppingCart size={13} /> Order Now
                     </Link>
-                    <button onClick={() => remove(item.id, p.name)}
+                    <button aria-label="Remove from wishlist" onClick={() => remove(item.id, p.name)}
                       style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '9px 12px', background: 'var(--light)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer', color: 'var(--gray)' }}>
                       <Trash2 size={13} />
                     </button>

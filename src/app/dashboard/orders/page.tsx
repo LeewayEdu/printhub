@@ -151,7 +151,7 @@ export default function OrdersPage() {
 
                 {/* Items list */}
                 <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 12 }}>Items Ordered</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--gray)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 12 }}>Items Ordered</div>
                   <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
                     {order.items?.map((item: any, idx: number) => (
                       <div key={idx} style={{ background: 'white', border: '1px solid var(--border)', borderRadius: 9, padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' as const }}>
@@ -161,7 +161,7 @@ export default function OrdersPage() {
                           {item.specs && Object.entries(item.specs).length > 0 && (
                             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' as const }}>
                               {Object.entries(item.specs).map(([k, v]) => (
-                                <span key={k} style={{ fontSize: 11, background: '#f3f4f6', borderRadius: 6, padding: '2px 8px', color: '#555' }}>{k}: {String(v)}</span>
+                                <span key={k} style={{ fontSize: 12, background: '#f3f4f6', borderRadius: 6, padding: '2px 8px', color: '#555' }}>{k}: {String(v)}</span>
                               ))}
                             </div>
                           )}
@@ -183,15 +183,15 @@ export default function OrdersPage() {
                 {/* Order info + actions */}
                 <div style={{ padding: '16px 24px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }} className="order-detail-grid">
                   <div>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--gray)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 4 }}>Payment</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--gray)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 4 }}>Payment</div>
                     <div style={{ fontSize: 13 }}>{order.paystack_reference ? `Paystack · ${order.paystack_reference}` : 'Bank Transfer'}</div>
                   </div>
                   <div>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--gray)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 4 }}>Delivery</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--gray)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 4 }}>Delivery</div>
                     <div style={{ fontSize: 13 }}>{order.shipping_method === 'pickup' ? 'Pickup from store' : order.delivery_area || 'Home delivery'}</div>
                   </div>
                   <div>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--gray)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 4 }}>Delivery Fee</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--gray)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 4 }}>Delivery Fee</div>
                     <div style={{ fontSize: 13, fontFamily: 'Montserrat', fontWeight: 500 }}>{Number(order.delivery_fee) === 0 ? 'Free' : `₦${Number(order.delivery_fee).toLocaleString()}`}</div>
                   </div>
                 </div>

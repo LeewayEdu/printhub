@@ -107,7 +107,7 @@ export default function HomePage({ data }: { data: HomeData }) {
   return (
     <>
       <Navbar />
-      <main>
+      <main id="main-content">
         {/* ── FULL PAGE SIDEBAR LAYOUT ── */}
         <div style={{ display: 'flex', alignItems: 'flex-start' }} className="sidebar-layout">
 
@@ -162,12 +162,12 @@ export default function HomePage({ data }: { data: HomeData }) {
             {/* ── SEARCH BAR ── */}
             <div ref={searchRef} style={{ position: 'relative' as const, marginBottom: 32, maxWidth: 560, margin: '0 auto 32px' }}>
               <div style={{ display: 'flex', alignItems: 'center', background: 'white', borderRadius: 50, boxShadow: heroSearchFocused ? '0 0 0 4px rgba(192,57,43,0.35), 0 12px 40px rgba(0,0,0,0.4)' : '0 8px 32px rgba(0,0,0,0.3)', transition: 'box-shadow 0.2s', position: 'relative' as const, zIndex: 101 }}>
-                <div style={{ paddingLeft: 22, color: '#bbb', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                <div style={{ paddingLeft: 22, color: '#6B6B6B', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
                   </svg>
                 </div>
-                <input
+                <input aria-label="Search products"
                   value={heroSearch}
                   onChange={e => setHeroSearch(e.target.value)}
                   onFocus={() => setHeroSearchFocused(true)}
@@ -175,16 +175,16 @@ export default function HomePage({ data }: { data: HomeData }) {
                   style={{ flex: 1, padding: '15px 12px', border: 'none', outline: 'none', fontSize: 14, fontFamily: 'Open Sans', color: '#1A1A1A', background: 'transparent', minWidth: 0 }}
                 />
                 {heroSearch && (
-                  <button onClick={() => { setHeroSearch(''); setHeroResults([]) }}
-                    style={{ padding: '0 10px', background: 'none', border: 'none', cursor: 'pointer', color: '#bbb', fontSize: 20, lineHeight: 1, flexShrink: 0 }}>×</button>
+                  <button aria-label="Clear search" onClick={() => { setHeroSearch(''); setHeroResults([]) }}
+                    style={{ padding: '0 10px', background: 'none', border: 'none', cursor: 'pointer', color: '#6B6B6B', fontSize: 20, lineHeight: 1, flexShrink: 0 }}>×</button>
                 )}
                 <div style={{ padding: '5px 5px 5px 0', flexShrink: 0 }}>
-                  <div style={{ background: 'var(--red)', borderRadius: 50, width: 42, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                  <button type="button" aria-label="Search" style={{ background: 'var(--red)', borderRadius: 50, width: 42, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: 'none', padding: 0 }}
                     onClick={() => heroSearch && router.push(`/shop?search=${encodeURIComponent(heroSearch)}`)}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
                     </svg>
-                  </div>
+                  </button>
                 </div>
               </div>
 
@@ -193,7 +193,7 @@ export default function HomePage({ data }: { data: HomeData }) {
                 <div style={{ position: 'absolute' as const, top: 'calc(100% + 8px)', left: 0, right: 0, background: 'white', borderRadius: 20, boxShadow: '0 24px 60px rgba(0,0,0,0.35)', zIndex: 100, overflow: 'hidden', border: '1px solid rgba(0,0,0,0.06)' }}>
                   {heroSearch && heroResults.length > 0 && (
                     <>
-                      <div style={{ padding: '12px 16px 6px', fontSize: 10, fontWeight: 700, color: '#bbb', textTransform: 'uppercase' as const, letterSpacing: '0.1em' }}>Products</div>
+                      <div style={{ padding: '12px 16px 6px', fontSize: 12, fontWeight: 700, color: '#6B6B6B', textTransform: 'uppercase' as const, letterSpacing: '0.1em' }}>Products</div>
                       {heroResults.map(p => {
                         const img = p.images?.[0] || p.image_url
                         const tags = productTags[p.id] || []
@@ -208,7 +208,7 @@ export default function HomePage({ data }: { data: HomeData }) {
                             </div>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13, color: '#1A1A1A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{p.name}</div>
-                              {catLabel && <div style={{ fontSize: 11, color: '#999', marginTop: 1 }}>{catLabel}</div>}
+                              {catLabel && <div style={{ fontSize: 12, color: '#6B6B6B', marginTop: 1 }}>{catLabel}</div>}
                             </div>
                             <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 12, color: 'var(--red)', flexShrink: 0 }}>{priceLabel(p)}</div>
                           </div>
@@ -222,13 +222,13 @@ export default function HomePage({ data }: { data: HomeData }) {
                   )}
                   {heroSearch && heroResults.length === 0 && (
                     <div style={{ padding: '20px 16px', textAlign: 'center' as const }}>
-                      <div style={{ fontSize: 13, color: '#888', marginBottom: 4 }}>No products found for "{heroSearch}"</div>
-                      <div style={{ fontSize: 11, color: '#bbb' }}>Try "banners", "business cards" or "T-shirts"</div>
+                      <div style={{ fontSize: 13, color: '#6B6B6B', marginBottom: 4 }}>No products found for "{heroSearch}"</div>
+                      <div style={{ fontSize: 12, color: '#6B6B6B' }}>Try "banners", "business cards" or "T-shirts"</div>
                     </div>
                   )}
                   {!heroSearch && (
                     <>
-                      <div style={{ padding: '14px 16px 8px', fontSize: 10, fontWeight: 700, color: '#bbb', textTransform: 'uppercase' as const, letterSpacing: '0.1em' }}>Popular Searches</div>
+                      <div style={{ padding: '14px 16px 8px', fontSize: 12, fontWeight: 700, color: '#6B6B6B', textTransform: 'uppercase' as const, letterSpacing: '0.1em' }}>Popular Searches</div>
                       {[
                         { icon: '🎌', label: 'Banners & Large Format' },
                         { icon: '💼', label: 'Business Cards' },
@@ -276,7 +276,7 @@ export default function HomePage({ data }: { data: HomeData }) {
                   {i > 0 && <div style={{ width: 1, height: 40, background: 'rgba(255,255,255,0.1)', margin: '0 24px' }} />}
                   <div>
                     <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 26, color: 'white', lineHeight: 1 }}>{stat.value}</div>
-                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>{stat.label}</div>
+                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 4 }}>{stat.label}</div>
                   </div>
                 </div>
               ))}
@@ -287,7 +287,7 @@ export default function HomePage({ data }: { data: HomeData }) {
           {heroBanners.length > 1 && (
             <div style={{ position: 'absolute' as const, bottom: 24, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 8, zIndex: 3 }}>
               {heroBanners.map((_, i) => (
-                <button key={i} onClick={() => setHeroIdx(i)} style={{ width: i === heroIdx ? 24 : 8, height: 8, borderRadius: 4, background: i === heroIdx ? 'white' : 'rgba(255,255,255,0.35)', border: 'none', cursor: 'pointer', transition: 'all 0.3s', padding: 0 }} />
+                <button aria-label={`Show banner ${i + 1}`} key={i} onClick={() => setHeroIdx(i)} style={{ width: i === heroIdx ? 24 : 8, height: 8, borderRadius: 4, background: i === heroIdx ? 'white' : 'rgba(255,255,255,0.35)', border: 'none', cursor: 'pointer', transition: 'all 0.3s', padding: 0 }} />
               ))}
             </div>
           )}
@@ -298,7 +298,7 @@ export default function HomePage({ data }: { data: HomeData }) {
           <div style={{ background: 'var(--red)', overflow: 'hidden', padding: '13px 0' }}>
             <div className="trust-track">
               {[...Array(2)].flatMap(() => tickerItems).map((item, i) => (
-                <span key={i} style={{ display: 'inline-flex', alignItems: 'center', padding: '0 clamp(12px, 3vw, 36px)', fontFamily: 'Montserrat', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.9)', letterSpacing: '0.05em', textTransform: 'uppercase' as const, whiteSpace: 'nowrap' as const, borderRight: '1px solid rgba(255,255,255,0.25)' }}>
+                <span key={i} className={i >= tickerItems.length ? 'ticker-dup' : undefined} aria-hidden={i >= tickerItems.length ? 'true' : undefined} style={{ display: 'inline-flex', alignItems: 'center', padding: '0 clamp(12px, 3vw, 36px)', fontFamily: 'Montserrat', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.9)', letterSpacing: '0.05em', textTransform: 'uppercase' as const, whiteSpace: 'nowrap' as const, borderRight: '1px solid rgba(255,255,255,0.25)' }}>
                   {item.emoji} {item.text}
                 </span>
               ))}
@@ -527,7 +527,7 @@ export default function HomePage({ data }: { data: HomeData }) {
             <div style={{ textAlign: 'center' as const, marginBottom: 56 }}>
               <div className="badge badge-dark" style={{ marginBottom: 14 }}>Why PrintHub</div>
               <h2 style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 'clamp(28px, 3.5vw, 40px)', color: 'white', marginBottom: 14 }}>Nigeria's most trusted print partner</h2>
-              <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.45)', maxWidth: 480, margin: '0 auto', lineHeight: 1.75 }}>Since 2011, we've delivered print excellence to 3,000+ clients across Nigeria.</p>
+              <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.55)', maxWidth: 480, margin: '0 auto', lineHeight: 1.75 }}>Since 2011, we've delivered print excellence to 3,000+ clients across Nigeria.</p>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }} className="why-grid">
               {[
@@ -543,7 +543,7 @@ export default function HomePage({ data }: { data: HomeData }) {
                   onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.04)'; (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(255,255,255,0.07)' }}>
                   <div style={{ fontSize: 32, marginBottom: 16 }}>{item.icon}</div>
                   <h3 style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 16, color: 'white', marginBottom: 10 }}>{item.title}</h3>
-                  <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', lineHeight: 1.7 }}>{item.desc}</p>
+                  <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', lineHeight: 1.7 }}>{item.desc}</p>
                 </div>
               ))}
             </div>
@@ -607,7 +607,7 @@ export default function HomePage({ data }: { data: HomeData }) {
 
               {/* BOOK PUBLISHING */}
               <div style={{ background: 'var(--light)', border: '2px solid var(--red)', borderRadius: 20, padding: 32, display: 'flex', flexDirection: 'column' as const, gap: 20, position: 'relative' as const }}>
-                <div style={{ position: 'absolute' as const, top: -12, left: 32, background: 'var(--red)', color: 'white', fontFamily: 'Montserrat', fontWeight: 700, fontSize: 11, padding: '4px 14px', borderRadius: 20 }}>Popular</div>
+                <div style={{ position: 'absolute' as const, top: -12, left: 32, background: 'var(--red)', color: 'white', fontFamily: 'Montserrat', fontWeight: 700, fontSize: 12, padding: '4px 14px', borderRadius: 20 }}>Popular</div>
                 <div style={{ fontSize: 40 }}>📚</div>
                 <div>
                   <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 22, color: 'var(--text-primary)', marginBottom: 10 }}>Book Publishing</div>
@@ -640,12 +640,12 @@ export default function HomePage({ data }: { data: HomeData }) {
                 <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 72, color: 'var(--red)', lineHeight: 1 }}>3,000+</div>
                 <div style={{ fontSize: 16, color: 'rgba(255,255,255,0.5)', lineHeight: 1.6, marginTop: 8 }}>Jobs delivered since {BRAND.since}</div>
                 <div style={{ width: 40, height: 3, background: 'var(--red)', borderRadius: 2, margin: '20px 0' }} />
-                <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)', lineHeight: 1.7 }}>Trusted by 50+ organisations, agencies, businesses and campaigns</p>
+                <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', lineHeight: 1.7 }}>Trusted by 50+ organisations, agencies, businesses and campaigns</p>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10 }} className="clients-inner-grid">
                 {HOME_CLIENTS.map(client => (
                   <div key={client} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: '14px 10px', textAlign: 'center' as const }}>
-                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', lineHeight: 1.4 }}>{client}</span>
+                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', lineHeight: 1.4 }}>{client}</span>
                   </div>
                 ))}
               </div>
@@ -749,6 +749,10 @@ export default function HomePage({ data }: { data: HomeData }) {
       <Footer />
 
       <style suppressHydrationWarning dangerouslySetInnerHTML={{ __html: `
+        @media (prefers-reduced-motion: reduce) {
+          .trust-track { animation: none !important; width: auto; flex-wrap: wrap; justify-content: center; }
+          .ticker-dup { display: none !important; }
+        }
         .trust-track {
           display: flex;
           width: max-content;

@@ -125,10 +125,10 @@ export default function ChatWidget() {
                 </div>
               <div>
                 <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13, color: 'white' }}>PrintHub Assistant</div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Powered by AI</div>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Powered by AI</div>
               </div>
             </div>
-            <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.6)', padding: 4 }}>
+            <button aria-label="Close chat" onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.6)', padding: 4 }}>
               <X size={18} />
             </button>
           </div>
@@ -187,7 +187,7 @@ export default function ChatWidget() {
                     {leadSaving ? 'Saving...' : 'Submit'}
                   </button>
                   <button onClick={() => { setShowLeadForm(false); setLeadCaptured(true) }}
-                    style={{ padding: '7px 12px', background: 'white', border: '1px solid #e8e8e5', borderRadius: 7, fontSize: 11, cursor: 'pointer', color: '#888' }}>
+                    style={{ padding: '7px 12px', background: 'white', border: '1px solid #e8e8e5', borderRadius: 7, fontSize: 12, cursor: 'pointer', color: '#6B6B6B' }}>
                     Skip
                   </button>
                 </div>
@@ -204,7 +204,7 @@ export default function ChatWidget() {
               placeholder="Ask me anything..."
               style={{ flex: 1, padding: '10px 14px', border: '1px solid #e8e8e5', borderRadius: 9, fontSize: 13, fontFamily: 'Open Sans', background: '#ffffff', color: '#1A1A1A', outline: 'none' }}
             />
-            <button onClick={send} disabled={loading || !input.trim()}
+            <button aria-label="Send message" onClick={send} disabled={loading || !input.trim()}
               style={{ width: 38, height: 38, background: input.trim() ? 'var(--red)' : '#f7f7f5', border: '1px solid var(--border-color)', borderRadius: 9, cursor: input.trim() ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <Send size={15} color={input.trim() ? 'white' : 'var(--text-secondary)'} />
             </button>

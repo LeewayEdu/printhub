@@ -91,7 +91,7 @@ function AuthNav() {
         <img src="/C-Chu_media_Logo_.png" alt="C-Chu Media" style={{ width: 36, height: 36, objectFit: 'contain' }} />
         <div>
           <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 15, color: 'var(--black)' }}>PrintHub</div>
-          <div style={{ fontSize: 11, color: 'var(--gray)' }}>by C-Chu Media Ltd</div>
+          <div style={{ fontSize: 12, color: 'var(--gray)' }}>by C-Chu Media Ltd</div>
         </div>
       </Link>
       <Link href="/" style={{ fontSize: 13, color: 'var(--gray)', textDecoration: 'none' }}>← Back to home</Link>
@@ -106,10 +106,10 @@ function AuthLeft() {
       <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
       <div style={{ position: 'relative', zIndex: 2 }}>
         <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 28, color: 'white', marginBottom: 6 }}>PrintHub</div>
-        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', fontStyle: 'italic', marginBottom: 40 }}>by C-Chu Media Limited · Since 2011</div>
-        <h2 style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 'clamp(24px, 2.5vw, 36px)', color: 'white', lineHeight: 1.15, marginBottom: 16, letterSpacing: '-0.02em' }}>
+        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', fontStyle: 'italic', marginBottom: 40 }}>by C-Chu Media Limited · Since 2011</div>
+        <h1 style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 'clamp(24px, 2.5vw, 36px)', color: 'white', lineHeight: 1.15, marginBottom: 16, letterSpacing: '-0.02em' }}>
           Order printing.<br /><span style={{ color: 'var(--red)' }}>Track everything.</span><br />Earn commissions.
-        </h2>
+        </h1>
         <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', lineHeight: 1.75, marginBottom: 36, maxWidth: 360 }}>
           Your PrintHub account gives you access to Nigeria's most complete online print ordering platform.
         </p>
@@ -290,7 +290,7 @@ function RegisterForm({ onSuccess }: { onSuccess: () => void }) {
             required
             minLength={6}
           />
-          <div style={{ fontSize: 11, color: 'var(--gray)', marginTop: 5 }}>Minimum 6 characters</div>
+          <div style={{ fontSize: 12, color: 'var(--gray)', marginTop: 5 }}>Minimum 6 characters</div>
         </div>
         <div style={{ marginBottom: 16 }}>
           <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--dark)', display: 'block', marginBottom: 6 }}>
@@ -326,7 +326,7 @@ function RegisterForm({ onSuccess }: { onSuccess: () => void }) {
         </div>
         <div style={{ marginBottom: 16 }}>
           <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--dark)', display: 'block', marginBottom: 6 }}>How did you hear about us?</label>
-          <select value={form.heardFrom} onChange={e => set('heardFrom', e.target.value)} className="form-input" style={{ cursor: 'pointer' }}>
+          <select aria-label="How did you hear about us?" value={form.heardFrom} onChange={e => set('heardFrom', e.target.value)} className="form-input" style={{ cursor: 'pointer' }}>
             <option value="">Select one...</option>
             <option>Facebook / Instagram</option>
             <option>WhatsApp</option>

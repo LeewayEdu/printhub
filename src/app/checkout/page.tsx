@@ -292,7 +292,7 @@ export default function CheckoutPage() {
   return (
     <>
       <Navbar />
-      <main style={{ background: 'var(--bg-secondary)', padding: '40px', minHeight: '70vh' }}>
+      <main id="main-content" style={{ background: 'var(--bg-secondary)', padding: '40px', minHeight: '70vh' }}>
         <div style={{ maxWidth: 860, margin: '0 auto' }}>
 
           {/* Steps */}
@@ -303,7 +303,7 @@ export default function CheckoutPage() {
                   <div style={{ width: 34, height: 34, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: i < step ? '#10b981' : i === step ? 'var(--red)' : 'var(--border-color)', color: i <= step ? 'white' : 'var(--text-secondary)', fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13 }}>
                     {i < step ? <Check size={14} /> : i + 1}
                   </div>
-                  <span style={{ fontSize: 11, fontWeight: i === step ? 700 : 400, color: i === step ? 'var(--text-primary)' : 'var(--text-secondary)', fontFamily: 'Montserrat' }}>{s}</span>
+                  <span style={{ fontSize: 12, fontWeight: i === step ? 700 : 400, color: i === step ? 'var(--text-primary)' : 'var(--text-secondary)', fontFamily: 'Montserrat' }}>{s}</span>
                 </div>
                 {i < STEPS.length - 1 && <div style={{ width: 60, height: 2, background: i < step ? '#10b981' : 'var(--border-color)', margin: '0 8px', marginBottom: 22 }} />}
               </div>
@@ -325,10 +325,10 @@ export default function CheckoutPage() {
                         <div style={{ fontFamily: 'Montserrat', fontWeight: 600, fontSize: 14, color: 'var(--text-primary)', marginBottom: 4 }}>{item.name}</div>
                         <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4 }}>Qty: {item.displayQty}</div>
                         {item.specs && Object.entries(item.specs).map(([k, v]) => (
-                          <span key={k} style={{ fontSize: 11, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 6, padding: '2px 8px', color: 'var(--text-secondary)', marginRight: 4, display: 'inline-block', marginBottom: 2 }}>{k}: {String(v)}</span>
+                          <span key={k} style={{ fontSize: 12, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 6, padding: '2px 8px', color: 'var(--text-secondary)', marginRight: 4, display: 'inline-block', marginBottom: 2 }}>{k}: {String(v)}</span>
                         ))}
                         {item.design?.type && (
-                          <div style={{ fontSize: 11, color: '#10b981', marginTop: 4, fontWeight: 600 }}>
+                          <div style={{ fontSize: 12, color: '#10b981', marginTop: 4, fontWeight: 600 }}>
                             {item.design.type === 'upload' ? '✓ Design uploaded' : item.design.type === 'link' ? '✓ Design link provided' : '✓ Design brief submitted'}
                           </div>
                         )}
@@ -357,7 +357,7 @@ export default function CheckoutPage() {
                       <div key={opt.type} onClick={() => { setDeliveryType(opt.type as any); setSelectedDelivery(null) }}
                         style={{ padding: '12px', borderRadius: 10, border: `2px solid ${deliveryType === opt.type ? 'var(--red)' : 'var(--border-color)'}`, background: deliveryType === opt.type ? 'var(--red-pale)' : 'var(--bg-secondary)', cursor: 'pointer', textAlign: 'center' as const }}>
                         <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13, color: deliveryType === opt.type ? 'var(--red)' : 'var(--text-primary)', marginBottom: 2 }}>{opt.label}</div>
-                        <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{opt.sub}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{opt.sub}</div>
                       </div>
                     ))}
                   </div>
@@ -365,7 +365,7 @@ export default function CheckoutPage() {
                     <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 8, color: 'var(--text-primary)' }}>
                       {deliveryType === 'pickup' ? 'Select pickup location' : deliveryType === 'local' ? 'Select your area' : 'Select your state'}
                     </label>
-                    <select value={selectedDelivery?.id || ''} onChange={e => { const opt = filteredDelivery.find(d => d.id === e.target.value); setSelectedDelivery(opt || null) }} className="form-input" style={{ cursor: 'pointer' }}>
+                    <select aria-label="Delivery location" value={selectedDelivery?.id || ''} onChange={e => { const opt = filteredDelivery.find(d => d.id === e.target.value); setSelectedDelivery(opt || null) }} className="form-input" style={{ cursor: 'pointer' }}>
                       <option value="">-- Select --</option>
                       {filteredDelivery.map(opt => (
                         <option key={opt.id} value={opt.id}>{opt.name}{opt.price > 0 ? ` — ₦${Number(opt.price).toLocaleString()}` : ' — FREE'}</option>
@@ -383,16 +383,16 @@ export default function CheckoutPage() {
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                         <div>
                           <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 5, color: 'var(--text-primary)' }}>First name</label>
-                          <input value={firstName} onChange={e => setFirstName(e.target.value)} className="form-input" />
+                          <input aria-label="First name" value={firstName} onChange={e => setFirstName(e.target.value)} className="form-input" />
                         </div>
                         <div>
                           <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 5, color: 'var(--text-primary)' }}>Last name</label>
-                          <input value={lastName} onChange={e => setLastName(e.target.value)} className="form-input" />
+                          <input aria-label="Last name" value={lastName} onChange={e => setLastName(e.target.value)} className="form-input" />
                         </div>
                       </div>
                       <div>
                         <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 5, color: 'var(--text-primary)' }}>Phone</label>
-                        <input value={phone} onChange={e => setPhone(e.target.value)} className="form-input" />
+                        <input aria-label="Phone number" value={phone} onChange={e => setPhone(e.target.value)} className="form-input" />
                       </div>
                       <div>
                         <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 5, color: 'var(--text-primary)' }}>Delivery address</label>
@@ -469,7 +469,7 @@ export default function CheckoutPage() {
                     {promoApplied && (
                       <div style={{ fontSize: 12, color: '#10b981', marginTop: 6, fontWeight: 600 }}>
                         {promoApplied.type === 'percentage' ? `${promoApplied.value}% discount` : `₦${Number(promoApplied.value).toLocaleString()} discount`} applied
-                        <button onClick={() => { setPromoApplied(null); setPromoCode('') }} style={{ marginLeft: 8, fontSize: 11, color: 'var(--red)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Remove</button>
+                        <button onClick={() => { setPromoApplied(null); setPromoCode('') }} style={{ marginLeft: 8, fontSize: 12, color: 'var(--red)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Remove</button>
                       </div>
                     )}
                   </div>

@@ -92,7 +92,7 @@ export default function CartPage() {
   if (items.length === 0) return (
     <>
       <Navbar />
-      <main style={{ minHeight: '70vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-secondary)' }}>
+      <main id="main-content" style={{ minHeight: '70vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-secondary)' }}>
         <div style={{ textAlign: 'center' as const, padding: 40 }}>
           <div style={{ fontSize: 64, marginBottom: 20 }}>🛒</div>
           <h1 style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 28, marginBottom: 12, color: 'var(--text-primary)' }}>Your cart is empty</h1>
@@ -111,7 +111,7 @@ export default function CartPage() {
   return (
     <>
       <Navbar />
-      <main style={{ background: 'var(--bg-secondary)', padding: '40px', minHeight: '70vh' }}>
+      <main id="main-content" style={{ background: 'var(--bg-secondary)', padding: '40px', minHeight: '70vh' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <div style={{ marginBottom: 28 }}>
             <h1 style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 28, marginBottom: 4, color: 'var(--text-primary)' }}>Your Cart</h1>
@@ -146,7 +146,7 @@ export default function CartPage() {
                         {item.specs && Object.keys(item.specs).length > 0 && (
                           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, marginBottom: 4 }}>
                             {Object.entries(item.specs).map(([k, v]) => (
-                              <span key={k} style={{ fontSize: 11, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 6, padding: '2px 8px', color: 'var(--text-secondary)' }}>
+                              <span key={k} style={{ fontSize: 12, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 6, padding: '2px 8px', color: 'var(--text-secondary)' }}>
                                 {k}: {v}
                               </span>
                             ))}
@@ -162,7 +162,7 @@ export default function CartPage() {
                         )}
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: 12, flexShrink: 0 }}>
-                        <button onClick={() => removeFromCart(item.cartItemId)}
+                        <button aria-label="Remove item from cart" onClick={() => removeFromCart(item.cartItemId)}
                           style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: 4 }}>
                           <Trash2 size={16} />
                         </button>
@@ -184,7 +184,7 @@ export default function CartPage() {
                             </span>
                             {item.design?.link && (
                               <a href={item.design.link} target="_blank" rel="noopener noreferrer"
-                                style={{ fontSize: 11, color: '#166534', textDecoration: 'underline', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, display: 'inline-block' }}>
+                                style={{ fontSize: 12, color: '#166534', textDecoration: 'underline', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, display: 'inline-block' }}>
                                 {item.design.link}
                               </a>
                             )}

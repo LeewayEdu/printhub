@@ -162,7 +162,7 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
             <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6, marginBottom: 14 }}>
               {marketingTags.map(tag => (
                 <Link key={tag.slug} href={`/shop?cat=${encodeURIComponent(tag.label)}`}
-                  style={{ fontSize: 11, color: 'var(--text-secondary)', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 20, padding: '2px 10px', textDecoration: 'none', fontFamily: 'Open Sans' }}>
+                  style={{ fontSize: 12, color: 'var(--text-secondary)', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 20, padding: '2px 10px', textDecoration: 'none', fontFamily: 'Open Sans' }}>
                   {tag.label}
                 </Link>
               ))}
@@ -265,14 +265,14 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
               Quantity (min {product.moq || 1})
             </label>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <button
+              <button aria-label="Decrease quantity"
                 onClick={() => setQty((q: number) => Math.max(product.moq || 1, q - (product.increment || 1)))}
                 disabled={qty <= (product.moq || 1)}
                 style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid var(--border)', background: '#f7f7f5', cursor: qty <= (product.moq || 1) ? 'not-allowed' : 'pointer', fontSize: 18, opacity: qty <= (product.moq || 1) ? 0.4 : 1 }}>−</button>
-              <input type="number" value={qty} min={product.moq || 1} step={product.increment || 1}
+              <input aria-label="Quantity" type="number" value={qty} min={product.moq || 1} step={product.increment || 1}
                 onChange={e => setQty(Math.max(product.moq || 1, Number(e.target.value)))}
                 style={{ width: 72, textAlign: 'center' as const, padding: '8px', border: '1px solid var(--border)', borderRadius: 8, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 16 }} />
-              <button onClick={() => setQty((q: number) => q + (product.increment || 1))}
+              <button aria-label="Increase quantity" onClick={() => setQty((q: number) => q + (product.increment || 1))}
                 style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid var(--border)', background: '#f7f7f5', cursor: 'pointer', fontSize: 18 }}>+</button>
             </div>
           </div>
@@ -303,11 +303,11 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
               <ShoppingCart size={18} />
               {hasDesignPricing && !designPricingResolved ? 'Complete Design Options First' : 'Add to Cart'}
             </button>
-            <button onClick={() => setWishlisted(w => !w)}
+            <button aria-label={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'} aria-pressed={wishlisted} onClick={() => setWishlisted(w => !w)}
               style={{ width: 48, height: 48, borderRadius: 10, border: '1px solid var(--border)', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Heart size={18} color={wishlisted ? 'var(--red)' : 'var(--gray)'} fill={wishlisted ? 'var(--red)' : 'none'} />
             </button>
-            <button onClick={handleShare}
+            <button aria-label="Share this product" onClick={handleShare}
               style={{ width: 48, height: 48, borderRadius: 10, border: '1px solid var(--border)', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Share2 size={18} color="var(--gray)" />
             </button>

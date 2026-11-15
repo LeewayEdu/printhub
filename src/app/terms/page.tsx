@@ -15,7 +15,7 @@ export default function TermsPage() {
   return (
     <>
       <Navbar />
-      <main style={{ background: 'var(--light)', padding: '48px 24px', minHeight: '70vh' }}>
+      <main id="main-content" style={{ background: 'var(--light)', padding: '48px 24px', minHeight: '70vh' }}>
         <div style={{ maxWidth: 760, margin: '0 auto', background: 'white', borderRadius: 14, border: '1px solid var(--border)', padding: '40px 44px' }}>
 
           <h1 style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 28, color: 'var(--black)', marginBottom: 6 }}>

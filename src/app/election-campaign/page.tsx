@@ -102,7 +102,7 @@ export default function ElectionCampaignPage() {
   return (
     <>
       <Navbar />
-      <main>
+      <main id="main-content">
         {/* Hero */}
         <section style={{ background: 'var(--black)', padding: '80px 40px', position: 'relative', overflow: 'hidden' }}>
           <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(192,57,43,0.2) 0%, transparent 55%), radial-gradient(circle at 80% 80%, rgba(192,57,43,0.08) 0%, transparent 40%)' }} />
@@ -155,14 +155,14 @@ export default function ElectionCampaignPage() {
               {CAMPAIGN_PACKAGES.map((pkg, i) => (
                 <div key={i} style={{ background: 'var(--bg-card)', border: `2px solid ${pkg.badge ? 'var(--red)' : 'var(--border-color)'}`, borderRadius: 16, padding: 28, position: 'relative' as const, boxShadow: pkg.badge ? '0 12px 40px rgba(192,57,43,0.12)' : 'none' }}>
                   {pkg.badge && (
-                    <div style={{ position: 'absolute' as const, top: -14, left: '50%', transform: 'translateX(-50%)', background: 'var(--red)', color: 'white', fontFamily: 'Montserrat', fontWeight: 700, fontSize: 11, padding: '5px 18px', borderRadius: 20, whiteSpace: 'nowrap' as const }}>
+                    <div style={{ position: 'absolute' as const, top: -14, left: '50%', transform: 'translateX(-50%)', background: 'var(--red)', color: 'white', fontFamily: 'Montserrat', fontWeight: 700, fontSize: 12, padding: '5px 18px', borderRadius: 20, whiteSpace: 'nowrap' as const }}>
                       ⭐ {pkg.badge}
                     </div>
                   )}
                   <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 20, color: 'var(--text-primary)', marginBottom: 6 }}>{pkg.name}</div>
                   <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 32, color: 'var(--red)', marginBottom: 4 }}>₦{pkg.price.toLocaleString()}</div>
                   {pkg.hasEstimate && (
-                    <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 12, lineHeight: 1.5 }}>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12, lineHeight: 1.5 }}>
                       Estimated price — based on current material costs, confirmed exactly when you request a quote.
                     </div>
                   )}

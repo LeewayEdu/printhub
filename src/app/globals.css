@@ -205,7 +205,7 @@ body {
   border-color: var(--red);
   box-shadow: 0 0 0 3px var(--red-pale);
 }
-.form-input::placeholder { color: #bbb; }
+.form-input::placeholder { color: #767676; }
 
 /* ── BADGE ── */
 .badge {
@@ -214,7 +214,7 @@ body {
   gap: 6px;
   padding: 4px 12px;
   border-radius: 20px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -228,11 +228,38 @@ body {
 @media (max-width: 480px) {
   .card-img { height: 130px !important; }
   .card-info { padding: 8px 10px !important; gap: 2px !important; }
-  .card-name { font-size: 11px !important; -webkit-line-clamp: 2 !important; }
-  .card-category { font-size: 9px !important; letter-spacing: 0 !important; }
+  .card-name { font-size: 12px !important; -webkit-line-clamp: 2 !important; }
+  .card-category { font-size: 12px !important; letter-spacing: 0 !important; }
   .product-card { border-radius: 8px !important; }
 }
 @media (max-width: 360px) {
   .card-img { height: 110px !important; }
-  .card-name { font-size: 10px !important; }
+  .card-name { font-size: 12px !important; }
+}
+
+/* ── ACCESSIBILITY ── */
+.skip-link {
+  position: absolute;
+  left: 8px;
+  top: -48px;
+  z-index: 10000;
+  background: #111;
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  text-decoration: none;
+}
+.skip-link:focus { top: 8px; outline: 3px solid #fff; outline-offset: 2px; box-shadow: 0 0 0 5px var(--red); }
+main:focus { outline: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }

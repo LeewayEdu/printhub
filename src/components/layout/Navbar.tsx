@@ -34,7 +34,7 @@ useEffect(() => {
   }, [])
 
   return (
-    <>
+    <header style={{ display: 'contents' }}>
       <NotificationBar />
       <nav
         style={{
@@ -64,7 +64,7 @@ useEffect(() => {
             <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 16, color: 'var(--black)', lineHeight: 1.2 }}>
               PrintHub
             </div>
-            <div style={{ fontSize: 11, color: 'var(--gray)', fontWeight: 400 }}>
+            <div style={{ fontSize: 12, color: 'var(--gray)', fontWeight: 400 }}>
               by C-Chu Media Ltd
             </div>
           </div>
@@ -111,6 +111,7 @@ useEffect(() => {
           {/* Cart */}        
           <Link
             href="/cart"
+            aria-label={cartCount > 0 ? `Cart, ${cartCount} item${cartCount === 1 ? '' : 's'}` : 'Cart'}
             style={{
               position: 'relative', display: 'flex', alignItems: 'center',
               justifyContent: 'center', width: 38, height: 38,
@@ -132,7 +133,7 @@ useEffect(() => {
               <span style={{
                 position: 'absolute', top: -4, right: -4,
                 background: 'var(--red)', color: 'white',
-                fontSize: 10, fontWeight: 700, width: 16, height: 16,
+                fontSize: 12, fontWeight: 700, width: 16, height: 16,
                 borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
                 {cartCount}
@@ -144,6 +145,7 @@ useEffect(() => {
           <Link
             href={isLoggedIn ? '/dashboard' : '/auth'}
             title={isLoggedIn ? 'Dashboard' : 'Login'}
+            aria-label={isLoggedIn ? 'Dashboard' : 'Login'}
             style={{
               position: 'relative', display: 'flex', alignItems: 'center',
               justifyContent: 'center', width: 38, height: 38,
@@ -270,6 +272,6 @@ useEffect(() => {
         }
         @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
       `}</style>
-    </>
+    </header>
   )
 }

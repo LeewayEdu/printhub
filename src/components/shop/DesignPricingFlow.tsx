@@ -106,17 +106,17 @@ export default function DesignPricingFlow({ product, linkedAddons, onResolved, o
               ✓ Design: {resolved.hasOwnDesign ? 'Using your own file' : designCost === 0 ? 'Included' : `₦${designCost.toLocaleString()}`}
             </div>
             {!resolved.hasOwnDesign && resolved.designAddons?.length > 0 && (
-              <div style={{ fontSize: 11, color: '#166534' }}>
+              <div style={{ fontSize: 12, color: '#166534' }}>
                 {resolved.designAddons.map(a => `${a.name} (₦${Number(a.price).toLocaleString()})`).join(' · ')}
               </div>
             )}
             {!resolved.hasOwnDesign && product.design_pricing_type === 'unit_based' && resolved.designUnits && (
-              <div style={{ fontSize: 11, color: '#166534' }}>
+              <div style={{ fontSize: 12, color: '#166534' }}>
                 {resolved.designUnits} {unitLabel} × ₦{unitRate.toLocaleString()}
               </div>
             )}
           </div>
-          <button onClick={handleReset} style={{ fontSize: 11, color: '#166534', background: 'none', border: '1px solid #86efac', borderRadius: 7, padding: '4px 10px', cursor: 'pointer', fontFamily: 'Montserrat', fontWeight: 600, flexShrink: 0 }}>
+          <button onClick={handleReset} style={{ fontSize: 12, color: '#166534', background: 'none', border: '1px solid #86efac', borderRadius: 7, padding: '4px 10px', cursor: 'pointer', fontFamily: 'Montserrat', fontWeight: 600, flexShrink: 0 }}>
             Change
           </button>
         </div>
@@ -178,16 +178,16 @@ export default function DesignPricingFlow({ product, linkedAddons, onResolved, o
                 {unitLabel} <span style={{ fontWeight: 400, textTransform: 'none' as const }}>(minimum {minUnits})</span>
               </label>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <button
+                <button aria-label="Decrease design quantity"
                   onClick={() => setDesignUnits(u => Math.max(minUnits, u - 1))}
                   disabled={designUnits <= minUnits}
                   style={{ width: 32, height: 32, borderRadius: 7, border: '1px solid var(--border-color)', background: '#f7f7f5', cursor: designUnits <= minUnits ? 'not-allowed' : 'pointer', fontSize: 16, opacity: designUnits <= minUnits ? 0.4 : 1 }}>
                   −
                 </button>
-                <input type="number" value={designUnits} min={minUnits}
+                <input aria-label="Design quantity" type="number" value={designUnits} min={minUnits}
                   onChange={e => setDesignUnits(Math.max(minUnits, Number(e.target.value)))}
                   style={{ width: 64, textAlign: 'center' as const, padding: '6px', border: '1px solid var(--border-color)', borderRadius: 7, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 15 }} />
-                <button onClick={() => setDesignUnits(u => u + 1)}
+                <button aria-label="Increase design quantity" onClick={() => setDesignUnits(u => u + 1)}
                   style={{ width: 32, height: 32, borderRadius: 7, border: '1px solid var(--border-color)', background: '#f7f7f5', cursor: 'pointer', fontSize: 16 }}>
                   +
                 </button>
@@ -228,7 +228,7 @@ export default function DesignPricingFlow({ product, linkedAddons, onResolved, o
                   )}
                 </div>
                 {la.design_addons.description && (
-                  <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>
                     {la.design_addons.description}
                   </div>
                 )}

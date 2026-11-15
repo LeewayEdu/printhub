@@ -84,13 +84,13 @@ export default function DashboardPage() {
     <div>
       <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 4, textTransform: 'uppercase' as const, letterSpacing: '0.06em', fontFamily: 'Montserrat', fontWeight: 600 }}>Loyalty Points</div>
       <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 32, color: 'var(--gold)', lineHeight: 1 }}>{(profile?.loyalty_points || 0).toLocaleString()} pts</div>
-      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>1 point = ₦1 at checkout · Earned on every delivered order</div>
+      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 4 }}>1 point = ₦1 at checkout · Earned on every delivered order</div>
     </div>
   </div>
   <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6, alignItems: 'flex-end' }}>
     <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>Redeemable value</div>
     <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 22, color: 'white' }}>₦{(profile?.loyalty_points || 0).toLocaleString()}</div>
-    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>Points awarded when order is delivered</div>
+    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>Points awarded when order is delivered</div>
   </div>
 </div>
       <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden' }}>

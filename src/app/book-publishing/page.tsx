@@ -103,7 +103,7 @@ export default function BookPublishingPage() {
   return (
     <>
       <Navbar />
-      <main>
+      <main id="main-content">
 
         {/* Hero */}
         <section style={{ background: 'var(--black)', padding: '80px 40px', position: 'relative', overflow: 'hidden' }}>

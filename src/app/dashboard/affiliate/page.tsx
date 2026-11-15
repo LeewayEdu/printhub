@@ -344,8 +344,8 @@ export default function AffiliateDashboardPage() {
                     style={{ flex: 1, fontFamily: 'Montserrat', fontWeight: 700 }}
                   />
                 </div>
-                {joinErrors.referral_code && <div style={{ fontSize: 11, color: '#ef4444', marginTop: 4 }}>{joinErrors.referral_code}</div>}
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>This becomes your unique referral link — choose something memorable.</div>
+                {joinErrors.referral_code && <div style={{ fontSize: 12, color: '#ef4444', marginTop: 4 }}>{joinErrors.referral_code}</div>}
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>This becomes your unique referral link — choose something memorable.</div>
               </div>
 
               <div>
@@ -356,7 +356,7 @@ export default function AffiliateDashboardPage() {
                   placeholder="As it appears on your bank account"
                   className="form-input"
                 />
-                {joinErrors.legal_name && <div style={{ fontSize: 11, color: '#ef4444', marginTop: 4 }}>{joinErrors.legal_name}</div>}
+                {joinErrors.legal_name && <div style={{ fontSize: 12, color: '#ef4444', marginTop: 4 }}>{joinErrors.legal_name}</div>}
               </div>
 
               <div>
@@ -370,26 +370,26 @@ export default function AffiliateDashboardPage() {
                   <option value="">Select one</option>
                   {OCCUPATIONS.map(o => <option key={o} value={o}>{o}</option>)}
                 </select>
-                {joinErrors.occupation && <div style={{ fontSize: 11, color: '#ef4444', marginTop: 4 }}>{joinErrors.occupation}</div>}
+                {joinErrors.occupation && <div style={{ fontSize: 12, color: '#ef4444', marginTop: 4 }}>{joinErrors.occupation}</div>}
               </div>
 
               <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 16, marginTop: 4 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 12, fontFamily: 'Montserrat' }}>Payout Bank Details</div>
                 <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 14 }}>
                   <div>
-                    <label style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'block', marginBottom: 5 }}>Bank Name *</label>
+                    <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 5 }}>Bank Name *</label>
                     <input value={joinForm.bank_name} onChange={e => setJoinForm(p => ({ ...p, bank_name: e.target.value }))} placeholder="e.g. GTBank" className="form-input" style={{ fontSize: 13 }} />
-                    {joinErrors.bank_name && <div style={{ fontSize: 11, color: '#ef4444', marginTop: 4 }}>{joinErrors.bank_name}</div>}
+                    {joinErrors.bank_name && <div style={{ fontSize: 12, color: '#ef4444', marginTop: 4 }}>{joinErrors.bank_name}</div>}
                   </div>
                   <div>
-                    <label style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'block', marginBottom: 5 }}>Account Number *</label>
+                    <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 5 }}>Account Number *</label>
                     <input value={joinForm.account_number} onChange={e => setJoinForm(p => ({ ...p, account_number: e.target.value.replace(/\D/g, '') }))} maxLength={10} placeholder="0123456789" className="form-input" style={{ fontSize: 13 }} />
-                    {joinErrors.account_number && <div style={{ fontSize: 11, color: '#ef4444', marginTop: 4 }}>{joinErrors.account_number}</div>}
+                    {joinErrors.account_number && <div style={{ fontSize: 12, color: '#ef4444', marginTop: 4 }}>{joinErrors.account_number}</div>}
                   </div>
                   <div>
-                    <label style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'block', marginBottom: 5 }}>Account Name *</label>
+                    <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 5 }}>Account Name *</label>
                     <input value={joinForm.account_name} onChange={e => setJoinForm(p => ({ ...p, account_name: e.target.value }))} placeholder="Must match your legal name above" className="form-input" style={{ fontSize: 13 }} />
-                    {joinErrors.account_name && <div style={{ fontSize: 11, color: '#ef4444', marginTop: 4 }}>{joinErrors.account_name}</div>}
+                    {joinErrors.account_name && <div style={{ fontSize: 12, color: '#ef4444', marginTop: 4 }}>{joinErrors.account_name}</div>}
                   </div>
                 </div>
               </div>
@@ -459,9 +459,9 @@ export default function AffiliateDashboardPage() {
               />
             </div>
             {codeError && (
-              <div style={{ fontSize: 11, color: '#fca5a5', marginBottom: 8 }}>{codeError}</div>
+              <div style={{ fontSize: 12, color: '#fca5a5', marginBottom: 8 }}>{codeError}</div>
             )}
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginBottom: 10 }}>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginBottom: 10 }}>
               {CODE_MIN_LENGTH}-{CODE_MAX_LENGTH} characters, letters and numbers only. Changing your code breaks any links you've already shared with the old code.
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
@@ -485,7 +485,7 @@ export default function AffiliateDashboardPage() {
             </button>
           </div>
         )}
-        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)' }}>Share this link. When they register and order, you earn automatically.</div>
+        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>Share this link. When they register and order, you earn automatically.</div>
       </div>
 
       {/* Request payout — ALWAYS VISIBLE */}
@@ -509,7 +509,7 @@ export default function AffiliateDashboardPage() {
           </button>
           <style>{`.payout-btn-wrap:hover .payout-tooltip { opacity: 1; pointer-events: auto; }`}</style>
           {Number(affiliate.pending_payout) < 5000 && (
-            <div className="payout-tooltip" style={{ position: 'absolute' as const, bottom: '110%', left: '50%', transform: 'translateX(-50%)', background: '#1a1a1a', color: 'white', fontSize: 11, padding: '6px 12px', borderRadius: 6, whiteSpace: 'nowrap', opacity: 0, transition: 'opacity 0.2s', pointerEvents: 'none', zIndex: 10 }}>
+            <div className="payout-tooltip" style={{ position: 'absolute' as const, bottom: '110%', left: '50%', transform: 'translateX(-50%)', background: '#1a1a1a', color: 'white', fontSize: 12, padding: '6px 12px', borderRadius: 6, whiteSpace: 'nowrap', opacity: 0, transition: 'opacity 0.2s', pointerEvents: 'none', zIndex: 10 }}>
               Minimum payout is ₦5,000
             </div>
           )}
@@ -571,7 +571,7 @@ export default function AffiliateDashboardPage() {
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
                   {['Date', 'Amount', 'Status', 'Note'].map(h => (
-                    <th key={h} style={{ padding: '10px 20px', textAlign: 'left' as const, fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', fontFamily: 'Montserrat' }}>{h}</th>
+                    <th key={h} style={{ padding: '10px 20px', textAlign: 'left' as const, fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', fontFamily: 'Montserrat' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -605,7 +605,7 @@ export default function AffiliateDashboardPage() {
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
                   {['Customer', 'Total Orders', 'Total Spent', 'Your Commission'].map(h => (
-                    <th key={h} style={{ padding: '10px 20px', textAlign: 'left' as const, fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', fontFamily: 'Montserrat' }}>{h}</th>
+                    <th key={h} style={{ padding: '10px 20px', textAlign: 'left' as const, fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', fontFamily: 'Montserrat' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -646,7 +646,7 @@ export default function AffiliateDashboardPage() {
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
                   {['Order', 'Order Total', 'Rate', 'Commission', 'Status', 'Date'].map(h => (
-                    <th key={h} style={{ padding: '10px 20px', textAlign: 'left' as const, fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', fontFamily: 'Montserrat' }}>{h}</th>
+                    <th key={h} style={{ padding: '10px 20px', textAlign: 'left' as const, fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', fontFamily: 'Montserrat' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -658,7 +658,7 @@ export default function AffiliateDashboardPage() {
                     <td style={{ padding: '12px 20px', fontSize: 13, color: 'var(--text-primary)' }}>{(Number(comm.rate) * 100).toFixed(0)}%</td>
                     <td style={{ padding: '12px 20px', fontSize: 13, fontFamily: 'Montserrat', fontWeight: 700, color: '#10b981' }}>₦{Number(comm.amount).toLocaleString()}</td>
                     <td style={{ padding: '12px 20px' }}>
-                      <span style={{ display: 'inline-flex', padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600, fontFamily: 'Montserrat', background: `${statusColor[comm.status] || '#6b7280'}20`, color: statusColor[comm.status] || '#6b7280' }}>
+                      <span style={{ display: 'inline-flex', padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600, fontFamily: 'Montserrat', background: `${statusColor[comm.status] || '#6b7280'}20`, color: statusColor[comm.status] || '#6b7280' }}>
                         {comm.status}
                       </span>
                     </td>

@@ -29,13 +29,13 @@ export default function ContactPage() {
   return (
     <>
       <Navbar />
-      <main>
+      <main id="main-content">
         {/* Hero */}
         <section style={{ background: 'var(--black)', padding: '72px 40px', position: 'relative', overflow: 'hidden' }}>
           <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(192,57,43,0.15) 0%, transparent 50%)' }} />
           <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
           <div style={{ maxWidth: 1100, margin: '0 auto', position: 'relative', zIndex: 2 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.4)', marginBottom: 12 }}>Contact us</div>
+            <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.55)', marginBottom: 12 }}>Contact us</div>
             <h1 style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 'clamp(32px, 5vw, 52px)', color: 'white', lineHeight: 1.05, marginBottom: 16 }}>
               Let's talk about<br /><span style={{ color: 'var(--red)' }}>your next project.</span>
             </h1>
@@ -71,7 +71,7 @@ export default function ContactPage() {
                 </div>
                 <div style={{ marginBottom: 16 }}>
                   <label style={{ fontSize: 13, fontWeight: 500, display: 'block', marginBottom: 6 }}>What do you need?</label>
-                  <select value={form.service} onChange={e => set('service', e.target.value)} className="form-input" style={{ cursor: 'pointer' }}>
+                  <select aria-label="What do you need?" value={form.service} onChange={e => set('service', e.target.value)} className="form-input" style={{ cursor: 'pointer' }}>
                     <option value="">Select a service...</option>
                     <option>Banners & Large Format Printing</option>
                     <option>Business Starter Kit</option>
@@ -104,7 +104,7 @@ export default function ContactPage() {
                 style={{ background: 'var(--black)', border: '1px solid rgba(37,211,102,0.2)', borderRadius: 14, padding: '20px 24px', display: 'flex', gap: 14, alignItems: 'flex-start', textDecoration: 'none', transition: 'all 0.2s' }}>
                 <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#25D366', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>💬</div>
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.06em', color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>Fastest response</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.06em', color: 'rgba(255,255,255,0.55)', marginBottom: 4 }}>Fastest response</div>
                   <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 15, color: 'white', marginBottom: 2 }}>WhatsApp us directly</div>
                   <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>+234 805 292 9523</div>
                 </div>
@@ -121,7 +121,7 @@ export default function ContactPage() {
                     <Icon size={18} color="var(--red)" />
                   </div>
                   <div>
-                    <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.06em', color: 'var(--gray)', marginBottom: 4 }}>{label}</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.06em', color: 'var(--gray)', marginBottom: 4 }}>{label}</div>
                     {href ? (
                       <a href={href} style={{ fontSize: 14, fontWeight: 500, color: 'var(--dark)', textDecoration: 'none', lineHeight: 1.6, whiteSpace: 'pre-line' as const }}>{value}</a>
                     ) : (

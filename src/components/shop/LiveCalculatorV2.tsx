@@ -246,7 +246,7 @@ export default function LiveCalculatorV2({
           const selectedOpt = selection[group]
           return (
             <div key={group}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 7 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#6B6B6B', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 7 }}>
                 {groupLabel(group)}
               </div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const }}>
@@ -263,7 +263,7 @@ export default function LiveCalculatorV2({
               {/* Guidance note for the currently-selected option in this group —
                   e.g. "Best for full-colour designs, any quantity" for print methods */}
               {selectedOpt?.note && (
-                <div style={{ fontSize: 11, color: '#888', marginTop: 5, fontStyle: 'italic' as const }}>
+                <div style={{ fontSize: 12, color: '#6B6B6B', marginTop: 5, fontStyle: 'italic' as const }}>
                   💡 {selectedOpt.note}
                 </div>
               )}
@@ -274,7 +274,7 @@ export default function LiveCalculatorV2({
 
       {isAreaCategory && (
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 7 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#6B6B6B', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 7 }}>
             Dimensions {priceModel === 'area_sqin' ? '(inches)' : '(feet)'}
           </div>
 
@@ -313,10 +313,10 @@ export default function LiveCalculatorV2({
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 3 }}>
-              <label style={{ fontSize: 10, color: '#888', fontWeight: 600 }}>
+              <label style={{ fontSize: 12, color: '#6B6B6B', fontWeight: 600 }}>
                 WIDTH {minWidth > 0.1 ? <span style={{ color: 'var(--red)' }}>min {minWidth}{priceModel === 'area_sqin' ? 'in' : 'ft'}</span> : ''}
               </label>
-              <input
+              <input aria-label="Width"
                 type="number"
                 value={widthFt}
                 min={minWidth}
@@ -325,12 +325,12 @@ export default function LiveCalculatorV2({
                 style={{ width: 70, textAlign: 'center' as const, padding: '6px', border: `1px solid ${widthFt < minWidth ? '#ef4444' : '#e8e8e5'}`, borderRadius: 8, fontSize: 14, fontFamily: 'Montserrat', fontWeight: 700, outline: 'none' }}
               />
             </div>
-            <div style={{ fontSize: 18, color: '#888', marginTop: 18 }}>×</div>
+            <div style={{ fontSize: 18, color: '#6B6B6B', marginTop: 18 }}>×</div>
             <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 3 }}>
-              <label style={{ fontSize: 10, color: '#888', fontWeight: 600 }}>
+              <label style={{ fontSize: 12, color: '#6B6B6B', fontWeight: 600 }}>
                 HEIGHT {minHeight > 0.1 ? <span style={{ color: 'var(--red)' }}>min {minHeight}{priceModel === 'area_sqin' ? 'in' : 'ft'}</span> : ''}
               </label>
-              <input
+              <input aria-label="Height"
                 type="number"
                 value={heightFt}
                 min={minHeight}
@@ -339,7 +339,7 @@ export default function LiveCalculatorV2({
                 style={{ width: 70, textAlign: 'center' as const, padding: '6px', border: `1px solid ${heightFt < minHeight ? '#ef4444' : '#e8e8e5'}`, borderRadius: 8, fontSize: 14, fontFamily: 'Montserrat', fontWeight: 700, outline: 'none' }}
               />
             </div>
-            <div style={{ fontSize: 12, color: '#888', marginTop: 18 }}>
+            <div style={{ fontSize: 12, color: '#6B6B6B', marginTop: 18 }}>
               {priceModel === 'area_sqin' ? 'in' : 'ft'}
             </div>
             <div style={{ marginTop: 18, fontSize: 12, color: 'var(--red)', fontWeight: 700, fontFamily: 'Montserrat' }}>
@@ -347,7 +347,7 @@ export default function LiveCalculatorV2({
             </div>
           </div>
           {(widthFt < minWidth || heightFt < minHeight) && (
-            <div style={{ fontSize: 11, color: '#ef4444', marginTop: 6 }}>
+            <div style={{ fontSize: 12, color: '#ef4444', marginTop: 6 }}>
               ⚠️ Minimum size is {minWidth} × {minHeight} {priceModel === 'area_sqin' ? 'inches' : 'ft'}
             </div>
           )}
@@ -362,13 +362,13 @@ export default function LiveCalculatorV2({
           consistently use pageConfig.step. */}
       {isBookCategory && (
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 7 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#6B6B6B', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 7 }}>
             Number of {pageConfig.label === 'leaves' ? 'Leaves' : 'Pages'}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <button onClick={() => setPages(p => Math.max(pageConfig.min, p - pageConfig.step))}
+            <button aria-label="Decrease pages" onClick={() => setPages(p => Math.max(pageConfig.min, p - pageConfig.step))}
               style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #d1d5db', background: '#f3f4f6', cursor: 'pointer', fontSize: 16, color: '#1A1A1A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
-            <input
+            <input aria-label="Number of pages"
               type="number"
               value={pages}
               min={pageConfig.min}
@@ -382,9 +382,9 @@ export default function LiveCalculatorV2({
               style={{ width: 70, textAlign: 'center' as const, padding: '6px', border: '1px solid #e8e8e5', borderRadius: 8, fontSize: 14, fontFamily: 'Montserrat', fontWeight: 700, outline: 'none' }}
               className="no-spinners"
             />
-            <button onClick={() => setPages(p => pageConfig.max ? Math.min(pageConfig.max, p + pageConfig.step) : p + pageConfig.step)}
+            <button aria-label="Increase pages" onClick={() => setPages(p => pageConfig.max ? Math.min(pageConfig.max, p + pageConfig.step) : p + pageConfig.step)}
               style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #d1d5db', background: '#f3f4f6', cursor: 'pointer', fontSize: 16, color: '#1A1A1A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
-            <span style={{ fontSize: 12, color: '#888' }}>{pageConfig.label}</span>
+            <span style={{ fontSize: 12, color: '#6B6B6B' }}>{pageConfig.label}</span>
           </div>
         </div>
       )}
@@ -392,7 +392,7 @@ export default function LiveCalculatorV2({
       {/* ── ADD-ONS — independent quantity per add-on ── */}
       {addonOptions.length > 0 && (
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 7 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#6B6B6B', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 7 }}>
             Add-ons
           </div>
           <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
@@ -404,10 +404,10 @@ export default function LiveCalculatorV2({
                     <div style={{ fontSize: 13, fontWeight: 600, fontFamily: 'Montserrat', color: '#1A1A1A' }}>{opt.option_label}</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <button onClick={() => setAddonQty(opt.id, q - 1)}
+                    <button aria-label="Decrease add-on quantity" onClick={() => setAddonQty(opt.id, q - 1)}
                       disabled={q <= 0}
                       style={{ width: 28, height: 28, borderRadius: 7, border: '1px solid #d1d5db', background: q <= 0 ? '#f3f4f6' : '#fff', cursor: q <= 0 ? 'not-allowed' : 'pointer', fontSize: 15, color: '#1A1A1A', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: q <= 0 ? 0.4 : 1 }}>−</button>
-                    <input
+                    <input aria-label="Add-on quantity"
                       type="number"
                       value={q}
                       min={0}
@@ -415,7 +415,7 @@ export default function LiveCalculatorV2({
                       className="no-spinners"
                       style={{ width: 40, textAlign: 'center' as const, padding: '4px', border: '1px solid #e8e8e5', borderRadius: 7, fontSize: 13, fontFamily: 'Montserrat', fontWeight: 700, outline: 'none', background: '#fff', color: '#1A1A1A' }}
                     />
-                    <button onClick={() => setAddonQty(opt.id, q + 1)}
+                    <button aria-label="Increase add-on quantity" onClick={() => setAddonQty(opt.id, q + 1)}
                       style={{ width: 28, height: 28, borderRadius: 7, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontSize: 15, color: '#1A1A1A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
                   </div>
                 </div>
@@ -430,7 +430,7 @@ export default function LiveCalculatorV2({
         <div style={{ background: 'linear-gradient(135deg, rgba(192,57,43,0.06) 0%, rgba(192,57,43,0.02) 100%)', border: '1.5px solid rgba(192,57,43,0.2)', borderRadius: 12, padding: '14px 16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
-              <div style={{ fontSize: 11, color: '#888', fontFamily: 'Montserrat', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 2 }}>
+              <div style={{ fontSize: 12, color: '#6B6B6B', fontFamily: 'Montserrat', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 2 }}>
                 {isAreaCategory
                   ? `${widthFt}${priceModel === 'area_sqin' ? 'in' : 'ft'} × ${heightFt}${priceModel === 'area_sqin' ? 'in' : 'ft'} · qty ${qty}`
                   : isBookCategory
@@ -438,12 +438,12 @@ export default function LiveCalculatorV2({
                   : `${qty} pcs`} · VAT inclusive
               </div>
               {discountPct > 0 && tierLabel && (
-                <div style={{ fontSize: 11, color: '#10b981', fontWeight: 600, marginBottom: 2 }}>
+                <div style={{ fontSize: 12, color: '#10b981', fontWeight: 600, marginBottom: 2 }}>
                   🎉 {tierLabel} — {discountPct}% discount applied
                 </div>
               )}
               {minimumApplied && (
-                <div style={{ fontSize: 11, color: '#92400e', fontWeight: 600 }}>
+                <div style={{ fontSize: 12, color: '#92400e', fontWeight: 600 }}>
                   Minimum order applies
                 </div>
               )}
@@ -453,7 +453,7 @@ export default function LiveCalculatorV2({
                 ₦{total.toLocaleString()}
               </div>
               {qty > 1 && (
-                <div style={{ fontSize: 11, color: '#888', marginTop: 3 }}>
+                <div style={{ fontSize: 12, color: '#6B6B6B', marginTop: 3 }}>
                   ₦{Math.round(total / qty).toLocaleString()} per piece
                 </div>
               )}

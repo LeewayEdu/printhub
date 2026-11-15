@@ -23,7 +23,7 @@ function OrderSuccessContent() {
   return (
     <>
       <Navbar />
-      <main style={{ minHeight: '70vh', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '60px 40px' }}>
+      <main id="main-content" style={{ minHeight: '70vh', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '60px 40px' }}>
         <div style={{ maxWidth: 560, width: '100%', textAlign: 'center' as const }}>
           <div style={{ width: 80, height: 80, borderRadius: '50%', background: '#10b98120', border: '2px solid #10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
             <CheckCircle size={40} color="#10b981" />

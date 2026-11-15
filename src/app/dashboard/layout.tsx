@@ -133,7 +133,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <img src="/C-Chu_media_Logo_.png" alt="C-Chu Media" style={{ width: 32, height: 32, objectFit: 'contain' }} />
             <div>
               <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 15, color: 'white' }}>PrintHub</div>
-              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)' }}>by C-Chu Media</div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>by C-Chu Media</div>
             </div>
           </Link>
         </div>
@@ -149,10 +149,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div style={{ fontFamily: 'Montserrat', fontWeight: 600, fontSize: 14, color: 'white' }}>
               {profile.first_name} {profile.last_name}
             </div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>{profile.email}</div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>{profile.email}</div>
             {isAdmin && (
               <div style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(192,57,43,0.2)', border: '1px solid rgba(192,57,43,0.4)', borderRadius: 12, padding: '3px 10px' }}>
-                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--red)', fontFamily: 'Montserrat' }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--red)', fontFamily: 'Montserrat' }}>
                   {role === 'super_admin' ? '⭐ SUPER ADMIN' : 'ADMIN'}
                 </span>
               </div>
@@ -164,10 +164,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, padding: '8px 10px', background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(220,38,38,0.4)', borderRadius: 9, textDecoration: 'none' }}>
                 <ShieldAlert size={14} color="#f87171" />
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#f87171', fontFamily: 'Montserrat' }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#f87171', fontFamily: 'Montserrat' }}>
                     {pendingApprovals} change{pendingApprovals !== 1 ? 's' : ''} awaiting approval
                   </div>
-                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginTop: 1 }}>Tap to review →</div>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 1 }}>Tap to review →</div>
                 </div>
               </Link>
             )}
@@ -178,10 +178,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, padding: '8px 10px', background: 'rgba(234,179,8,0.15)', border: '1px solid rgba(234,179,8,0.4)', borderRadius: 9, textDecoration: 'none' }}>
                 <Bell size={14} color="#fbbf24" />
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', fontFamily: 'Montserrat' }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#fbbf24', fontFamily: 'Montserrat' }}>
                     {pendingBankPayments} bank transfer{pendingBankPayments !== 1 ? 's' : ''} awaiting receipt
                   </div>
-                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginTop: 1 }}>Tap to verify →</div>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 1 }}>Tap to verify →</div>
                 </div>
               </Link>
             )}
@@ -205,7 +205,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <Icon size={17} />
                 <span style={{ fontSize: 14, fontFamily: 'Open Sans' }}>{label}</span>
                 {showBadge && (
-                  <span style={{ marginLeft: 'auto', background: badgeBg, color: 'white', fontSize: 10, fontWeight: 800, minWidth: 18, height: 18, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 5px', fontFamily: 'Montserrat' }}>
+                  <span style={{ marginLeft: 'auto', background: badgeBg, color: 'white', fontSize: 12, fontWeight: 800, minWidth: 18, height: 18, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 5px', fontFamily: 'Montserrat' }}>
                     {badgeCount}
                   </span>
                 )}
@@ -218,7 +218,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Logout */}
         <div style={{ padding: '16px 12px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
           <button onClick={handleLogout}
-            style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', padding: '10px 12px', borderRadius: 9, background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.45)', fontSize: 14, fontFamily: 'Open Sans' }}>
+            style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', padding: '10px 12px', borderRadius: 9, background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.55)', fontSize: 14, fontFamily: 'Open Sans' }}>
             <LogOut size={17} />
             Sign out
           </button>
@@ -228,7 +228,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Main content */}
       <div style={{ flex: 1, marginLeft: 260, display: 'flex', flexDirection: 'column' as const }} className="dash-main">
         <header style={{ background: 'white', borderBottom: '1px solid var(--border)', padding: '0 32px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky' as const, top: 0, zIndex: 100 }}>
-          <button onClick={() => setSidebarOpen(!sidebarOpen)}
+          <button aria-label="Open menu" onClick={() => setSidebarOpen(!sidebarOpen)}
             style={{ display: 'none', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--dark)' }}
             className="hamburger">
             {sidebarOpen ? <X size={22} /> : <Menu size={22} />}
@@ -260,7 +260,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </Link>
           </div>
         </header>
-        <main style={{ flex: 1, padding: 32, overflowY: 'auto' as const }}>{children}</main>
+        <main id="main-content" style={{ flex: 1, padding: 32, overflowY: 'auto' as const }}>{children}</main>
       </div>
 
       {sidebarOpen && (

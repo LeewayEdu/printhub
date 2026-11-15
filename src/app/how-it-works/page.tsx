@@ -43,7 +43,7 @@ export default function HowItWorksPage() {
   return (
     <>
       <Navbar />
-      <main>
+      <main id="main-content">
 
         {/* Hero */}
         <section style={{ background: 'var(--black)', padding: '80px 40px', position: 'relative', overflow: 'hidden' }}>
@@ -86,7 +86,7 @@ export default function HowItWorksPage() {
                   </div>
                   {/* Content */}
                   <div style={{ paddingBottom: i < STEPS.length - 1 ? 36 : 0, paddingTop: 8 }}>
-                    <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 11, color: 'var(--red)', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 4 }}>Step {step.num}</div>
+                    <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 12, color: 'var(--red)', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 4 }}>Step {step.num}</div>
                     <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 18, color: 'var(--text-primary)', marginBottom: 8 }}>{step.title}</div>
                     <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.8 }}>{step.desc}</div>
                   </div>

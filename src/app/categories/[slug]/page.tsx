@@ -98,7 +98,7 @@ export default async function CategoryPage({ params }: { params: { slug: string 
                   </div>
                   <div style={{ padding: 16 }}>
                     {visibleBadge(p) && (
-                      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--red)', background: 'rgba(192,57,43,0.08)', padding: '2px 8px', borderRadius: 10, display: 'inline-block', marginBottom: 6, fontFamily: 'Montserrat' }}>{visibleBadge(p)}</div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--red)', background: 'rgba(192,57,43,0.08)', padding: '2px 8px', borderRadius: 10, display: 'inline-block', marginBottom: 6, fontFamily: 'Montserrat' }}>{visibleBadge(p)}</div>
                     )}
                     <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, color: 'var(--text-primary)', marginBottom: 6, lineHeight: 1.3 }}>{p.name}</div>
                     {p.short_description && (

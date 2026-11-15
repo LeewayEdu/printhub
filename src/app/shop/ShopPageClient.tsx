@@ -247,7 +247,7 @@ export default function ShopPageClient({
   return (
     <>
       <Navbar />
-      <main>
+      <main id="main-content">
 
         {/* Hero */}
         <section style={{ position: 'relative', overflow: 'hidden', height: 320 }}>
@@ -259,7 +259,7 @@ export default function ShopPageClient({
                   <div style={{ position: 'absolute' as const, inset: 0, background: 'rgba(0,0,0,0.45)' }} />
                   {(banner.title || banner.subtitle) && (
                     <div style={{ position: 'absolute' as const, inset: 0, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', padding: '0 clamp(16px, 4vw, 40px)', textAlign: 'center' as const, zIndex: 2 }}>
-                      {banner.title && <h1 style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 'clamp(28px, 4vw, 48px)', color: 'white', lineHeight: 1.1, marginBottom: 10 }}>{banner.title}</h1>}
+                      {banner.title && <p style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 'clamp(28px, 4vw, 48px)', color: 'white', lineHeight: 1.1, marginBottom: 10 }}>{banner.title}</p>}
                       {banner.subtitle && <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.8)', marginBottom: 20 }}>{banner.subtitle}</p>}
                       {banner.link_url && <a href={banner.link_url} style={{ display: 'inline-block', padding: '10px 24px', background: 'var(--red)', color: 'white', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>Shop Now</a>}
                     </div>
@@ -269,7 +269,7 @@ export default function ShopPageClient({
               {heroBanners.length > 1 && (
                 <div style={{ position: 'absolute' as const, bottom: 16, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6, zIndex: 10 }}>
                   {heroBanners.map((_, i) => (
-                    <button key={i} onClick={() => setHeroIdx(i)}
+                    <button aria-label={`Show banner ${i + 1}`} key={i} onClick={() => setHeroIdx(i)}
                       style={{ width: i === heroIdx ? 24 : 8, height: 8, borderRadius: 4, background: i === heroIdx ? 'white' : 'rgba(255,255,255,0.4)', border: 'none', cursor: 'pointer', transition: 'all 0.3s', padding: 0 }} />
                   ))}
                 </div>
@@ -282,10 +282,10 @@ export default function ShopPageClient({
               <div style={{ position: 'absolute' as const, inset: 0, backgroundImage: 'linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
               <div style={{ position: 'absolute' as const, inset: 0, display: 'flex', flexDirection: 'column' as const, justifyContent: 'center', padding: '0 clamp(16px, 4vw, 40px)', zIndex: 2 }}>
                 <div style={{ maxWidth: 1100, margin: '0 auto', width: '100%' }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.4)', marginBottom: 12 }}>Our services</div>
-                  <h1 style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 'clamp(32px, 5vw, 52px)', color: 'white', lineHeight: 1.05, marginBottom: 12 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.55)', marginBottom: 12 }}>Our services</div>
+                  <p style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 'clamp(32px, 5vw, 52px)', color: 'white', lineHeight: 1.05, marginBottom: 12 }}>
                     Everything you need,<br /><span style={{ color: 'var(--red)' }}>printed with precision.</span>
-                  </h1>
+                  </p>
                   <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.5)', maxWidth: 480, lineHeight: 1.75 }}>Browse our catalogue. Choose specs, see live pricing, add to cart.</p>
                 </div>
               </div>
@@ -308,12 +308,15 @@ export default function ShopPageClient({
             </div>
 
             <div style={{ padding: 'clamp(16px, 3vw, 28px)' }}>
+              <h1 style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 'clamp(22px, 3vw, 30px)', color: 'var(--text-primary)', marginBottom: 16 }}>
+                {cat === 'All Products' ? 'Shop Print Products' : cat}
+              </h1>
               <div className="shop-search-row" style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' as const, alignItems: 'center' }}>
                 <div style={{ position: 'relative' as const, flex: 1, minWidth: 200 }}>
                   <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
-                  <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search products..." className="form-input" style={{ paddingLeft: 36, fontSize: 13 }} />
+                  <input aria-label="Search products" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search products..." className="form-input" style={{ paddingLeft: 36, fontSize: 13 }} />
                 </div>
-                <select value={sort} onChange={e => setSort(e.target.value)} className="form-input" style={{ maxWidth: 160, cursor: 'pointer', fontSize: 13 }}>
+                <select aria-label="Sort products" value={sort} onChange={e => setSort(e.target.value)} className="form-input" style={{ maxWidth: 160, cursor: 'pointer', fontSize: 13 }}>
                   <option value="default">Recommended</option>
                   <option value="newest">Newest first</option>
                   <option value="price-asc">Price: Low to high</option>
@@ -373,13 +376,13 @@ export default function ShopPageClient({
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, marginBottom: 4 }}>
                     {(productTags[selected.id] || []).length > 0
                       ? (productTags[selected.id] || []).map(label => (
-                          <span key={label} style={{ fontSize: 11, color: 'var(--text-secondary)', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 20, padding: '1px 8px' }}>{label}</span>
+                          <span key={label} style={{ fontSize: 12, color: 'var(--text-secondary)', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 20, padding: '1px 8px' }}>{label}</span>
                         ))
-                      : <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{selected.category}</span>}
+                      : <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{selected.category}</span>}
                   </div>
                   <h3 style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 17, color: 'var(--text-primary)' }}>{selected.name}</h3>
                 </div>
-                <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}>
+                <button aria-label="Close" onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}>
                   <X size={22} />
                 </button>
               </div>
@@ -396,11 +399,11 @@ export default function ShopPageClient({
                         : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 56 }}>🖨️</div>}
                       {imgs.length > 1 && (
                         <>
-                          <button onClick={() => setImgIdx(i => (i - 1 + imgs.length) % imgs.length)}
+                          <button aria-label="Previous image" onClick={() => setImgIdx(i => (i - 1 + imgs.length) % imgs.length)}
                             style={{ position: 'absolute' as const, left: 8, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.5)', border: 'none', borderRadius: '50%', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'white' }}>
                             <ChevronLeft size={14} />
                           </button>
-                          <button onClick={() => setImgIdx(i => (i + 1) % imgs.length)}
+                          <button aria-label="Next image" onClick={() => setImgIdx(i => (i + 1) % imgs.length)}
                             style={{ position: 'absolute' as const, right: 8, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.5)', border: 'none', borderRadius: '50%', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'white' }}>
                             <ChevronRight size={14} />
                           </button>
@@ -428,7 +431,7 @@ export default function ShopPageClient({
                     {/* Quick Pick presets */}
                     {selected.presets && selected.presets.length > 0 && (
                       <div>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 7 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#6B6B6B', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 7 }}>
                           Quick Pick
                         </div>
                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
@@ -439,13 +442,13 @@ export default function ShopPageClient({
                                 style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 9, border: `1.5px solid ${isActive ? 'var(--red)' : '#e8e8e5'}`, background: isActive ? 'rgba(192,57,43,0.08)' : 'white', color: isActive ? 'var(--red)' : '#555', fontFamily: 'Montserrat', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
                                 {preset.label}
                                 {preset.badge && (
-                                  <span style={{ fontSize: 9, background: 'var(--red)', color: 'white', padding: '1px 6px', borderRadius: 10 }}>{preset.badge}</span>
+                                  <span style={{ fontSize: 12, background: 'var(--red)', color: 'white', padding: '1px 6px', borderRadius: 10 }}>{preset.badge}</span>
                                 )}
                               </button>
                             )
                           })}
                         </div>
-                        <div style={{ fontSize: 11, color: '#888', marginTop: 6 }}>Pick a common configuration, or customise manually below.</div>
+                        <div style={{ fontSize: 12, color: '#6B6B6B', marginTop: 6 }}>Pick a common configuration, or customise manually below.</div>
                       </div>
                     )}
 
@@ -465,19 +468,19 @@ export default function ShopPageClient({
                         <label style={{ fontSize: 13, fontWeight: 600, fontFamily: 'Montserrat', color: 'var(--text-primary)' }}>
                           {['area', 'area_sqin'].includes(resolvedPriceModel) ? 'Number of Pieces' : 'Quantity'}
                         </label>
-                        <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Min: {moq} · Step: {inc}</span>
+                        <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Min: {moq} · Step: {inc}</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <button onClick={() => { if (qty - inc >= moq) setQty(qty - inc) }}
+                        <button aria-label="Decrease quantity" onClick={() => { if (qty - inc >= moq) setQty(qty - inc) }}
                           style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid #e8e8e5', background: '#f7f7f5', cursor: qty <= moq ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: qty <= moq ? 0.4 : 1 }}>
                           <Minus size={13} color="#1A1A1A" />
                         </button>
-                        <input type="number" value={qty} min={moq} step={inc}
+                        <input aria-label="Quantity" type="number" value={qty} min={moq} step={inc}
                           onChange={e => { const val = Number(e.target.value); if (val >= moq) setQty(val) }}
                           className="no-spinners"
                           style={{ width: 70, textAlign: 'center' as const, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 16, border: '1px solid #e8e8e5', borderRadius: 8, padding: '6px', background: '#f7f7f5', color: '#1A1A1A', outline: 'none' }}
                         />
-                        <button onClick={() => { if (!selected.max_qty || qty + inc <= selected.max_qty) setQty(qty + inc) }}
+                        <button aria-label="Increase quantity" onClick={() => { if (!selected.max_qty || qty + inc <= selected.max_qty) setQty(qty + inc) }}
                           style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid #e8e8e5', background: '#f7f7f5', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           <Plus size={13} color="#1A1A1A" />
                         </button>
@@ -489,7 +492,7 @@ export default function ShopPageClient({
                     <div>
                       <div style={{ fontFamily: 'Montserrat', fontWeight: 600, fontSize: 13, marginBottom: 6, color: 'var(--text-primary)' }}>
                         Your Design
-                        <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 400, marginLeft: 6 }}>(optional — can send via WhatsApp later)</span>
+                        <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 400, marginLeft: 6 }}>(optional — can send via WhatsApp later)</span>
                       </div>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 10 }}>
                         {[
@@ -499,7 +502,7 @@ export default function ShopPageClient({
                         ].map(opt => (
                           <button key={opt.type}
                             onClick={() => setDesignType(designType === opt.type as any ? null : opt.type as any)}
-                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '8px 6px', borderRadius: 8, border: `2px solid ${designType === opt.type ? 'var(--red)' : 'var(--border-color)'}`, background: designType === opt.type ? '#FDEDEC' : '#f7f7f5', color: designType === opt.type ? 'var(--red)' : 'var(--text-secondary)', fontSize: 11, fontFamily: 'Montserrat', fontWeight: 600, cursor: 'pointer' }}>
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '8px 6px', borderRadius: 8, border: `2px solid ${designType === opt.type ? 'var(--red)' : 'var(--border-color)'}`, background: designType === opt.type ? '#FDEDEC' : '#f7f7f5', color: designType === opt.type ? 'var(--red)' : 'var(--text-secondary)', fontSize: 12, fontFamily: 'Montserrat', fontWeight: 600, cursor: 'pointer' }}>
                             {opt.icon} {opt.label}
                           </button>
                         ))}
@@ -616,8 +619,8 @@ export default function ShopPageClient({
         @media (max-width: 480px) {
           .pg { gap: 8px !important; grid-template-columns: repeat(2, 1fr) !important; }
           .card-info { padding: 8px !important; }
-          .card-name { font-size: 11px !important; -webkit-line-clamp: 2 !important; }
-          .card-category { font-size: 9px !important; }
+          .card-name { font-size: 12px !important; -webkit-line-clamp: 2 !important; }
+          .card-category { font-size: 12px !important; }
           .shop-layout > div:last-child { padding: 10px !important; }
         }
         @media (max-width: 600px) {

@@ -132,7 +132,7 @@ export default function StarterKitsPage() {
   return (
     <>
       <Navbar />
-      <main>
+      <main id="main-content">
 
         <section style={{ background: 'var(--black)', padding: '80px 40px', position: 'relative', overflow: 'hidden' }}>
           <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(192,57,43,0.18) 0%, transparent 55%)' }} />
@@ -167,7 +167,7 @@ export default function StarterKitsPage() {
                   }}
                 >
                   {kit.badge && (
-                    <div style={{ position: 'absolute' as const, top: -14, left: '50%', transform: 'translateX(-50%)', background: 'var(--red)', color: 'white', fontFamily: 'Montserrat', fontWeight: 700, fontSize: 11, padding: '5px 18px', borderRadius: 20, whiteSpace: 'nowrap' as const, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div style={{ position: 'absolute' as const, top: -14, left: '50%', transform: 'translateX(-50%)', background: 'var(--red)', color: 'white', fontFamily: 'Montserrat', fontWeight: 700, fontSize: 12, padding: '5px 18px', borderRadius: 20, whiteSpace: 'nowrap' as const, display: 'flex', alignItems: 'center', gap: 6 }}>
                       <Star size={10} fill="white" /> {kit.badge}
                     </div>
                   )}
