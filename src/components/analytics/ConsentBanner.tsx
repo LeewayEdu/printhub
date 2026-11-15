@@ -20,23 +20,28 @@ export default function ConsentBanner() {
     setShow(false)
   }
 
+  // Same style for both buttons so neither choice is nudged.
+  const btn: React.CSSProperties = {
+    background: 'transparent', color: 'white', border: '1px solid rgba(255,255,255,0.7)', borderRadius: 6,
+    padding: '5px 12px', fontFamily: 'Montserrat, sans-serif', fontWeight: 700, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap',
+  }
+
+  // A slim one-line bar in normal page flow at the very top (not fixed), so it can never
+  // cover the sticky buy bar, the chat launcher or the footer; it scrolls away with the page.
   return (
-    <div role="dialog" aria-label="Tracking preferences"
-      style={{ position: 'fixed', left: 16, right: 96, bottom: 'calc(16px + var(--launcher-lift, 0px))', maxWidth: 520, zIndex: 997, background: '#111', color: 'white', borderRadius: 12, padding: '16px 18px', boxShadow: '0 8px 30px rgba(0,0,0,0.35)', fontFamily: 'Open Sans, sans-serif' }}>
-      <p style={{ fontSize: 13, lineHeight: 1.6, marginBottom: 12, color: 'rgba(255,255,255,0.85)' }}>
-        We use the Meta Pixel to measure how our adverts perform. It only loads if you accept.{' '}
-        <Link href="/privacy" style={{ color: 'white', textDecoration: 'underline' }}>Privacy policy</Link>
-      </p>
-      <div style={{ display: 'flex', gap: 10 }}>
-        <button onClick={() => choose('granted')}
-          style={{ background: 'var(--red)', color: 'white', border: 'none', borderRadius: 8, padding: '9px 18px', fontFamily: 'Montserrat, sans-serif', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
-          Accept
-        </button>
-        <button onClick={() => choose('denied')}
-          style={{ background: 'transparent', color: 'white', border: '1px solid rgba(255,255,255,0.5)', borderRadius: 8, padding: '9px 18px', fontFamily: 'Montserrat, sans-serif', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
-          Decline
-        </button>
-      </div>
+    <div role="region" aria-label="Tracking preferences"
+      style={{ background: '#111', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '6px 12px', fontFamily: 'Open Sans, sans-serif', fontSize: 12, lineHeight: 1.3 }}>
+      <span>
+        <span className="consent-long">We use the Meta Pixel to measure our adverts. It only loads if you accept.</span>
+        <span className="consent-short">Allow ad tracking?</span>
+      </span>
+      <button onClick={() => choose('granted')} style={btn}>Accept</button>
+      <button onClick={() => choose('denied')} style={btn}>Decline</button>
+      <Link href="/privacy" style={{ color: 'white', textDecoration: 'underline', whiteSpace: 'nowrap' }}>Privacy</Link>
+      <style>{`
+        .consent-short { display: none; }
+        @media (max-width: 600px) { .consent-long { display: none; } .consent-short { display: inline; } }
+      `}</style>
     </div>
   )
 }

@@ -53,6 +53,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <a href="#main-content" className="skip-link">Skip to content</a>
+        <ConsentBanner />
         <MetaPixel />
         <Suspense fallback={null}>
           <ReferralCapture />
@@ -72,7 +73,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
         <ChatWidget />
-        <ConsentBanner />
       </body>
     </html>
   )
