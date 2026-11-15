@@ -1,8 +1,10 @@
+import { GENERAL_TURNAROUND } from '@/lib/turnaround'
+
 // FAQ content for /how-it-works. Rendered on the page and reused for FAQPage JSON-LD.
 export const FAQS = [
   {
     q: 'How long does printing take?',
-    a: 'Turnaround time depends on the product. Business cards and flyers are typically ready in 2-3 working days. Banners and branded items take 3-5 working days. Books and signage take 7-14 working days. Rush service is available — message us on WhatsApp for turnaround on your job.',
+    a: `Turnaround depends on the product, and each product page shows it where we have one on record. Printing copies of a book: 2–5 working days after proof approval. Full publishing (editing, typesetting, ISBN, cover): 7–14 working days. Shirts and stickers: ${GENERAL_TURNAROUND.text.replace('-', '–')}. Rush service is available: message us on WhatsApp for turnaround on your job.`,
   },
   {
     q: 'What file formats do you accept for designs?',
