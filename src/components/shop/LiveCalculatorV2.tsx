@@ -195,6 +195,9 @@ export default function LiveCalculatorV2({
       const push = (q: number, minQty: number, maxQ: number | null) => {
         if ((maxQty && q > maxQty) || rows.some(r => r.qty === q)) return
         const r = calculate({ category, priceModel, specs: selection, addons: addonSelections, qty: q, widthFt, heightFt, minWidth, minHeight, pages, tiers, minOrderAmount })
+        // A tier that gives no extra discount over the previous row adds nothing: merge it into that row
+        const prev = rows[rows.length - 1]
+        if (prev && prev.discountPct === r.discountPct) { prev.maxQty = maxQ; return }
         rows.push({ qty: q, minQty, maxQty: maxQ, each: Math.round(r.total / q), total: r.total, discountPct: r.discountPct })
       }
       if (sorted.length) {

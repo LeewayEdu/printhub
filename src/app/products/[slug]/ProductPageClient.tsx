@@ -100,7 +100,7 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
 
   // Pre-filled WhatsApp message: product, chosen options, quantity, total and page link.
   const buildWhatsAppUrl = () => {
-    const options = Object.entries(specs).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join(', ')
+    const options = Object.entries(specs).filter(([k, v]) => v && k !== 'Quantity').map(([k, v]) => `${k}: ${v}`).join(', ')
     const lines = [
       "Hello, I'm interested in ordering:",
       '',
@@ -118,7 +118,7 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
   const handleWhatsApp = () => {
     // Record the lead first, but never wait for it: if it fails, WhatsApp still opens.
     try {
-      const options = Object.entries(specs).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join(', ')
+      const options = Object.entries(specs).filter(([k, v]) => v && k !== 'Quantity').map(([k, v]) => `${k}: ${v}`).join(', ')
       fetch('/api/leads', {
         method: 'POST',
         keepalive: true,
