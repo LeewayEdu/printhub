@@ -7,6 +7,7 @@ import { HOME_SERVICES } from '@/lib/constants'
 import { MIN_BESTSELLERS_TO_SHOW, isBestseller, visibleBadge } from '@/lib/catalog'
 import { freshenYears } from '@/lib/company'
 import { withFromPrices } from '@/lib/pricing-server'
+import { withApprovedReviews } from '@/lib/reviews-server'
 
 export interface HomeData {
   heroBanners: any[]
@@ -57,7 +58,7 @@ export async function getHomeData(): Promise<HomeData> {
     ])
 
     // Badges are resolved here so an unearned "Best Seller"/"New" never reaches the page
-    const productList: any[] = (await withFromPrices(products.data || [])).map((p: any) => ({ ...p, badge: visibleBadge(p) }))
+    const productList: any[] = (await withApprovedReviews(db, await withFromPrices(products.data || []))).map((p: any) => ({ ...p, badge: visibleBadge(p) }))
     const activeIds = new Set(productList.map(p => p.id))
 
     // Tags and counts only for active products
