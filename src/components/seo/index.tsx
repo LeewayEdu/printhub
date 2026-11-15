@@ -172,16 +172,15 @@ export function LocalBusinessSchema() {
 
 export type ShippingRange = { min: number; max: number } | null
 
-export function ProductSchema({ product, url, shipping, sku }: {
+export function ProductSchema({ product, url, shipping, sku, reviewStats }: {
   product: { name: string; description?: string | null; images?: string[]; image_url?: string | null; display_price?: number; price?: number; slug: string; rating?: number | null; review_count?: number | null }
   url: string
   shipping?: ShippingRange
   sku?: string
+  reviewStats?: { count: number; average: number } | null
 }) {
   const price = product.display_price || product.price || 0
   const images = product.images?.length ? product.images : product.image_url ? [product.image_url] : []
-  const reviews = Number(product.review_count) || 0
-  const rating = Number(product.rating) || 0
   const schema: Record<string, unknown> = {
     '@context': 'https://schema.org',
     '@type': 'Product',
@@ -219,9 +218,9 @@ export function ProductSchema({ product, url, shipping, sku }: {
       },
     },
   }
-  // Only emit a rating when the product has real reviews.
-  if (reviews > 0 && rating > 0) {
-    schema.aggregateRating = { '@type': 'AggregateRating', ratingValue: rating, reviewCount: reviews }
+  // Only emit a rating when the product has real, approved reviews (never the editable products.rating column).
+  if (reviewStats && reviewStats.count > 0) {
+    schema.aggregateRating = { '@type': 'AggregateRating', ratingValue: reviewStats.average, reviewCount: reviewStats.count }
   }
   return <JsonLd data={schema} />
 }

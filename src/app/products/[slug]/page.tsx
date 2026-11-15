@@ -59,7 +59,7 @@ async function loadProduct(slug: string) {
     if (error) console.error('[product-page]', slug, error.code, error.message)
     if (error || !product) return null
 
-    const [{ data: related }, { data: marketingTagRows }, { data: categoryRow }, { data: deliveryRows }] = await Promise.all([
+    const [{ data: related }, { data: marketingTagRows }, { data: categoryRow }, { data: deliveryRows }, { data: reviewRows }] = await Promise.all([
       db.from('products')
         .select('id, name, slug, images, image_url, display_price, price')
         .eq('is_active', true)
@@ -73,10 +73,16 @@ async function loadProduct(slug: string) {
       db.from('categories').select('label, slug').eq('slug', product.product_type ?? '').eq('is_active', true).maybeSingle(),
       // Active delivery fees (excluding free pickup) give the shipping cost range
       db.from('delivery_settings').select('price, type').eq('is_active', true).neq('type', 'pickup'),
+      // Only approved reviews count as real
+      db.from('product_reviews').select('rating').eq('product_id', product.id).eq('is_approved', true),
     ])
     const fees = (deliveryRows || []).map((r: any) => Number(r.price)).filter((n: number) => n > 0)
     const shipping: ShippingRange = fees.length ? { min: Math.min(...fees), max: Math.max(...fees) } : null
-    return { product, related: related || [], marketingTagRows: marketingTagRows || [], category: categoryRow, shipping }
+    const ratings = (reviewRows || []).map((r: any) => Number(r.rating)).filter((n: number) => n >= 1 && n <= 5)
+    const reviewStats = ratings.length
+      ? { count: ratings.length, average: Math.round((ratings.reduce((a: number, b: number) => a + b, 0) / ratings.length) * 10) / 10 }
+      : null
+    return { product, related: related || [], marketingTagRows: marketingTagRows || [], category: categoryRow, shipping, reviewStats }
   } catch (e) {
     console.error('[product-page]', slug, e)
     return null
@@ -86,7 +92,7 @@ async function loadProduct(slug: string) {
 export default async function ProductPage({ params }: { params: { slug: string } }) {
   const loaded = await loadProduct(params.slug)
   if (!loaded) notFound()
-  const { product, related, marketingTagRows, category, shipping } = loaded
+  const { product, related, marketingTagRows, category, shipping, reviewStats } = loaded
 
   const marketingTags: { label: string; slug: string }[] = (marketingTagRows || []).flatMap((row: any) =>
     row.marketing_categories ? [{ label: row.marketing_categories.label, slug: row.marketing_categories.slug }] : []
@@ -116,7 +122,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
 
   return (
     <>
-      <ProductSchema product={product} url={pageUrl} shipping={shipping} sku={product.id} />
+      <ProductSchema product={product} url={pageUrl} shipping={shipping} sku={product.id} reviewStats={reviewStats} />
       <BreadcrumbSchema items={breadcrumbs.map(b => ({ name: b.name, url: b.href ?? pageUrl }))} />
       <ProductPageClient
         product={product}
@@ -124,6 +130,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
         faqs={faqs}
         breadcrumbs={breadcrumbs}
         marketingTags={marketingTags}
+        reviewStats={reviewStats}
       />
     </>
   )

@@ -23,9 +23,10 @@ interface Props {
   faqs: { question: string; answer: string }[]
   breadcrumbs: { name: string; href?: string }[]
   marketingTags: { label: string; slug: string }[]
+  reviewStats?: { count: number; average: number } | null
 }
 
-export default function ProductPageClient({ product, relatedProducts, faqs, breadcrumbs, marketingTags }: Props) {
+export default function ProductPageClient({ product, relatedProducts, faqs, breadcrumbs, marketingTags, reviewStats }: Props) {
   const [activeImage, setActiveImage] = useState(0)
   const [qty, setQty] = useState(product.moq || 1)
   const [widthIn, setWidthIn] = useState<number>(product.min_width || 1)
@@ -218,12 +219,12 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
           </h1>
 
           {/* Rating */}
-          {product.rating > 0 && (
+          {reviewStats && reviewStats.count > 0 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
               {[1,2,3,4,5].map(s => (
-                <Star key={s} size={14} color="var(--red)" fill={s <= Math.round(product.rating) ? 'var(--red)' : 'none'} />
+                <Star key={s} size={14} color="var(--red)" fill={s <= Math.round(reviewStats.average) ? 'var(--red)' : 'none'} />
               ))}
-              <span style={{ fontSize: 13, color: 'var(--gray)' }}>{Number(product.rating).toFixed(1)} ({product.review_count} reviews)</span>
+              <span style={{ fontSize: 13, color: 'var(--gray)' }}>{reviewStats.average.toFixed(1)} ({reviewStats.count} review{reviewStats.count === 1 ? '' : 's'})</span>
             </div>
           )}
 
