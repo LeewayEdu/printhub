@@ -11,6 +11,8 @@ export const BRAND = {
   phone1: '+234 805 292 9523',
   phone2: '+234 806 375 3209',
   email: 'info@cchumedia.com',
+  // Street line used everywhere the address appears (footer, schema, contact metadata)
+  addressStreet: 'Suite 38, Mazfallah Shopping Complex',
   address: 'Suite 38, Mazfallah Shopping Complex, Karu, AMAC 900110, Abuja FCT, Nigeria',
   hours: 'Monday – Saturday: 8:00AM – 7:00PM',
   // Machine-readable form of `hours` above (used for structured data). Keep in sync.

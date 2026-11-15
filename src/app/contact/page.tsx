@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
+import { BRAND } from '@/lib/constants'
 import { supabase } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 import { MapPin, Phone, Mail, Clock, MessageCircle } from 'lucide-react'
@@ -113,7 +114,7 @@ export default function ContactPage() {
               {[
                 { icon: Phone, label: 'Phone', value: '+234 805 292 9523\n+234 806 375 3209', href: 'tel:+2348052929523' },
                 { icon: Mail, label: 'Email', value: 'info@cchumedia.com', href: 'mailto:info@cchumedia.com' },
-                { icon: MapPin, label: 'Physical outlet', value: 'Suite 38, Mazfallah Shopping Complex\nKaru, AMAC 900110, Abuja FCT', href: null },
+                { icon: MapPin, label: 'Physical outlet', value: `${BRAND.addressStreet}\nKaru, AMAC 900110, Abuja FCT`, href: null },
                 { icon: Clock, label: 'Opening hours', value: 'Monday – Saturday: 8:00AM – 7:00PM\nSunday: Closed', href: null },
               ].map(({ icon: Icon, label, value, href }) => (
                 <div key={label} style={{ background: 'white', border: '1px solid var(--border)', borderRadius: 12, padding: '18px 20px', display: 'flex', gap: 14, alignItems: 'flex-start' }}>

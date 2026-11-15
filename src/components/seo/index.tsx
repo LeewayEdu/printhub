@@ -148,7 +148,7 @@ export function LocalBusinessSchema() {
       foundingDate: BRAND.since,
       address: {
         '@type': 'PostalAddress',
-        streetAddress: 'Suite 38, Mazfallah Shopping Complex',
+        streetAddress: BRAND.addressStreet,
         addressLocality: 'Karu',
         addressRegion: 'Abuja FCT',
         postalCode: '900110',

@@ -88,7 +88,7 @@ export default function Footer() {
               <a href="https://wa.me/2348052929523" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', textDecoration: 'none' }}>WhatsApp us</a>
               <a href={BRAND.mapsUrl} target="_blank" rel="noopener noreferrer"
                 style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5, textDecoration: 'none' }}>
-                Suite 38, Mazfallah Plaza, Karu, Abuja
+                {BRAND.addressStreet}, Karu, Abuja
               </a>
               <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>Mon - Sat: 8am - 7pm</span>
             </div>
