@@ -3,6 +3,7 @@
 
 import { visibleBadge } from '@/lib/catalog'
 import { BRAND } from '@/lib/constants'
+import { yearsLabel } from '@/lib/company'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
@@ -359,16 +360,22 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
             💬 Order via WhatsApp
           </button>
 
-          {/* Turnaround + delivery */}
-          {(product.turnaround_time || product.delivery_information) && (
-            <div style={{ marginTop: 20, padding: '14px 16px', background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 10 }}>
-              {product.turnaround_time && (
-                <div style={{ fontSize: 13, color: '#166534', marginBottom: 4 }}>⏱️ <strong>Turnaround:</strong> {product.turnaround_time}</div>
-              )}
-              {product.delivery_information && (
-                <div style={{ fontSize: 13, color: '#166534' }}>🚚 <strong>Delivery:</strong> {product.delivery_information}</div>
-              )}
+          {/* Trust row */}
+          <ul style={{ listStyle: 'none', margin: '16px 0 0', padding: 0, display: 'grid', gap: 6, fontSize: 13, color: 'var(--text-primary)' }}>
+            <li>🔄 Free reprint if the error is ours</li>
+            <li>🔒 Secure payment via Paystack</li>
+            <li>⭐ {yearsLabel()} · {BRAND.stats.jobs} jobs delivered</li>
+          </ul>
+
+          {/* Turnaround and delivery. Shown only when the product has a stored turnaround;
+              no generic turnaround is stored anywhere, so none is invented. */}
+          {product.turnaround_time && (
+            <div style={{ marginTop: 12, fontSize: 13, color: 'var(--text-secondary)' }}>
+              ⏱️ Typical turnaround: {product.turnaround_time} · Pickup in Karu or nationwide delivery
             </div>
+          )}
+          {product.delivery_information && (
+            <div style={{ marginTop: 6, fontSize: 13, color: 'var(--text-secondary)' }}>🚚 {product.delivery_information}</div>
           )}
         </div>
       </div>
