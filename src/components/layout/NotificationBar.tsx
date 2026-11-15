@@ -10,7 +10,7 @@ export default function NotificationBar() {
 
   useEffect(() => {
     supabase.from('notifications').select('*').eq('is_active', true)
-      .order('created_at', { ascending: false }).limit(1).single()
+      .order('created_at', { ascending: false }).limit(1).maybeSingle()
       .then(({ data }) => { if (data) setNotification(data) })
   }, [])
 
