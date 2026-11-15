@@ -391,7 +391,7 @@ export default function CheckoutPage() {
                         </div>
                       </div>
                       <div>
-                        <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 5, color: 'var(--text-primary)' }}>Phone</label>
+                        <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 5, color: 'var(--text-primary)' }}>Phone *</label>
                         <input aria-label="Phone number" value={phone} onChange={e => setPhone(e.target.value)} className="form-input" />
                       </div>
                       <div>
@@ -402,7 +402,12 @@ export default function CheckoutPage() {
                   )}
                   <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
                     <button onClick={() => setStep(0)} style={{ flex: 1, padding: '12px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 600, fontSize: 14, cursor: 'pointer', color: 'var(--text-primary)' }}>Back</button>
-                    <button onClick={() => { if (!selectedDelivery) { toast.error('Please select a delivery option'); return } setStep(2) }}
+                    <button onClick={() => {
+                        if (!selectedDelivery) { toast.error('Please select a delivery option'); return }
+                        // a phone number is needed before payment so we can reach the customer about the order
+                        if (phone.replace(/\D/g, '').length < 10) { toast.error('Please enter a phone number we can reach you on'); return }
+                        setStep(2)
+                      }}
                       style={{ flex: 2, padding: '12px', background: 'var(--red)', color: 'white', border: 'none', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
                       Continue to Payment
                     </button>

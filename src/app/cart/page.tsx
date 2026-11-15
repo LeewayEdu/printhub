@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/layout/Navbar'
@@ -25,6 +25,15 @@ export default function CartPage() {
   const router = useRouter()
   const { items, removeFromCart, totalPrice, clearCart, updateDesign } = useCartStore()
   const [panels, setPanels] = useState<Record<string, PanelState>>({})
+  // Cheapest paid delivery option, read from the delivery_settings table
+  const [minDelivery, setMinDelivery] = useState<number | null>(null)
+  useEffect(() => {
+    supabase.from('delivery_settings').select('price').eq('is_active', true).neq('type', 'pickup')
+      .then(({ data }) => {
+        const fees = (data || []).map((r: any) => Number(r.price)).filter((n: number) => n > 0)
+        if (fees.length) setMinDelivery(Math.min(...fees))
+      })
+  }, [])
 
   const panel = (id: string): PanelState => panels[id] ?? defaultPanel()
 
@@ -295,7 +304,7 @@ export default function CartPage() {
                   <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Subtotal</span>
                   <span style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 16, color: 'var(--text-primary)' }}>₦{totalPrice().toLocaleString()}</span>
                 </div>
-                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 6 }}>Delivery fee calculated at checkout</div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 6 }}>Pickup in Karu is free{minDelivery ? `; delivery from ₦${minDelivery.toLocaleString()}` : ''}. The exact fee is shown before you pay.</div>
               </div>
 
               <div style={{ borderTop: '2px solid var(--text-primary)', paddingTop: 16, marginBottom: 20 }}>
