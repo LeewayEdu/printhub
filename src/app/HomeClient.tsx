@@ -30,7 +30,7 @@ export default function HomePage({ data }: { data: HomeData }) {
   // "All Products" is the real count of active products; each category is
   // already limited to categories that have at least one active product.
   const categoryMap: Record<string, number> = { 'All Products': allProducts.length, ...data.categoryMap }
-  const [activeCat, setActiveCat] = useState('All Products')
+  const activeCat = 'All Products' // the sidebar always navigates to /shop
   const [wishlistIds, setWishlistIds] = useState<string[]>([])
   const [heroSearch, setHeroSearch] = useState('')
   const [heroResults, setHeroResults] = useState<Product[]>([])
@@ -81,12 +81,10 @@ export default function HomePage({ data }: { data: HomeData }) {
     return () => clearInterval(t)
   }, [heroBanners])
 
-  const categoryProducts = activeCat === 'All Products'
-    ? allProducts.slice(0, 12)
-    : allProducts.filter(p => (productTags[p.id] || []).includes(activeCat)).slice(0, 12)
-
-  // Category pills come from the real marketing categories that have products.
-  const SHOP_CATS = ['All Products', ...Object.keys(categoryMap).filter(c => c !== 'All Products').slice(0, 13)]
+  // One product row only: bestsellers when enough products qualify, otherwise featured.
+  // The two lists never overlap (see lib/home-data.ts) and no product appears twice.
+  const rowIsBestsellers = bestsellers.length > 0
+  const productRow = rowIsBestsellers ? bestsellers : featuredProducts
 
   // Product price label helper — uses display_price / is_fixed_price,
   // never the legacy price/pricing_model fields.
@@ -367,94 +365,44 @@ export default function HomePage({ data }: { data: HomeData }) {
           </div>
         </section>
 
-        {/* ── SHOP BY CATEGORY + LIVE PRODUCTS ── */}
+        {/* ── SHOP BY CATEGORY: category cards handle browsing ── */}
         <section className="section" style={{ background: 'var(--light)', paddingLeft: 'clamp(16px, 3vw, 40px)', paddingRight: 'clamp(16px, 3vw, 40px)', paddingTop: 40, paddingBottom: 40 }}>
           <div className="section-inner" style={{ paddingLeft: 0, paddingRight: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 32, flexWrap: 'wrap' as const, gap: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 28, flexWrap: 'wrap' as const, gap: 16 }}>
               <div>
                 <div className="badge badge-red" style={{ marginBottom: 10 }}>Live catalogue</div>
                 <h2 style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 'clamp(24px, 3vw, 36px)', color: 'var(--text-primary)' }}>Shop by Category</h2>
               </div>
               <Link href="/shop" style={{ fontSize: 13, color: 'var(--red)', fontWeight: 700, textDecoration: 'none', fontFamily: 'Montserrat' }}>View all products →</Link>
             </div>
-
-            {/* Category pills — driven by marketing categories */}
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, marginBottom: 28 }}>
-              {SHOP_CATS.map(cat => (
-                <button key={cat} onClick={() => setActiveCat(cat)}
-                  style={{ padding: '7px 16px', borderRadius: 20, border: `1.5px solid ${activeCat === cat ? 'var(--red)' : 'var(--border)'}`, background: activeCat === cat ? 'var(--red)' : 'white', color: activeCat === cat ? 'white' : 'var(--gray)', fontFamily: 'Montserrat', fontWeight: 600, fontSize: 12, cursor: 'pointer', transition: 'all 0.2s', whiteSpace: 'nowrap' as const }}>
-                  {cat}
-                  {categoryMap[cat] !== undefined && (
-                    <span style={{ marginLeft: 6, opacity: 0.7, fontWeight: 400 }}>({categoryMap[cat]})</span>
-                  )}
-                </button>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }} className="cat-card-grid">
+              {Object.entries(data.categoryMap).map(([label, count]) => (
+                <Link key={label} href={`/shop?cat=${encodeURIComponent(label)}`} className="card-hover"
+                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: 'white', border: '1px solid var(--border)', borderRadius: 12, textDecoration: 'none' }}>
+                  <span style={{ fontSize: 26, flexShrink: 0 }} aria-hidden="true">{categoryIcons[label] || '🏷️'}</span>
+                  <span style={{ minWidth: 0 }}>
+                    <span style={{ display: 'block', fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, color: 'var(--text-primary)', lineHeight: 1.3 }}>{label}</span>
+                    <span style={{ display: 'block', fontSize: 12, color: 'var(--gray)', marginTop: 2 }}>{count} product{count === 1 ? '' : 's'}</span>
+                  </span>
+                </Link>
               ))}
-            </div>
-
-            {/* Products grid */}
-            {categoryProducts.length > 0 ? (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }} className="cat-products-grid">
-                {categoryProducts.map(p => (
-                  <ProductCard
-                    key={p.id}
-                    product={p}
-                    onOpen={openProduct}
-                    wishlistIds={wishlistIds}
-                    marketingTags={productTags[p.id] || []}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div style={{ textAlign: 'center' as const, padding: '48px 0', color: 'var(--gray)' }}>
-                Loading products...
-              </div>
-            )}
-
-            <div style={{ textAlign: 'center' as const, marginTop: 32 }}>
-              <Link href="/shop" className="btn btn-outline" style={{ fontSize: 14 }}>Browse full catalogue</Link>
             </div>
           </div>
         </section>
 
-        {/* ── FEATURED PRODUCTS ── */}
-        {featuredProducts.length > 0 && (
+        {/* ── ONE PRODUCT ROW: bestsellers when enough products qualify, otherwise featured ── */}
+        {productRow.length > 0 && (
           <section className="section" style={{ background: 'white', paddingLeft: 'clamp(16px, 3vw, 40px)', paddingRight: 'clamp(16px, 3vw, 40px)', paddingTop: 40, paddingBottom: 40 }}>
             <div className="section-inner" style={{ paddingLeft: 0, paddingRight: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 36, flexWrap: 'wrap' as const, gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 28, flexWrap: 'wrap' as const, gap: 12 }}>
                 <div>
-                  <div className="badge badge-red" style={{ marginBottom: 10 }}>Handpicked</div>
-                  <h2 style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 'clamp(24px, 3vw, 36px)', color: 'var(--text-primary)' }}>Featured Products</h2>
+                  <div className="badge badge-red" style={{ marginBottom: 10 }}>{rowIsBestsellers ? '🔥 Most ordered' : 'Handpicked'}</div>
+                  <h2 style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 'clamp(24px, 3vw, 36px)', color: 'var(--text-primary)' }}>{rowIsBestsellers ? 'Bestsellers' : 'Featured Products'}</h2>
                 </div>
                 <Link href="/shop" style={{ fontSize: 13, color: 'var(--red)', fontWeight: 700, textDecoration: 'none', fontFamily: 'Montserrat' }}>View all →</Link>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }} className="featured-grid">
-                {featuredProducts.map(p => (
-                  <ProductCard
-                    key={p.id}
-                    product={p}
-                    onOpen={openProduct}
-                    wishlistIds={wishlistIds}
-                    marketingTags={productTags[p.id] || []}
-                  />
-                ))}
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* ── BESTSELLERS ── */}
-        {bestsellers.length > 0 && (
-          <section className="section" style={{ background: 'var(--light)', paddingLeft: 'clamp(16px, 3vw, 40px)', paddingRight: 'clamp(16px, 3vw, 40px)', paddingTop: 40, paddingBottom: 40 }}>
-            <div className="section-inner" style={{ paddingLeft: 0, paddingRight: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 36, flexWrap: 'wrap' as const, gap: 12 }}>
-                <div>
-                  <div className="badge badge-red" style={{ marginBottom: 10 }}>🔥 Most ordered</div>
-                  <h2 style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 'clamp(24px, 3vw, 36px)', color: 'var(--text-primary)' }}>Bestsellers</h2>
-                </div>
-                <Link href="/shop" style={{ fontSize: 13, color: 'var(--red)', fontWeight: 700, textDecoration: 'none', fontFamily: 'Montserrat' }}>View all →</Link>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }} className="best-grid">
-                {bestsellers.map(p => (
+                {productRow.map(p => (
                   <ProductCard
                     key={p.id}
                     product={p}
@@ -803,13 +751,21 @@ export default function HomePage({ data }: { data: HomeData }) {
           .featured-grid { grid-template-columns: repeat(2, 1fr) !important; }
           .best-grid { grid-template-columns: repeat(2, 1fr) !important; }
           .kits-grid { grid-template-columns: 1fr !important; }
-          .hero-stats { flex-direction: column !important; gap: 16px !important; }
           .hero-cta-row { flex-direction: column !important; }
           .hero-cta-row a { width: 100% !important; text-align: center !important; }
         }
 
+        /* Shorter hero on phones so the main call to action is visible without scrolling */
+        @media (max-width: 768px) {
+          .hero-section { min-height: 0 !important; padding: 28px 16px 28px !important; }
+          .hero-section h1 { margin-bottom: 16px !important; }
+          .hero-section p { margin-bottom: 18px !important; font-size: 15px !important; }
+          .hero-cta-row { margin-bottom: 22px !important; }
+          .hero-stats { flex-direction: row !important; gap: 0 !important; }
+          .cat-card-grid { grid-template-columns: repeat(2, 1fr) !important; }
+        }
         @media (max-width: 480px) {
-          .hero-section { padding: 60px 16px 40px !important; }
+          .hero-section { padding: 28px 16px 28px !important; }
           .section { padding: 40px 16px !important; }
           .services-grid { grid-template-columns: 1fr !important; }
           .cat-products-grid { grid-template-columns: repeat(2, 1fr) !important; }

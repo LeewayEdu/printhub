@@ -79,6 +79,10 @@ export async function getHomeData(): Promise<HomeData> {
     const categoryMap: Record<string, number> = {}
     ;(cats.data || []).forEach((c: any) => { if (counts[c.label] > 0) categoryMap[c.label] = counts[c.label] })
 
+    // RULE for the "What we print" cards: a card shows "From ₦X" only when its marketing
+    // category (HOME_SERVICES[].priceFrom) has at least one ACTIVE product with a price,
+    // where X is the cheapest such price. Otherwise it shows "Get a quote". Every card
+    // goes through this one path, so no card can show a hand-typed price.
     const servicePrices: Record<string, string> = {}
     HOME_SERVICES.forEach(s => {
       const prices = pricesByLabel[s.priceFrom] || []
