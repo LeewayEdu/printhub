@@ -2,10 +2,11 @@
 'use client'
 
 import { visibleBadge } from '@/lib/catalog'
+import { BRAND } from '@/lib/constants'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
-import { ShoppingCart, Heart, Share2, ChevronDown, ChevronUp, Star } from 'lucide-react'
+import { ShoppingCart, Heart, Share2, ChevronDown, ChevronUp, Star, MessageCircle } from 'lucide-react'
 import { useCartStore } from '@/store/cartStore'
 import type { DesignPricingResolved } from '@/store/cartStore'
 import LiveCalculatorV2 from '@/components/shop/LiveCalculatorV2'
@@ -95,16 +96,32 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
       : 'Added to cart. You can upload your design file in the cart.')
   }
 
-  const handleWhatsApp = () => {
-    const msg = encodeURIComponent(
-      `Hello, I'm interested in ordering:\n\n` +
-      `Product: ${product.name}\n` +
-      `Quantity: ${qty}\n` +
-      `${calculatedPrice ? `Estimated Total: ₦${totalPrice.toLocaleString()}\n` : ''}` +
-      `\nPlease confirm availability and delivery timeline.`
-    )
-    window.open(`https://wa.me/2348052929523?text=${msg}`, '_blank')
+  // Pre-filled WhatsApp message: product, chosen options, quantity, total and page link.
+  const buildWhatsAppUrl = () => {
+    const options = Object.entries(specs).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join(', ')
+    const lines = [
+      "Hello, I'm interested in ordering:",
+      '',
+      `Product: ${product.name}`,
+      options ? `Options: ${options}` : '',
+      `Quantity: ${qty}`,
+      calculatedPrice ? `Estimated total: ₦${totalPrice.toLocaleString()}` : '',
+      `Link: ${window.location.origin}/products/${product.slug}`,
+      '',
+      'Please confirm availability and delivery timeline.',
+    ].filter((l, i, arr) => l !== '' || (arr[i - 1] !== '' && i !== 0))
+    return `https://wa.me/${BRAND.whatsapp}?text=${encodeURIComponent(lines.join('\n'))}`
   }
+
+  const handleWhatsApp = () => {
+    window.open(buildWhatsAppUrl(), '_blank', 'noopener')
+  }
+
+  // Tells the rest of the page (chat launcher, consent banner) to sit above the mobile bar
+  useEffect(() => {
+    document.body.classList.add('has-buy-bar')
+    return () => document.body.classList.remove('has-buy-bar')
+  }, [])
 
   const handleShare = async () => {
     try {
@@ -321,6 +338,24 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
             </div>
           )}
         </div>
+      </div>
+
+      {/* ── Sticky mobile buy bar (screens under 768px) ── */}
+      <div className="mobile-buy-bar" role="region" aria-label="Order summary">
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 12, color: 'var(--gray)' }}>{calculatedPrice ? 'Total' : 'From'}</div>
+          <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 18, color: 'var(--red)', lineHeight: 1.1 }}>
+            ₦{(calculatedPrice ? totalPrice : Number(product.display_price || product.price || 0)).toLocaleString()}
+          </div>
+        </div>
+        <button onClick={handleAddToCart}
+          style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 14px', border: 'none', borderRadius: 10, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, cursor: 'pointer', background: 'var(--red)', color: 'white' }}>
+          <ShoppingCart size={16} /> Add to cart
+        </button>
+        <button onClick={handleWhatsApp} aria-label="Chat on WhatsApp about this product"
+          style={{ width: 46, height: 46, flexShrink: 0, borderRadius: 10, border: 'none', background: '#25D366', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+          <MessageCircle size={22} />
+        </button>
       </div>
 
       {/* ── Full description ── */}

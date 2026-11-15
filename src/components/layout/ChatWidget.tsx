@@ -91,7 +91,7 @@ export default function ChatWidget() {
         <button
           onClick={() => setOpen(true)}
           style={{
-            position: 'fixed', bottom: 28, right: 28, zIndex: 998,
+            position: 'fixed', bottom: 'calc(28px + var(--launcher-lift, 0px))', right: 28, zIndex: 998,
             width: 52, height: 52, background: 'var(--red)',
             borderRadius: '50%', border: 'none', cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -109,7 +109,7 @@ export default function ChatWidget() {
       {/* Chat panel */}
       {open && (
         <div style={{
-          position: 'fixed', bottom: 28, right: 28, zIndex: 998,
+          position: 'fixed', bottom: 'calc(28px + var(--launcher-lift, 0px))', right: 28, zIndex: 998,
           width: 340, height: 480,
           background: '#ffffff',
           borderRadius: 16, boxShadow: '0 8px 40px rgba(0,0,0,0.2)',

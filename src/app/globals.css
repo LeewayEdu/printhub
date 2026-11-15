@@ -270,3 +270,17 @@ main:focus { outline: none; }
    rules point those names at the self-hosted files. */
 [style*="Montserrat"] { font-family: var(--font-montserrat), 'Montserrat', sans-serif !important; }
 [style*="Open Sans"]  { font-family: var(--font-open-sans), 'Open Sans', sans-serif !important; }
+
+/* ── STICKY MOBILE BUY BAR (product pages) ── */
+.mobile-buy-bar { display: none; }
+@media (max-width: 767px) {
+  .mobile-buy-bar {
+    display: flex; align-items: center; gap: 10px;
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 900;
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+    background: #fff; border-top: 1px solid var(--border-color, #e8e8e5);
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.08);
+  }
+  /* keep the footer reachable: the page gets room equal to the bar */
+  body.has-buy-bar { padding-bottom: calc(76px + env(safe-area-inset-bottom)); --launcher-lift: calc(76px + env(safe-area-inset-bottom)); }
+}

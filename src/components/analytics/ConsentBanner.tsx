@@ -22,7 +22,7 @@ export default function ConsentBanner() {
 
   return (
     <div role="dialog" aria-label="Tracking preferences"
-      style={{ position: 'fixed', left: 16, right: 96, bottom: 16, maxWidth: 520, zIndex: 997, background: '#111', color: 'white', borderRadius: 12, padding: '16px 18px', boxShadow: '0 8px 30px rgba(0,0,0,0.35)', fontFamily: 'Open Sans, sans-serif' }}>
+      style={{ position: 'fixed', left: 16, right: 96, bottom: 'calc(16px + var(--launcher-lift, 0px))', maxWidth: 520, zIndex: 997, background: '#111', color: 'white', borderRadius: 12, padding: '16px 18px', boxShadow: '0 8px 30px rgba(0,0,0,0.35)', fontFamily: 'Open Sans, sans-serif' }}>
       <p style={{ fontSize: 13, lineHeight: 1.6, marginBottom: 12, color: 'rgba(255,255,255,0.85)' }}>
         We use the Meta Pixel to measure how our adverts perform. It only loads if you accept.{' '}
         <Link href="/privacy" style={{ color: 'white', textDecoration: 'underline' }}>Privacy policy</Link>
