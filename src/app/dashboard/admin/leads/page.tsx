@@ -37,17 +37,24 @@ export default function AdminLeadsPage() {
       const { data } = await supabase.from('profiles').select('role').eq('id', session.user.id).single()
       if (!['admin', 'super_admin'].includes(data?.role)) { router.push('/dashboard'); return }
       setAllowed(true)
-      const res = await supabase.from('leads').select('*').order('created_at', { ascending: false }).limit(500)
-      if (res.error) setError(res.error.message)
-      else setLeads((res.data || []) as Lead[])
+      // Read through the server route (service key), not straight from the browser
+      const res = await fetch('/api/admin/leads', { headers: { Authorization: `Bearer ${session.access_token}` } })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) setError(json.error || `HTTP ${res.status}`)
+      else setLeads((json.leads || []) as Lead[])
       setLoading(false)
     }
     init()
   }, [router])
 
   const setStatus = async (id: string, status: string) => {
-    const { error: err } = await supabase.from('leads').update({ status }).eq('id', id)
-    if (err) { toast.error('Could not update status'); return }
+    const { data: { session } } = await supabase.auth.getSession()
+    const res = await fetch('/api/admin/leads', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token ?? ''}` },
+      body: JSON.stringify({ id, status }),
+    })
+    if (!res.ok) { toast.error('Could not update status'); return }
     setLeads(prev => prev.map(l => l.id === id ? { ...l, status } : l))
   }
 
@@ -76,7 +83,7 @@ export default function AdminLeadsPage() {
       {loading && <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Loading…</p>}
       {error && (
         <p role="alert" style={{ fontSize: 14, color: '#b91c1c' }}>
-          Could not load leads: {error}. If this is the first time, run lead-capture-migration.sql in the Supabase SQL editor.
+          Could not load leads: {error}.
         </p>
       )}
       {!loading && !error && shown.length === 0 && <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>No leads {filter === 'all' ? 'yet' : `with status "${filter}"`}.</p>}
