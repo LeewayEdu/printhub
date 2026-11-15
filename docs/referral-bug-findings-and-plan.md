@@ -7,7 +7,7 @@ Status: **investigation only.** No code or data has been changed. Everything und
 | Question | Answer |
 |---|---|
 | Have affiliate commissions been failing silently? | **Yes. The `commissions` table has 0 rows, ever.** |
-| Why? | The checkout page saves the order as `paid` itself the moment Paystack's popup returns (`saveOrder(ref, 'paid')`). When Paystack's webhook arrives, step 5 sees `status = 'paid'`, says "already confirmed" and stops. The commission code (step 8) is after that check, so **it never runs for any Paystack order.** |
+| Why? | **Two separate paths exist and both produced nothing.** (1) The Paystack webhook: checkout saves the order as `paid` itself when Paystack's popup returns, so the webhook stops at its "already confirmed" check before the commission step. (2) The admin Orders screen calls the database function `award_affiliate_commission(p_order_id)` when an order is marked delivered. That function exists (confirmed in the REST schema) and was presumably run for order `abd8a141` when it was delivered, yet no commission row exists. **I cannot read the function body without a database connection**, so why it inserted nothing is unconfirmed. The likely cause is the same column mismatch (an error inside the function rolls back its insert), but that is a guess until the body can be read. |
 | Was the `referrals.profile_id` query also wrong? | Yes. The live `referrals` table has `referred_user_id` (the repo's migration file says `profile_id`; the live database differs). The webhook's update by `profile_id` would fail silently, and so does the sign-up code in `/api/auth/referral` that inserts a `referrals` row. |
 | Is affiliate lookup affected? | No. The webhook tries `affiliates.user_id` (does not exist, error ignored) then falls back to `profile_id` (correct). |
 | Are referral totals wrong? | `affiliates.total_referrals` is correct (BLESSING 4, 2135D736 2, CCHU 1). But **7 of the 8 customers who signed up through a referral have no `referrals` row**, so per-referral order and spend totals are empty. |
@@ -20,6 +20,8 @@ Related gap (not a bug in the code, a missing path): **17 of 31 orders were paid
 Also noted: because the browser marks the order `paid` itself, the order status trusts the customer's browser. That is a separate payment-integrity risk worth fixing alongside this.
 
 ## Proposed code fix (not applied)
+
+0. **Before any fix:** read the body of `award_affiliate_commission` (needs a database connection: `select pg_get_functiondef('public.award_affiliate_commission(uuid)'::regprocedure);`). Ideally keep ONE commission routine (that function, fixed) and have both the webhook and the admin delivery action call it, so a commission is paid exactly once whichever path runs first.
 
 1. **Webhook** (`src/app/api/webhooks/paystack/route.ts`): move the affiliate commission block into a function that runs even when the order is already `paid`, protected against double payment by checking for an existing row in `commissions` with the same `order_id`. Use `affiliates.profile_id` directly (drop the `user_id` probing) and `referrals.referred_user_id`.
 2. **Sign-up** (`src/app/api/auth/referral/route.ts`): insert into `referrals` using `referred_user_id`, checking first whether the row exists (the live table may not have the `(affiliate_id, profile_id)` unique key the old migration created).
