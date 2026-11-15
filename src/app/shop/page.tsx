@@ -44,7 +44,8 @@ export default async function ShopPage({
     productTags[row.product_id].push(label)
   })
 
-  const catCounts: Record<string, number> = {}
+  // 'All Products' is the real number of active products (not the sum of tag counts)
+  const catCounts: Record<string, number> = { 'All Products': (products || []).length }
   const catIcons: Record<string, string> = {}
   ;(marketingCategories || []).forEach((mc: any) => {
     catCounts[mc.label] = 0

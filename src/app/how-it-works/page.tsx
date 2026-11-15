@@ -13,7 +13,7 @@ const STEPS = [
   },
   {
     num: '02', icon: '🛍️', title: 'Browse and configure your product',
-    desc: 'Visit the Shop page and browse 65+ products across 14 categories. Click any product to open the order modal. Select your specs — paper weight, lamination, size, finishing — and watch the price update live. For banner printing, enter your width and height in feet and the system calculates the total automatically.',
+    desc: 'Visit the Shop page and browse our full catalogue of print products. Click any product to open the order modal. Select your specs — paper weight, lamination, size, finishing — and watch the price update live. For banner printing, enter your width and height in feet and the system calculates the total automatically.',
   },
   {
     num: '03', icon: '🎨', title: 'Submit your design',

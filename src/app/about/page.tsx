@@ -3,9 +3,19 @@
 import Link from 'next/link'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
+import { useEffect, useState } from 'react'
 import { CLIENTS } from '@/lib/constants'
+import { yearsPlus, yearsLabel, FOUNDING_YEAR } from '@/lib/company'
+import { supabase } from '@/lib/supabase/client'
 
 export default function AboutPage() {
+  // Real number of active products (replaces a hard-coded "65+")
+  const [productCount, setProductCount] = useState<number | null>(null)
+  useEffect(() => {
+    supabase.from('products').select('id', { count: 'exact', head: true }).eq('is_active', true)
+      .then(({ count }) => { if (typeof count === 'number') setProductCount(count) })
+  }, [])
+
   return (
     <>
       <Navbar />
@@ -26,10 +36,10 @@ export default function AboutPage() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               {[
-                { value: '13+', label: 'Years in business' },
+                { value: yearsPlus(), label: 'Years in business' },
                 { value: '3,000+', label: 'Jobs delivered' },
-                { value: '14', label: 'Service categories' },
-                { value: '65+', label: 'Products available' },
+                { value: String(FOUNDING_YEAR), label: 'Year founded' },
+                ...(productCount ? [{ value: String(productCount), label: 'Products available' }] : []),
               ].map((stat, i) => (
                 <div key={i} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: '24px 20px', textAlign: 'center' as const }}>
                   <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 36, color: 'var(--red)', lineHeight: 1 }}>{stat.value}</div>
@@ -52,7 +62,7 @@ export default function AboutPage() {
                 C-Chu Media was founded in 2011 and incorporated in 2013 with a simple mission: make professional printing accessible to every business owner in Nigeria, regardless of size or budget.
               </p>
               <p style={{ fontSize: 15, color: 'var(--gray)', lineHeight: 1.8, marginBottom: 16 }}>
-                Over 13 years we have grown from printing basic flyers to handling full corporate identity packages, book publishing with ISBN registration, election campaign materials, 3D signage installation, and vehicle branding across the FCT.
+                For {yearsLabel()} we have grown from printing basic flyers to handling full corporate identity packages, book publishing with ISBN registration, election campaign materials, 3D signage installation, and vehicle branding across the FCT.
               </p>
               <p style={{ fontSize: 15, color: 'var(--gray)', lineHeight: 1.8 }}>
                 PrintHub is the next step in that journey — bringing our entire catalogue online so you can order, track, and manage your print jobs from anywhere in Nigeria.

@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { yearsLabel } from '@/lib/company'
+import { STARTER_KITS } from '@/lib/constants'
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY
 
@@ -15,7 +17,7 @@ Phone: +234 806 375 3209 | +234 805 292 9523
 WhatsApp: +234 805 292 9523
 Email: info@cchumedia.com
 Website: printhub.cchumedia.com
-Track record: 3,000+ clients served, 13+ years in business
+Track record: 3,000+ clients served, ${yearsLabel()} in business
 
 ━━━━━━━━━━━━━━━━━━━━━━━
 HOW TO ORDER
@@ -166,9 +168,7 @@ Affiliate Program:
 ━━━━━━━━━━━━━━━━━━━━━━━
 STARTER KITS (BUNDLES)
 ━━━━━━━━━━━━━━━━━━━━━━━
-- Starter Kit: ₦75,000 — 250 cards + 1 banner + 100 flyers
-- Standard Kit: ₦150,000 — 500 cards + 2 banners + 2 polo shirts + letterhead
-- Premium Kit: ₦280,000 — Full brand package + apparel + signage
+${STARTER_KITS.map(k => `- ${k.name} Kit: ₦${k.price.toLocaleString('en-NG')} — ${k.items.join('; ')}`).join('\n')}
 - Custom kits available on request
 
 ━━━━━━━━━━━━━━━━━━━━━━━

@@ -7,31 +7,28 @@ import { supabase } from '@/lib/supabase/client'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import { Star } from 'lucide-react'
-import { BRAND, HOME_SERVICES, STARTER_KITS, AFFILIATE_TIERS, CLIENTS } from '@/lib/constants'
+import { BRAND, HOME_SERVICES, STARTER_KITS, AFFILIATE_TIERS, HOME_CLIENTS } from '@/lib/constants'
+import { yearsPlus, freshenYears } from '@/lib/company'
+import type { HomeData } from '@/lib/home-data'
 import { ProductCard, ShopSidebar, ProductCardData } from '@/components/shop/ShopComponents'
 import { useFlashSaleStore } from '@/store/flashSaleStore'
 
 
 // ─── TYPES ───────────────────────────────────────────────────
-interface HeroBanner { id: string; image_url: string; title: string | null; subtitle: string | null; link_url: string | null; overlay_opacity?: number; cta_text?: string | null; cta_url?: string | null }
+export interface HeroBanner { id: string; image_url: string; title: string | null; subtitle: string | null; link_url: string | null; overlay_opacity?: number; cta_text?: string | null; cta_url?: string | null }
 interface Testimonial { id: string; name: string; company: string | null; text: string; rating: number }
 type Product = ProductCardData
 
 // ─── MAIN PAGE ────────────────────────────────────────────────
-export default function HomePage() {
+export default function HomePage({ data }: { data: HomeData }) {
   const router = useRouter()
-  const [heroBanners, setHeroBanners] = useState<HeroBanner[]>([])
+  // Server-fetched, revalidated every 5 minutes (see app/page.tsx). Everything
+  // below that states a fact (counts, prices, bestsellers) comes from this object.
+  const { heroBanners, products: allProducts, testimonials, productTags, categoryIcons, featured: featuredProducts, bestsellers } = data
   const [heroIdx, setHeroIdx] = useState(0)
-  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([])
-  const [allProducts, setAllProducts] = useState<Product[]>([])
-  const [testimonials, setTestimonials] = useState<Testimonial[]>([])
-  // categoryMap and productTags now driven by MARKETING categories, not the
-  // legacy `category` (pricing category) column — customers should never
-  // see pricing-category names like "Sheet Printing" or "Apparel & Wearables"
-  // in navigation; those exist purely to drive the spec/price calculator.
-  const [categoryMap, setCategoryMap] = useState<Record<string, number>>({})
-  const [categoryIcons, setCategoryIcons] = useState<Record<string, string>>({})
-  const [productTags, setProductTags] = useState<Record<string, string[]>>({}) // product_id -> marketing category labels
+  // "All Products" is the real count of active products; each category is
+  // already limited to categories that have at least one active product.
+  const categoryMap: Record<string, number> = { 'All Products': allProducts.length, ...data.categoryMap }
   const [activeCat, setActiveCat] = useState('All Products')
   const [wishlistIds, setWishlistIds] = useState<string[]>([])
   const [heroSearch, setHeroSearch] = useState('')
@@ -39,75 +36,10 @@ export default function HomePage() {
   const [heroSearchFocused, setHeroSearchFocused] = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
   const flashSaleActive = useFlashSaleStore(s => s.isActive)
-  const [tickerItems, setTickerItems] = useState<{text: string, emoji: string}[]>([])
+  const tickerItems = data.tickerItems.map(t => ({ ...t, text: freshenYears(t.text) }))
 
-
+  // Wishlist IDs are per-user, so they are the only thing still fetched in the browser.
   useEffect(() => {
-    // Hero banners
-    supabase.from('hero_banners').select('*').eq('is_active', true).eq('page_type', 'home').order('sort_order')
-      .then(({ data }) => { if (data?.length) setHeroBanners(data) })
-
-    // Products
-    supabase.from('products').select('*').eq('is_active', true).order('created_at', { ascending: false })
-      .then(({ data }) => {
-        if (!data) return
-        setAllProducts(data as Product[])
-        setFeaturedProducts((data as Product[]).filter(p => p.featured).slice(0, 8))
-      })
-
-    // Marketing categories + product tags — replaces the old `category`
-    // (pricing category) based categoryMap. A product can carry several
-    // marketing category tags; counts here reflect that.
-    //
-    // BUG FIX (17 June 2026): this previously counted every row in
-    // product_marketing_categories directly, with NO filter on whether
-    // the underlying product was active — so a deactivated product's
-    // tags still counted toward the sidebar/pill numbers, inflating
-    // "All Products" to the full database count (~100) instead of the
-    // real active count, while clicking into a specific category showed
-    // far fewer products since THAT view correctly filtered by is_active.
-    // Fix: fetch active product IDs first, then only count a tag if its
-    // product_id is in that active set — mirrors the (already correct)
-    // pattern used in shop-page.tsx.
-    supabase.from('marketing_categories').select('id, label, icon').eq('is_active', true).order('sort_order')
-      .then(async ({ data: cats }) => {
-        if (!cats) return
-        const { data: activeProducts } = await supabase.from('products').select('id').eq('is_active', true)
-        const activeIds = new Set((activeProducts || []).map(p => p.id))
-
-        const { data: tags } = await supabase
-          .from('product_marketing_categories')
-          .select('product_id, marketing_categories(label)')
-        const tagMap: Record<string, string[]> = {}
-        const counts: Record<string, number> = {}
-        const icons: Record<string, string> = {}
-        cats.forEach(c => { counts[c.label] = 0; icons[c.label] = c.icon || '🏷️' })
-        ;(tags || []).forEach((row: any) => {
-          const label = row.marketing_categories?.label
-          if (!label) return
-          // Only build the tag lookup and counts for ACTIVE products —
-          // an inactive product's tags should not inflate any count.
-          if (activeIds.has(row.product_id)) {
-            if (!tagMap[row.product_id]) tagMap[row.product_id] = []
-            tagMap[row.product_id].push(label)
-            if (counts[label] !== undefined) counts[label]++
-          }
-        })
-        setProductTags(tagMap)
-        setCategoryIcons(icons)
-        const total = Object.values(counts).reduce((a, b) => a + b, 0)
-        setCategoryMap({ 'All Products': total, ...counts })
-      })
-
-    // Testimonials
-    supabase.from('testimonials').select('*').eq('is_active', true).order('sort_order')
-      .then(({ data }) => { if (data) setTestimonials(data as Testimonial[]) })
-
-    // Trust ticker
-    supabase.from('trust_ticker').select('text, emoji').eq('is_active', true).order('sort_order')
-      .then(({ data }) => { if (data?.length) setTickerItems(data) })
-
-    // Wishlist IDs for current user
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         supabase.from('wishlists').select('product_id').eq('user_id', session.user.id)
@@ -148,15 +80,11 @@ export default function HomePage() {
     return () => clearInterval(t)
   }, [heroBanners])
 
-  const bestsellers = allProducts.slice(0, 8)
   const categoryProducts = activeCat === 'All Products'
     ? allProducts.slice(0, 12)
     : allProducts.filter(p => (productTags[p.id] || []).includes(activeCat)).slice(0, 12)
 
-  // Category pills now sourced from real marketing category labels (from
-  // categoryMap, which is keyed by marketing category since the fetch
-  // effect above), not by deriving unique values from products' legacy
-  // `category` field.
+  // Category pills come from the real marketing categories that have products.
   const SHOP_CATS = ['All Products', ...Object.keys(categoryMap).filter(c => c !== 'All Products').slice(0, 13)]
 
   // Product price label helper — uses display_price / is_fixed_price,
@@ -340,9 +268,9 @@ export default function HomePage() {
             {/* Stats */}
             <div className="hero-stats" style={{ display: 'flex', gap: 0, justifyContent: 'center', flexWrap: 'wrap' as const }}>
               {[
-                { value: BRAND.stats.years, label: 'Years in business' },
+                { value: yearsPlus(), label: 'Years in business' },
                 { value: BRAND.stats.jobs, label: 'Jobs delivered' },
-                { value: BRAND.stats.startingPrice, label: 'Starting price' },
+                ...(data.minPrice ? [{ value: `₦${data.minPrice.toLocaleString('en-NG')}`, label: 'Prices from' }] : []),
               ].map((stat, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center' }}>
                   {i > 0 && <div style={{ width: 1, height: 40, background: 'rgba(255,255,255,0.1)', margin: '0 24px' }} />}
@@ -584,7 +512,7 @@ export default function HomePage() {
                     <div style={{ padding: '14px 16px 16px' }}>
                       <h3 style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, marginBottom: 6, color: 'var(--black)' }}>{service.name}</h3>
                       <p style={{ fontSize: 12, color: 'var(--gray)', lineHeight: 1.5, marginBottom: 10 }}>{service.desc}</p>
-                      <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13, color: 'var(--red)' }}>{service.price}</div>
+                      <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13, color: 'var(--red)' }}>{data.servicePrices[service.name] || 'Get a quote'}</div>
                     </div>
                   </Link>
                 )
@@ -605,7 +533,7 @@ export default function HomePage() {
               {[
                 { icon: '⚡', title: 'Lightning Fast', desc: '24hr rush service available. Same-day pickup in Abuja. We work on your timeline, not ours.' },
                 { icon: '🎨', title: 'Free Design Review', desc: 'Expert preflight on every file before production. 300 DPI quality check guaranteed. No surprises.' },
-                { icon: '💰', title: 'Best Prices in Abuja', desc: 'Starting from ₦3,000. Transparent pricing with no hidden charges. Bulk discounts up to 20% off.' },
+                { icon: '💰', title: 'Transparent Pricing', desc: `Prices shown up front with no hidden charges${data.minPrice ? `, from ₦${data.minPrice.toLocaleString('en-NG')}` : ''}.${data.maxBulkDiscount ? ` Bulk discounts of up to ${data.maxBulkDiscount}% on selected products.` : ''}` },
                 { icon: '🔄', title: 'Free Reprint Guarantee', desc: "If your print doesn't match your approved proof, we reprint for free. Zero risk." },
                 { icon: '📦', title: 'Nationwide Delivery', desc: 'Pickup from Karu, Abuja or delivered to any of the 36 states via trusted logistics.' },
                 { icon: '⭐', title: 'Loyalty Rewards', desc: 'Earn 2% of every order as loyalty points. Redeem on future orders. The more you print, the more you save.' },
@@ -712,10 +640,10 @@ export default function HomePage() {
                 <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 72, color: 'var(--red)', lineHeight: 1 }}>3,000+</div>
                 <div style={{ fontSize: 16, color: 'rgba(255,255,255,0.5)', lineHeight: 1.6, marginTop: 8 }}>Jobs delivered since {BRAND.since}</div>
                 <div style={{ width: 40, height: 3, background: 'var(--red)', borderRadius: 2, margin: '20px 0' }} />
-                <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)', lineHeight: 1.7 }}>Trusted by Nigeria's leading organisations, government agencies, businesses and individuals.</p>
+                <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)', lineHeight: 1.7 }}>Trusted by 50+ organisations, agencies, businesses and campaigns</p>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10 }} className="clients-inner-grid">
-                {CLIENTS.map(client => (
+                {HOME_CLIENTS.map(client => (
                   <div key={client} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: '14px 10px', textAlign: 'center' as const }}>
                     <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', lineHeight: 1.4 }}>{client}</span>
                   </div>

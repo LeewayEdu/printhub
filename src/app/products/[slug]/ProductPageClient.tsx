@@ -1,6 +1,7 @@
 // src/app/products/[slug]/ProductPageClient.tsx
 'use client'
 
+import { visibleBadge } from '@/lib/catalog'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
@@ -128,9 +129,9 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
               ? <img src={images[activeImage]} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 64 }}>🖨️</div>
             }
-            {product.badge && (
+            {visibleBadge(product) && (
               <div style={{ position: 'absolute' as const, top: 16, left: 16, background: 'var(--red)', color: 'white', fontFamily: 'Montserrat', fontWeight: 700, fontSize: 12, padding: '4px 12px', borderRadius: 20 }}>
-                {product.badge}
+                {visibleBadge(product)}
               </div>
             )}
           </div>

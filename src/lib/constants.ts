@@ -20,11 +20,14 @@ export const BRAND = {
     instagram: 'https://www.instagram.com/cchumedia',
     x: 'https://x.com/cchumedia',
   },
+  // Years in business and starting prices are computed (see lib/company.ts and
+  // lib/home-data.ts) so they can never go stale.
   stats: {
-    years: '13+',
     jobs: '3,000+',
-    startingPrice: '₦3,000',
   },
+  // Stable Google Maps link for the Karu office (Maps URL API, address query).
+  // Replace with the business's own "Share" link from Google Maps if you have one.
+  mapsUrl: 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('Mazfallah Shopping Complex, Karu, Abuja'),
 }
 
 export const NAV_LINKS = [
@@ -56,15 +59,18 @@ export const CATEGORIES = [
 ]
 
 // ── HOMEPAGE SERVICE CARDS ───────────────────
+// `priceFrom` is the marketing category whose cheapest active product sets the
+// "From ₦…" price on each card (computed in lib/home-data.ts). No category, or no
+// priced product in it, means the card shows "Get a quote".
 export const HOME_SERVICES = [
-  { icon: '🎌', name: 'Banners & Large Format', desc: 'Pull-up banners, flex banners, outdoor displays', price: 'From ₦5,000', slug: 'banners' },
-  { icon: '🎁', name: 'Branded Souvenirs',      desc: 'Custom pens, mugs, bags, shirts and more', price: 'Get a quote', slug: 'souvenirs' },
-  { icon: '📄', name: 'Papers & Stationery',    desc: 'Letterheads, compliment slips, notepads', price: 'From ₦3,000', slug: 'stationery' },
-  { icon: '🏷️', name: 'Stickers & Labels',      desc: 'Product labels, SAV stickers, seals', price: 'From ₦4,000', slug: 'stickers' },
-  { icon: '🪧', name: 'Signage & Installation', desc: '3D letters, lightboxes, office signs — FCT only', price: 'From ₦80,000', slug: 'signage' },
-  { icon: '📚', name: 'Book Publishing',         desc: 'Self-publish your book with ISBN and distribution', price: 'From ₦80,000', slug: 'publishing' },
-  { icon: '🗳️', name: 'Campaign Materials',     desc: 'Posters, flex, vests, calendars for elections', price: 'From ₦50,000', slug: 'campaign' },
-  { icon: '🎨', name: 'Graphic Design',          desc: 'Logo, flyers, social media, branding kits', price: 'Get a quote', slug: 'design' },
+  { icon: '🎌', name: 'Banners & Large Format', desc: 'Pull-up banners, flex banners, outdoor displays', priceFrom: 'Banners & Large Format', slug: 'banners' },
+  { icon: '🎁', name: 'Branded Souvenirs',      desc: 'Custom pens, mugs, bags, shirts and more', priceFrom: 'Promotional Items & Gifts', slug: 'souvenirs' },
+  { icon: '📄', name: 'Papers & Stationery',    desc: 'Letterheads, compliment slips, notepads', priceFrom: 'Office & Business Stationery', slug: 'stationery' },
+  { icon: '🏷️', name: 'Stickers & Labels',      desc: 'Product labels, SAV stickers, seals', priceFrom: 'Stickers & Labels', slug: 'stickers' },
+  { icon: '🪧', name: 'Signage & Installation', desc: '3D letters, lightboxes, office signs — FCT only', priceFrom: 'Signage & Installation', slug: 'signage' },
+  { icon: '📚', name: 'Book Publishing',         desc: 'Self-publish your book with ISBN and distribution', priceFrom: 'Book Publishing', slug: 'publishing' },
+  { icon: '🗳️', name: 'Campaign Materials',     desc: 'Posters, flex, vests, calendars for elections', priceFrom: 'Campaign Materials', slug: 'campaign' },
+  { icon: '🎨', name: 'Graphic Design',          desc: 'Logo, flyers, social media, branding kits', priceFrom: 'Graphic Design', slug: 'design' },
 ]
 
 // ── STARTER KITS ────────────────────────────
@@ -149,12 +155,11 @@ export const CLIENTS = [
   'Nigerian Bulk SMS', "Anaconda's Place", 'Nigerian-Canadian Association',
 ]
 
-// ── DELIVERY OPTIONS ─────────────────────────
-export const DELIVERY_OPTIONS = [
-  { id: 'pickup',   label: 'Free Pickup',        desc: 'Collect at our Karu, Abuja Office',   price: 0 },
-  { id: 'abuja',    label: 'Abuja Delivery',      desc: 'Delivered anywhere in FCT',           price: 2000 },
-  { id: 'national', label: 'Nationwide Delivery', desc: 'Shipped anywhere in Nigeria',         price: 5000 },
-]
+// Names shown on the public home page. Political-party clients are intentionally
+// left out here (they remain in CLIENTS for the About page).
+export const HOME_CLIENTS = CLIENTS.filter(c => c !== 'Labour Party' && c !== 'ADC Party')
+
+// Delivery fees live in the delivery_settings table (editable in the admin dashboard).
 
 // ── LOYALTY POINTS ───────────────────────────
 export const LOYALTY = {

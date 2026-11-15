@@ -1,6 +1,10 @@
 import type { Metadata } from 'next'
 import HomeClient from './HomeClient'
 import { LocalBusinessSchema } from '@/components/seo'
+import { getHomeData } from '@/lib/home-data'
+
+// Rebuilt at most every 5 minutes instead of on every request.
+export const revalidate = 300
 
 const DESCRIPTION = 'Order professional printing online in Abuja: banners, business cards, branded souvenirs, uniforms and campaign materials. Trusted since 2011.'
 
@@ -19,11 +23,12 @@ export const metadata: Metadata = {
   },
 }
 
-export default function Page() {
+export default async function Page() {
+  const data = await getHomeData()
   return (
     <>
       <LocalBusinessSchema />
-      <HomeClient />
+      <HomeClient data={data} />
     </>
   )
 }

@@ -27,9 +27,9 @@ export default function Footer() {
             </p>
             <div style={{ display: 'flex', gap: 10 }}>
               {[
-                { label: 'f', href: 'https://www.facebook.com/cchumedia', title: 'Facebook' },
-                { label: 'in', href: 'https://www.instagram.com/cchumedia', title: 'Instagram' },
-                { label: 'x', href: 'https://www.twitter.com/cchumedia', title: 'Twitter' },
+                { label: 'f', href: BRAND.social.facebook, title: 'Facebook' },
+                { label: 'in', href: BRAND.social.instagram, title: 'Instagram' },
+                { label: 'x', href: BRAND.social.x, title: 'X (Twitter)' },
               ].map(({ label, href, title }) => (
                 <a key={title} href={href} target="_blank" rel="noopener noreferrer" aria-label={title}
                   style={{ width: 34, height: 34, borderRadius: 8, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', color: 'rgba(255,255,255,0.55)', fontSize: 12, fontWeight: 700, fontFamily: 'Montserrat' }}>
@@ -85,7 +85,7 @@ export default function Footer() {
               <a href="tel:+2348052929523" style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', textDecoration: 'none' }}>+234 805 292 9523</a>
               <a href="mailto:info@cchumedia.com" style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', textDecoration: 'none' }}>info@cchumedia.com</a>
               <a href="https://wa.me/2348052929523" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', textDecoration: 'none' }}>WhatsApp us</a>
-              <a href="https://maps.google.com/?q=C-Chu+Media+Ltd+Karu+Abuja" target="_blank" rel="noopener noreferrer"
+              <a href={BRAND.mapsUrl} target="_blank" rel="noopener noreferrer"
                 style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)', lineHeight: 1.5, textDecoration: 'none' }}>
                 Suite 38, Mazfallah Plaza, Karu, Abuja
               </a>
