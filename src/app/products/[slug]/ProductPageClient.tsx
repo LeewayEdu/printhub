@@ -67,19 +67,13 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
   const designCost = designPricingResolved?.designCostTotal ?? 0
   const totalPrice = printPrice + designCost
 
-  const canAddToCart = (() => {
-    if (!calculatedPrice && !product.is_fixed_price) return false
-    if (hasDesignPricing && !designPricingResolved) return false
-    return true
-  })()
+  // The button is never disabled. Until a price exists it explains why, in plain
+  // sight beside the button, and clicking it repeats the reason.
+  const hasPrice = !!calculatedPrice || !!product.is_fixed_price
 
   const handleAddToCart = () => {
-    if (!canAddToCart) {
-      if (!calculatedPrice && !product.is_fixed_price) {
-        toast.error('Please configure your product first')
-      } else if (hasDesignPricing && !designPricingResolved) {
-        toast.error('Please complete the design options above')
-      }
+    if (!hasPrice) {
+      toast.error('Choose your options first so we can work out the price')
       return
     }
     const finalPrintPrice = calculatedPrice || product.display_price || product.price || 0
@@ -92,8 +86,13 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
       finalPrintPrice,
       displayQty,
       specs,
-      designPricingResolved,
+      hasDesignPricing
+        ? (designPricingResolved ?? { hasOwnDesign: true, designCostTotal: 0, designAddons: [] })
+        : null,
     )
+    toast.success(designPricingResolved?.hasOwnDesign === false || !hasDesignPricing
+      ? 'Added to cart'
+      : 'Added to cart. You can upload your design file in the cart.')
   }
 
   const handleWhatsApp = () => {
@@ -253,8 +252,6 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
               onPriceUpdate={(total, specSummary) => {
                 setCalculatedPrice(total)
                 setSpecs(specSummary)
-                // Reset design resolution when print config changes
-                if (designPricingResolved) setDesignPricingResolved(null)
               }}
               onPriceModelResolved={setResolvedPriceModel}
             />
@@ -293,16 +290,13 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
           <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
             <button
               onClick={handleAddToCart}
-              disabled={!canAddToCart}
               style={{
                 flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                 padding: '14px 20px', border: 'none', borderRadius: 10, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 15,
-                cursor: canAddToCart ? 'pointer' : 'not-allowed',
-                background: canAddToCart ? 'var(--red)' : '#e5e7eb',
-                color: canAddToCart ? 'white' : '#9ca3af',
+                cursor: 'pointer', background: 'var(--red)', color: 'white',
               }}>
               <ShoppingCart size={18} />
-              {hasDesignPricing && !designPricingResolved ? 'Complete Design Options First' : 'Add to Cart'}
+              Add to cart
             </button>
             <button aria-label={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'} aria-pressed={wishlisted} onClick={() => setWishlisted(w => !w)}
               style={{ width: 48, height: 48, borderRadius: 10, border: '1px solid var(--border)', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -313,6 +307,12 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
               <Share2 size={18} color="var(--gray)" />
             </button>
           </div>
+
+          {!hasPrice && (
+            <div role="status" style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>
+              Choose your options above to see the price.
+            </div>
+          )}
 
           <button onClick={handleWhatsApp}
             style={{ width: '100%', padding: '13px', background: '#25D366', color: 'white', border: 'none', borderRadius: 10, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
