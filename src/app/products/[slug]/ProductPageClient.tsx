@@ -190,46 +190,35 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
             </p>
           )}
 
-          {/* Price display — shows breakdown when design pricing is resolved */}
-          {calculatedPrice || product.display_price || product.price ? (
-            <div style={{ marginBottom: 20 }}>
-              {hasDesignPricing && designPricingResolved ? (
-                // Full breakdown
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--gray)', marginBottom: 4 }}>
-                    <span>Print subtotal</span>
-                    <span>₦{printPrice.toLocaleString()}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--gray)', marginBottom: 8 }}>
-                    <span>Design</span>
-                    <span>{designCost === 0 ? '₦0 (your file)' : `₦${designCost.toLocaleString()}`}</span>
-                  </div>
-                  <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 28, color: 'var(--red)' }}>
+          {/* Price: one primary figure (live total), per-piece price as small secondary text */}
+          {(calculatedPrice || product.display_price || product.price) ? (
+            <div style={{ marginBottom: 20 }} aria-live="polite">
+              {calculatedPrice ? (
+                <>
+                  <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 30, color: 'var(--red)', lineHeight: 1.1 }}>
                     ₦{totalPrice.toLocaleString()}
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--gray)', marginTop: 2 }}>
+                  <div style={{ fontSize: 12, color: 'var(--gray)', marginTop: 4 }}>
+                    {qty > 1 && <>₦{Math.round(printPrice / qty).toLocaleString()} per piece · </>}
                     {qty} {qty === 1 ? 'piece' : 'pieces'} · VAT inclusive
                   </div>
-                </div>
-              ) : calculatedPrice ? (
-                <div>
-                  <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 28, color: 'var(--red)' }}>
-                    ₦{calculatedPrice.toLocaleString()}
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--gray)', marginTop: 2 }}>
-                    {qty} {qty === 1 ? 'piece' : 'pieces'} · VAT inclusive
-                    {hasDesignPricing && !designPricingResolved && (
-                      <span style={{ color: '#d97706', marginLeft: 6 }}>+ design fee (see below)</span>
-                    )}
-                  </div>
-                </div>
+                  {hasDesignPricing && designPricingResolved && !designPricingResolved.hasOwnDesign && (
+                    <div style={{ fontSize: 13, color: 'var(--text-primary)', marginTop: 8 }}>
+                      Print ₦{printPrice.toLocaleString()}
+                      {designCost > 0 ? <> <strong>+ ₦{designCost.toLocaleString()} design fee</strong></> : <> · design included</>}
+                    </div>
+                  )}
+                  {hasDesignPricing && designPricingResolved?.hasOwnDesign && (
+                    <div style={{ fontSize: 12, color: 'var(--gray)', marginTop: 6 }}>No design fee. Upload your file in the cart.</div>
+                  )}
+                </>
               ) : (
-                <div>
+                <>
                   <div style={{ fontSize: 13, color: 'var(--gray)', marginBottom: 4 }}>Starting from</div>
-                  <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 28, color: 'var(--red)' }}>
+                  <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 30, color: 'var(--red)' }}>
                     ₦{Number(product.display_price || product.price).toLocaleString()}
                   </div>
-                </div>
+                </>
               )}
             </div>
           ) : null}
@@ -245,6 +234,7 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
               minWidth={product.min_width || 0.1}
               minHeight={product.min_height || 0.1}
               minOrderAmount={product.min_order_amount || undefined}
+              hideTotal
               onDimensionChange={(axis, value) => {
                 if (axis === 'width') setWidthIn(value)
                 else setHeightIn(value)

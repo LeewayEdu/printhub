@@ -17,6 +17,7 @@ interface LiveCalculatorV2Props {
   minHeight?: number   // minimum height enforced on dimension inputs (ft or in)
   minOrderAmount?: number  // charged price floor — shown as "Minimum order applies" when hit
   isAreaBased?: boolean
+  hideTotal?: boolean   // the host page shows the price itself
   applyPreset?: { specs?: Record<string, string>; addons?: string[] } | null
   onPriceUpdate: (total: number, specs: Record<string, string>, summaryText: string) => void
   onSpecsUpdate?: (specs: SpecSelection) => void
@@ -46,7 +47,7 @@ const DEFAULT_PAGE_STEPPER = { step: 4, min: 8, max: undefined as number | undef
 export default function LiveCalculatorV2({
   category, productName, qty, widthFt = 1, heightFt = 1,
   minWidth = 0.1, minHeight = 0.1, minOrderAmount,
-  isAreaBased = false,
+  isAreaBased = false, hideTotal = false,
   applyPreset, onPriceUpdate, onSpecsUpdate, onDimensionChange, onPriceModelResolved
 }: LiveCalculatorV2Props) {
 
@@ -425,8 +426,16 @@ export default function LiveCalculatorV2({
         </div>
       )}
 
+      {/* When the host page shows the price, keep only the notices that explain it */}
+      {hideTotal && total !== null && (discountPct > 0 || minimumApplied) && (
+        <div style={{ fontSize: 12, fontWeight: 600 }}>
+          {discountPct > 0 && tierLabel && <div style={{ color: '#047857' }}>🎉 {tierLabel}: {discountPct}% discount applied</div>}
+          {minimumApplied && <div style={{ color: '#92400e' }}>Minimum order applies</div>}
+        </div>
+      )}
+
       {/* Live price display */}
-      {total !== null && (
+      {!hideTotal && total !== null && (
         <div style={{ background: 'linear-gradient(135deg, rgba(192,57,43,0.06) 0%, rgba(192,57,43,0.02) 100%)', border: '1.5px solid rgba(192,57,43,0.2)', borderRadius: 12, padding: '14px 16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
