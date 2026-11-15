@@ -157,6 +157,9 @@ export const CLIENTS = [
 
 // Delivery fees live in the delivery_settings table (editable in the admin dashboard).
 
+// Smallest affiliate payout request, as enforced in the affiliate dashboard (₦)
+export const AFFILIATE_MIN_PAYOUT = 5000
+
 // ── LOYALTY POINTS ───────────────────────────
 export const LOYALTY = {
   earnRate: 0.02,       // 2% of order value
