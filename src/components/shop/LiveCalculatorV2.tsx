@@ -71,6 +71,8 @@ export default function LiveCalculatorV2({
   const [addonQtys, setAddonQtys] = useState<Record<string, number>>({})
   const [tiers, setTiers] = useState<QtyTier[]>([])
   const [selection, setSelection] = useState<SpecSelection>({})
+  // Accordion: one option group open at a time; undefined = first group (default), '' = all closed
+  const [openGroup, setOpenGroup] = useState<string | undefined>(undefined)
   const [priceModel, setPriceModel] = useState<string>('unit')
   const [pages, setPages] = useState(pageConfig.default)
   // Split loading state: priceModel resolves independently and fast (single
@@ -277,34 +279,53 @@ export default function LiveCalculatorV2({
           ))}
         </div>
       ) : (
-        Object.entries(groups).map(([group, options]) => {
-          const selectedOpt = selection[group]
-          return (
-            <div key={group}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#6B6B6B', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 7 }}>
-                {groupLabel(group)}
-              </div>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const }}>
-                {options.map(opt => (
-                  <button
-                    key={opt.id}
-                    onClick={() => selectOption(group, opt)}
-                    style={btnActive(selection[group]?.id === opt.id)}
-                  >
-                    {opt.option_label}
+        (() => {
+          const entries = Object.entries(groups)
+          const collapsible = entries.length > 1
+          const openName = openGroup === undefined ? entries[0]?.[0] : openGroup
+          return entries.map(([group, options]) => {
+            const selectedOpt = selection[group]
+            const isOpen = !collapsible || openName === group
+            return (
+              <div key={group} style={collapsible ? { border: '1px solid #e8e8e5', borderRadius: 10, overflow: 'hidden' } : undefined}>
+                {collapsible ? (
+                  <button type="button" onClick={() => setOpenGroup(isOpen ? '' : group)} aria-expanded={isOpen}
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '11px 14px', background: isOpen ? '#fafaf8' : 'white', border: 'none', cursor: 'pointer', textAlign: 'left' as const }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#6B6B6B', textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>{groupLabel(group)}</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{selectedOpt?.option_label?.trim() || 'Choose'}</span>
+                      <span aria-hidden="true" style={{ fontSize: 12, color: '#6B6B6B' }}>{isOpen ? '▲' : '▼'}</span>
+                    </span>
                   </button>
-                ))}
+                ) : (
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#6B6B6B', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 7 }}>
+                    {groupLabel(group)}
+                  </div>
+                )}
+                {isOpen && (
+                  <div style={collapsible ? { padding: '10px 14px 14px' } : undefined}>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const }}>
+                      {options.map(opt => (
+                        <button
+                          key={opt.id}
+                          onClick={() => selectOption(group, opt)}
+                          style={btnActive(selection[group]?.id === opt.id)}
+                        >
+                          {opt.option_label}
+                        </button>
+                      ))}
+                    </div>
+                    {selectedOpt?.note && (
+                      <div style={{ fontSize: 12, color: '#6B6B6B', marginTop: 5, fontStyle: 'italic' as const }}>
+                        💡 {selectedOpt.note}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-              {/* Guidance note for the currently-selected option in this group —
-                  e.g. "Best for full-colour designs, any quantity" for print methods */}
-              {selectedOpt?.note && (
-                <div style={{ fontSize: 12, color: '#6B6B6B', marginTop: 5, fontStyle: 'italic' as const }}>
-                  💡 {selectedOpt.note}
-                </div>
-              )}
-            </div>
-          )
-        })
+            )
+          })
+        })()
       )}
 
       {isAreaCategory && (

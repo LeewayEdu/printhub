@@ -284,3 +284,8 @@ main:focus { outline: none; }
   /* keep the footer reachable: the page gets room equal to the bar */
   body.has-buy-bar { padding-bottom: calc(76px + env(safe-area-inset-bottom)); --launcher-lift: calc(76px + env(safe-area-inset-bottom)); }
 }
+
+/* keep the live price in view on desktop while options are changed */
+@media (min-width: 768px) {
+  .price-sticky { position: sticky; top: 68px; z-index: 5; background: var(--bg-primary, #fff); padding: 10px 0; }
+}

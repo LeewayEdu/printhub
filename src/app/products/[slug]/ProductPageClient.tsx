@@ -211,7 +211,7 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
 
           {/* Price: one primary figure (live total), per-piece price as small secondary text */}
           {(calculatedPrice || product.display_price || product.price) ? (
-            <div style={{ marginBottom: 20 }} aria-live="polite">
+            <div className="price-sticky" style={{ marginBottom: 20 }} aria-live="polite">
               {calculatedPrice ? (
                 <>
                   <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 30, color: 'var(--red)', lineHeight: 1.1 }}>
