@@ -13,6 +13,12 @@ const nextConfig = {
     imageSizes: [16, 32, 48, 64, 96, 128, 256],
     minimumCacheTTL: 3600,
   },
+  async redirects() {
+    return [
+      // Old product listing now lives at /shop. Exact match only: /products/[slug] is untouched.
+      { source: '/products', destination: '/shop', permanent: true },
+    ]
+  },
   experimental: {
     serverActions: { allowedOrigins: ['localhost:3000', 'printhub.cchumedia.com', '*.vercel.app'] },
   },

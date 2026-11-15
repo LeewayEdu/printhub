@@ -28,47 +28,59 @@ function serverClient() {
 export async function generateMetadata(
   { params }: { params: { slug: string } }
 ): Promise<Metadata> {
-  if (!SUPABASE_URL || !SUPABASE_KEY) return { title: 'PrintHub — Print Products' }
-  const { data } = await serverClient()
-    .from('products')
-    .select('name, seo_title, meta_description, slug, images, image_url, short_description')
-    .eq('slug', params.slug)
-    .eq('is_active', true)
-    .single()
+  if (!SUPABASE_URL || !SUPABASE_KEY) return { title: 'Print Products' }
+  try {
+    const { data } = await serverClient()
+      .from('products')
+      .select('name, seo_title, meta_description, slug, images, image_url, short_description')
+      .eq('slug', params.slug)
+      .eq('is_active', true)
+      .maybeSingle()
+    if (!data) return { title: 'Product not found' }
+    return generateProductMetadata(data)
+  } catch (e) {
+    console.error('[product-metadata]', params.slug, e)
+    return { title: 'Product not found' }
+  }
+}
 
-  if (!data) return { title: 'Product Not Found | PrintHub' }
-  return generateProductMetadata(data)
+// All data for the page. Any failure resolves to null so the caller can 404
+// instead of throwing a 500.
+async function loadProduct(slug: string) {
+  if (!SUPABASE_URL || !SUPABASE_KEY) return null
+  try {
+    const db = serverClient()
+    const { data: product, error } = await db
+      .from('products')
+      .select('*')
+      .eq('slug', slug)
+      .eq('is_active', true)
+      .maybeSingle()
+    if (error) console.error('[product-page]', slug, error.code, error.message)
+    if (error || !product) return null
+
+    const [{ data: related }, { data: marketingTagRows }] = await Promise.all([
+      db.from('products')
+        .select('id, name, slug, images, image_url, display_price, price')
+        .eq('is_active', true)
+        .eq('category', product.category)
+        .neq('id', product.id)
+        .limit(4),
+      db.from('product_marketing_categories')
+        .select('marketing_categories(label, slug)')
+        .eq('product_id', product.id),
+    ])
+    return { product, related: related || [], marketingTagRows: marketingTagRows || [] }
+  } catch (e) {
+    console.error('[product-page]', slug, e)
+    return null
+  }
 }
 
 export default async function ProductPage({ params }: { params: { slug: string } }) {
-  if (!SUPABASE_URL || !SUPABASE_KEY) notFound()
-
-  const db = serverClient()
-
-  const { data: product, error } = await db
-    .from('products')
-    .select('*')
-    .eq('slug', params.slug)
-    .eq('is_active', true)
-    .single()
-
-  // PGRST116 = no rows found; any other error is unexpected — log but still 404
-  if (error || !product) {
-    if (error && error.code !== 'PGRST116') console.error('[product-page]', params.slug, error.code, error.message)
-    notFound()
-  }
-
-  const [{ data: related }, { data: marketingTagRows }] = await Promise.all([
-    db.from('products')
-      .select('id, name, slug, images, image_url, display_price, price')
-      .eq('is_active', true)
-      .eq('category', product.category)
-      .neq('id', product.id)
-      .limit(4),
-    db.from('product_marketing_categories')
-      .select('marketing_categories(label, slug)')
-      .eq('product_id', product.id),
-  ])
+  const loaded = await loadProduct(params.slug)
+  if (!loaded) notFound()
+  const { product, related, marketingTagRows } = loaded
 
   const marketingTags: { label: string; slug: string }[] = (marketingTagRows || []).flatMap((row: any) =>
     row.marketing_categories ? [{ label: row.marketing_categories.label, slug: row.marketing_categories.slug }] : []
@@ -94,7 +106,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
       <BreadcrumbSchema items={breadcrumbs.filter(b => b.href).map(b => ({ name: b.name, url: b.href! }))} />
       <ProductPageClient
         product={product}
-        relatedProducts={related || []}
+        relatedProducts={related}
         faqs={faqs}
         breadcrumbs={breadcrumbs}
         marketingTags={marketingTags}

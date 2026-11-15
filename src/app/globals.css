@@ -85,6 +85,12 @@ body {
     border-color: var(--red) !important;
   }
 
+  /* Plain-CSS hover effects (safe to use inside server components) */
+  .lift-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+  .lift-card:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+  .crumb-link { color: var(--gray); text-decoration: none; }
+  .crumb-link:hover { color: var(--red); }
+
   /* Skeleton loading */
   .skeleton {
     background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);

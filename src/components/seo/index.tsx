@@ -43,16 +43,31 @@ export function generateProductMetadata(product: {
   }
 }
 
+// Trim to a whole word under `max` characters.
+function clampText(text: string, max: number): string {
+  if (text.length <= max) return text
+  const cut = text.slice(0, max - 1)
+  return cut.slice(0, cut.lastIndexOf(' ')).replace(/[,;:\s-]+$/, '') + '…'
+}
+
 export function generateIndustryMetadata(industry: {
   name: string
   seo_title?: string | null
   meta_description?: string | null
   slug: string
   hero_image?: string | null
+  subheadline?: string | null
 }): Metadata {
-  const title = industry.seo_title || `${industry.name} Printing Services | PrintHub Abuja`
-  const description = industry.meta_description
-    || `Professional printing solutions for ${industry.name} in Abuja and across Nigeria.`
+  const title = industry.seo_title || `${industry.name} Printing Services in Abuja`
+  const lead = industry.subheadline ? `${industry.subheadline.replace(/\.$/, '')}. ` : ''
+  // Pick the first wording that lands in the 120-155 character window.
+  const candidates = [
+    `${lead}Order print materials for ${industry.name} from PrintHub by C-Chu Media in Abuja, with a free design review.`,
+    `Order print materials for ${industry.name} online from PrintHub by C-Chu Media in Abuja, with a free design review before printing.`,
+    `Print materials for ${industry.name} from PrintHub by C-Chu Media in Abuja. Order online and get a free design review before printing.`,
+  ]
+  const fitted = candidates.find(c => c.length >= 120 && c.length <= 155)
+  const description = industry.meta_description || fitted || clampText(candidates[1], 155)
   const url = `${SITE_URL}/industries/${industry.slug}`
   return {
     title, description,
@@ -146,9 +161,7 @@ export function Breadcrumbs({ items }: { items: { name: string; href?: string }[
           <li key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {i > 0 && <span style={{ color: 'var(--border)' }}>›</span>}
             {item.href && i < items.length - 1
-              ? <a href={item.href} style={{ color: 'var(--gray)', textDecoration: 'none' }}
-                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--red)')}
-                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--gray)')}>{item.name}</a>
+              ? <a href={item.href} className="crumb-link">{item.name}</a>
               : <span style={{ color: i === items.length - 1 ? 'var(--text-primary)' : 'var(--gray)', fontWeight: i === items.length - 1 ? 600 : 400 }}>{item.name}</span>
             }
           </li>
