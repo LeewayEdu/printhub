@@ -7,6 +7,7 @@ import { createClient } from '@supabase/supabase-js'
 import { withFromPrices } from '@/lib/pricing-server'
 import { SITE_URL } from '@/lib/site-url'
 import { LOYALTY, AFFILIATE_MIN_PAYOUT } from '@/lib/constants'
+import { turnaroundFor } from '@/lib/turnaround'
 
 export interface ChatContext {
   products: string
@@ -52,7 +53,8 @@ export async function getChatContext(): Promise<ChatContext> {
       const link = `${SITE_URL}/products/${p.slug}`
       const min = p.moq && p.moq > 1 ? `, minimum order ${p.moq} pcs` : ''
       const name = String(p.name).trim()
-      const time = p.turnaround_time ? `, turnaround ${p.turnaround_time}` : ''
+      const t = turnaroundFor(p)
+      const time = t ? `, typical turnaround ${t}` : ''
       if (!price) return `- ${name}: no live price, send to WhatsApp for a quote (${link})`
       return p.is_fixed_price
         ? `- ${name}: fixed price ${naira(price)}${min}${time} (${link})`

@@ -4,6 +4,7 @@
 import { visibleBadge } from '@/lib/catalog'
 import { BRAND } from '@/lib/constants'
 import { yearsLabel } from '@/lib/company'
+import { turnaroundFor } from '@/lib/turnaround'
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
@@ -393,11 +394,10 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
             <li>⭐ {yearsLabel()} · {BRAND.stats.jobs} jobs delivered</li>
           </ul>
 
-          {/* Turnaround and delivery. Shown only when the product has a stored turnaround;
-              no generic turnaround is stored anywhere, so none is invented. */}
-          {product.turnaround_time && (
+          {/* Turnaround and delivery. Shown only when a turnaround applies (see lib/turnaround.ts). */}
+          {turnaroundFor(product) && (
             <div style={{ marginTop: 12, fontSize: 13, color: 'var(--text-secondary)' }}>
-              ⏱️ Typical turnaround: {product.turnaround_time} · Pickup in Karu or nationwide delivery
+              ⏱️ Typical turnaround: {turnaroundFor(product)} · Pickup in Karu or nationwide delivery
             </div>
           )}
           {product.delivery_information && (
