@@ -1,6 +1,13 @@
 # Option data bug: "900gsm" on business cards
 
-Status: **investigation and proposal only. Nothing was written.**
+Status: **900gsm HIDDEN on 16 Nov 2026 (with your approval). It is not fixed yet: the uplift percentage is still needed.**
+
+Statement run (1 row affected, reversible):
+```sql
+update public.spec_options set is_active = false where id = '9727db81-37b8-4c33-b938-64c7c0e70b65';
+```
+After the change, pricing every option combination for the 26 live categories finds no combination with two base rates and no zero totals.
+To restore it correctly, give me the percentage and run the first statement below (it also sets `is_active = true`).
 
 ## The defect
 
@@ -33,7 +40,8 @@ reference 600gsm is +30%).
 -- affects exactly 1 row (900gsm, business cards). Replace <PCT> with your number.
 update public.spec_options
    set modifier_type = 'percentage',
-       price_modifier = <PCT>
+       price_modifier = <PCT>,
+       is_active = true
  where id = '9727db81-37b8-4c33-b938-64c7c0e70b65'
    and category = 'complimentary-cards' and spec_group = 'paper_weight';
 ```
