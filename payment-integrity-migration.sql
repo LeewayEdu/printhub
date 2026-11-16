@@ -19,7 +19,7 @@
 -- one that lets affiliates see referred orders) tell me and I will add it here first.
 -- Changes policies and one index only. No order rows are modified.
 
--- 1. One order per Paystack reference (checked: no duplicates exist today; 13 references)
+-- 1. One order per Paystack reference (re-checked 16 Nov 2026: 13 orders carry a reference, 13 distinct)
 create unique index if not exists orders_paystack_reference_key
   on public.orders (paystack_reference) where paystack_reference is not null;
 

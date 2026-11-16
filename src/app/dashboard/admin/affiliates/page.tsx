@@ -69,7 +69,7 @@ export default function AdminAffiliatePage() {
     if (commissions[affiliateId]) return
     const { data } = await supabase
       .from('commissions')
-      .select('*, orders(job_number, total, created_at)')
+      .select('*, orders(job_number, total_amount, created_at)')
       .eq('affiliate_id', affiliateId)
       .order('created_at', { ascending: false })
       .limit(20)

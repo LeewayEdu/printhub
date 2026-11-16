@@ -4,8 +4,9 @@
 -- existing commission first. This index makes the DATABASE refuse a second commission for the same order
 -- even if two requests race, so an order can never pay an affiliate twice.
 --
--- Safe to run more than once. Verified read-only beforehand: commissions has 0 rows and referrals has 1
--- row, so neither index can fail on existing duplicates. Changes indexes only; no rows are modified.
+-- Safe to run more than once. Re-checked read-only on 16 Nov 2026: commissions has 1 row (1 distinct order)
+-- and referrals has 8 rows with no duplicate (affiliate, referred user) pair, so neither index can fail on
+-- existing data. Changes indexes only; no rows are modified.
 
 create unique index if not exists commissions_order_id_key
   on public.commissions (order_id);
