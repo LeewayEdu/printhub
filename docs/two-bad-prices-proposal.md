@@ -1,6 +1,11 @@
 # Two bad prices: Instagram Frame Board and Plastic Table Stands
 
-Status: **investigation and proposal only. Nothing was written.**
+Status (16 Nov 2026):
+- **Pricing: fixed** in code (fixed-price products price as stored price x quantity everywhere).
+- **Category move: done with your approval.** Created category `event-display` ("Event & Display Items", fixed price, id `6acf32d3-3570-4587-82d9-20dab017df78`) and moved Instagram Frame Board and Plastic Table Stands into it (2 rows updated, prices unchanged). `stickers_labels` now has no active product; `vinyl-stickers-labels` keeps 2.
+- **Still open:** a minimum size or minimum order value for the four area-priced products below (needs your numbers), and whether the Plastic Table Stands price is per piece or for the minimum 10 (the page currently shows ₦4,000 per piece = ₦40,000 for 10).
+
+Original proposal follows.
 
 ## What is actually wrong
 
@@ -79,3 +84,17 @@ After excluding fixed-price products (which use their stored price) there are **
 These are real starting rates but not realistic job prices (nobody orders 1 sq ft of backdrop). Two
 fixes are possible: show the price as "from ₦430 per sq ft", or set a product minimum size or minimum order
 value so the "from" price reflects a minimum real job.
+
+
+## Proposed minimums for the four area-priced products (needs your numbers: not written)
+
+`products.min_order_amount` is a floor on the calculated total, so a product page can never show less than it. Example for the
+four products (Banner Printing, Campaign Banner, Backdrop Printing, Window Graphics), with your numbers in place of `<N>`:
+
+```sql
+-- 4 rows. <N> = the smallest job you will actually print, in naira (VAT inclusive).
+update public.products set min_order_amount = <N>
+ where is_active and name ilike any (array['%Banner Printing%', '%Campaign Banner%', '%Backdrop Printing%', '%Window Graphics%']);
+```
+Alternatively set `min_width` and `min_height` (in feet) so the smallest orderable size is realistic (for example 2 x 3 ft).
+Cards already read "From ₦430 per sq ft" so the number is no longer misleading while this is decided.
