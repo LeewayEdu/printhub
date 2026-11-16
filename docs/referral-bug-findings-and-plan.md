@@ -1,6 +1,11 @@
 # Referral and commission bug: findings and proposed fix
 
-Status: **investigation only.** No code or data has been changed. Everything under "Proposed" waits for your approval.
+Status (16 Nov 2026): **code fixed and backfill applied with your approval.**
+- Code (commit "Referrals and commissions"): commission earned on delivery, once per order, using `referred_user_id`; webhook no longer pays commission.
+- Backfill A: 6 `referrals` rows inserted (zero totals) for the referred sign-ups that had none.
+- Backfill B: commission for order `abd8a141...` awarded through the new function: 1 `commissions` row (₦442.50, pending), BLESSING `total_earnings` and `pending_payout` 0 -> 442.50, 1 `referrals` row (1 order, ₦4,425, ₦442.50). A second run is a no-op.
+- NOT done, needs the SQL editor: `commission-uniqueness-migration.sql` (unique index on `commissions.order_id` and `referrals (affiliate_id, referred_user_id)`).
+- Still unknown: why the old `award_affiliate_commission` function produced nothing. Its body cannot be read without a database connection (query 3 in `docs/db-introspection-queries.sql`). The admin screen no longer calls it.
 
 ## Findings (all from read-only queries on the live database)
 
