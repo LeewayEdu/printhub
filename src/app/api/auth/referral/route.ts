@@ -63,12 +63,12 @@ export async function POST(req: NextRequest) {
       .eq('id', aff.id)
 
     // ── 3. Insert a row in the referrals table ────────────────────────────
-    const { error: refErr } = await db
-      .from('referrals')
-      .upsert(
-        { affiliate_id: aff.id, profile_id: userId, total_orders: 0, total_spent: 0, total_commission: 0 },
-        { onConflict: 'affiliate_id,profile_id', ignoreDuplicates: true },
-      )
+    // The live table uses referred_user_id (not profile_id). Check first instead of relying on a
+    // unique key that may not exist.
+    const { data: already } = await db.from('referrals').select('id').eq('affiliate_id', aff.id).eq('referred_user_id', userId).limit(1)
+    const { error: refErr } = already && already.length
+      ? { error: null }
+      : await db.from('referrals').insert({ affiliate_id: aff.id, referred_user_id: userId, total_orders: 0, total_spent: 0, total_commission: 0 })
 
     if (refErr) {
       console.error('Referral: referrals table insert failed —', refErr.message, '(run referral-system-migration.sql)')

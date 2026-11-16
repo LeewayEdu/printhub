@@ -73,11 +73,16 @@ export const useAdminOrdersStore = create<AdminOrdersState>((set, get) => ({
       });
       if (loyaltyErr) console.error('Loyalty award failed:', loyaltyErr.message);
 
-      // Affiliate commission
-      const { error: commErr } = await supabase.rpc('award_affiliate_commission', {
-        p_order_id: orderId,
-      });
-      if (commErr) console.error('Commission award failed:', commErr.message);
+      // Affiliate commission: awarded on the server, once per order (see lib/commissions.ts)
+      try {
+        const res = await fetch('/api/admin/orders/award', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ orderId }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || json?.commission?.state === 'error') console.error('Commission award failed:', json);
+      } catch (e) { console.error('Commission award failed:', e); }
     }
 
     // ── On paid: verify bank transfer receipt ──
