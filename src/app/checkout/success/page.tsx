@@ -13,12 +13,34 @@ function OrderSuccessContent() {
   const orderId = searchParams.get('order')
   const [order, setOrder] = useState<any>(null)
 
+  // A Paystack order stays 'pending' until the SERVER has verified the payment with Paystack.
+  // Until then this page says "verifying" and re-checks (asking the server to verify again).
   useEffect(() => {
-    if (orderId) {
-      supabase.from('orders').select('*').eq('id', orderId).single()
-        .then(({ data }) => { if (data) setOrder(data) })
+    if (!orderId) return
+    let cancelled = false
+    let tries = 0
+    const load = async () => {
+      const { data } = await supabase.from('orders').select('*').eq('id', orderId).single()
+      if (cancelled || !data) return
+      setOrder(data)
+      const waiting = data.paystack_reference && ['pending', 'payment_review'].includes(data.status)
+      if (waiting && tries < 15) {
+        tries++
+        const { data: { session } } = await supabase.auth.getSession()
+        fetch('/api/payments/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token ?? ''}` },
+          body: JSON.stringify({ reference: data.paystack_reference }),
+        }).catch(() => {})
+        setTimeout(load, 3000)
+      }
     }
+    load()
+    return () => { cancelled = true }
   }, [orderId])
+
+  const verifying = !!order && !!order.paystack_reference && order.status === 'pending'
+  const inReview = !!order && order.status === 'payment_review'
 
   return (
     <>
@@ -29,10 +51,14 @@ function OrderSuccessContent() {
             <CheckCircle size={40} color="#10b981" />
           </div>
           <h1 style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 32, color: 'var(--text-primary)', marginBottom: 12 }}>
-            Order Placed!
+            {verifying ? 'Verifying your payment…' : inReview ? 'Payment under review' : 'Order Placed!'}
           </h1>
           <p style={{ fontSize: 15, color: 'var(--text-secondary)', lineHeight: 1.7, marginBottom: 8 }}>
-            Thank you for your order. We have received it and will begin processing shortly.
+            {verifying
+              ? 'We have received your order and are confirming your payment with Paystack. This usually takes a few seconds. Please keep this page open.'
+              : inReview
+                ? 'Your payment amount did not match your order total, so our team is checking it. We will contact you shortly.'
+                : 'Thank you for your order. We have received it and will begin processing shortly.'}
           </p>
           {order && (
             <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 12, padding: '20px 24px', marginBottom: 28, textAlign: 'left' as const }}>
@@ -48,7 +74,7 @@ function OrderSuccessContent() {
                 <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Status</span>
                 <span style={{ fontSize: 13, fontWeight: 600, color: order.status === 'paid' ? '#10b981' : '#f59e0b', fontFamily: 'Montserrat', textTransform: 'capitalize' as const }}>{order.status}</span>
               </div>
-              {order.status === 'pending' && (
+              {order.status === 'pending' && !order.paystack_reference && (
                 <div style={{ marginTop: 14, padding: '10px 14px', background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 8, fontSize: 12, color: '#92400e', lineHeight: 1.6 }}>
                   Your payment receipt has been submitted. Our team will verify and confirm your order within 2 hours.
                 </div>

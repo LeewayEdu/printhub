@@ -114,7 +114,7 @@ export default function CheckoutPage() {
     setPromoLoading(false)
   }
 
-  const saveOrder = async (paystackRef?: string, status = 'pending') => {
+  const saveOrder = async (paystackRef?: string) => {
     let receiptUrl = null
     if (receiptFile) {
       const path = `receipts/${crypto.randomUUID()}-${receiptFile.name}`
@@ -125,48 +125,33 @@ export default function CheckoutPage() {
       }
     }
 
-    const { data: order, error } = await supabase.from('orders').insert({
-      user_id: session.user.id,
-      first_name: firstName,
-      last_name: lastName,
-      email,
-      phone,
-      shipping_method: deliveryType === 'pickup' ? 'pickup' : 'home',
-      address_line1: address || selectedDelivery?.address || '',
-      state: deliveryType === 'interstate' ? selectedDelivery?.state : 'FCT',
-      delivery_area: selectedDelivery?.name || '',
-      subtotal,
-      delivery_fee: deliveryFee,
-      total_amount: total,
-      status,
-      paystack_reference: paystackRef || null,
-      receipt_url: receiptUrl,
-    }).select().single()
-
-    if (error) throw error
-
-    await supabase.from('order_items').insert(
-      items.map(item => ({
-        order_id: order.id,
-        product_id: item.productId,
-        name: item.name,
-        price: item.price,
-        quantity: 1,
-        specs: item.specs || {},
-        design_type: item.design?.type || null,
-        design_file_url: item.design?.fileUrl || null,
-        design_link: item.design?.link || null,
-        design_brief: item.design?.brief || null,
-        // Design pricing fields — resolved pre-cart via DesignPricingFlow
-        has_own_design: item.designPricing?.hasOwnDesign ?? null,
-        design_addons_selected: item.designPricing?.designAddons?.length
-          ? item.designPricing.designAddons
-          : null,
-        design_units: item.designPricing?.designUnits ?? null,
-        design_cost_total: item.designPricing?.designCostTotal ?? 0,
-        design_request_notes: item.designPricing?.designRequestNotes ?? null,
-      }))
-    )
+    // The server creates the order (always 'pending') and its items; the browser never writes
+    // payment status. Paystack orders become paid only after the server verifies the payment.
+    const { data: { session: current } } = await supabase.auth.getSession()
+    const res = await fetch('/api/orders/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${current?.access_token ?? ''}` },
+      body: JSON.stringify({
+        paymentMethod: paystackRef ? 'paystack' : 'bank',
+        paystackReference: paystackRef || undefined,
+        receiptUrl,
+        customer: { firstName, lastName, email, phone },
+        delivery: {
+          type: deliveryType === 'pickup' ? 'pickup' : 'home',
+          address: address || selectedDelivery?.address || '',
+          state: deliveryType === 'interstate' ? selectedDelivery?.state : 'FCT',
+          area: selectedDelivery?.name || '',
+        },
+        subtotal, deliveryFee, total,
+        items: items.map(item => ({
+          productId: item.productId, name: item.name, price: item.price, specs: item.specs,
+          design: item.design, designPricing: item.designPricing,
+        })),
+      }),
+    })
+    const created = await res.json().catch(() => ({}))
+    if (!res.ok || !created.order) throw new Error(created.error || 'Could not create your order')
+    const order = created.order
 
     // Send email + WhatsApp via server-side API route (fire-and-forget)
     const shortId = order.id.slice(0, 8).toUpperCase()
@@ -197,8 +182,16 @@ export default function CheckoutPage() {
   const handlePaystackSuccess = async (ref: any) => {
     setIsProcessing(true)
     try {
-      const order = await saveOrder(ref.reference, 'paid')
+      // Save the order as pending, then ask the server to verify the payment with Paystack.
+      // The success page shows "verifying" until the server marks it paid.
+      const order = await saveOrder(ref.reference)
       clearCart()
+      const { data: { session: s2 } } = await supabase.auth.getSession()
+      fetch('/api/payments/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${s2?.access_token ?? ''}` },
+        body: JSON.stringify({ reference: ref.reference }),
+      }).catch(() => { /* the webhook and the success page retry */ })
       if (promoApplied) {
         await supabase.from('promo_codes').update({ uses: promoApplied.uses + 1 }).eq('id', promoApplied.id)
       }
@@ -214,7 +207,7 @@ export default function CheckoutPage() {
     if (!receiptFile) { toast.error('Please upload your payment receipt'); return }
     setIsProcessing(true)
     try {
-      const order = await saveOrder(undefined, 'pending')
+      const order = await saveOrder(undefined)
       clearCart()
       if (promoApplied) {
         await supabase.from('promo_codes').update({ uses: promoApplied.uses + 1 }).eq('id', promoApplied.id)
