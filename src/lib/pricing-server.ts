@@ -10,6 +10,7 @@ import { lowestConfigurationTotal, type SpecOption, type QtyTier } from './price
 interface PricingData {
   at: number
   groups: Record<string, Record<string, SpecOption[]>>  // category -> spec group -> options
+  addons: Record<string, SpecOption[]>                  // category -> add-on options
   tiers: Record<string, QtyTier[]>
   models: Record<string, string>                        // category slug -> price model
 }
@@ -17,8 +18,8 @@ interface PricingData {
 const TTL = 5 * 60 * 1000
 let cache: PricingData | null = null
 
-export async function loadPricingData(): Promise<PricingData | null> {
-  if (cache && Date.now() - cache.at < TTL) return cache
+export async function loadPricingData(fresh = false): Promise<PricingData | null> {
+  if (!fresh && cache && Date.now() - cache.at < TTL) return cache
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   if (!url || !key) return cache
@@ -31,14 +32,15 @@ export async function loadPricingData(): Promise<PricingData | null> {
     ])
     if (specs.error || tiers.error) return cache
     const groups: PricingData['groups'] = {}
+    const addons: PricingData['addons'] = {}
     for (const o of (specs.data || []) as SpecOption[]) {
-      if (o.is_addon) continue
+      if (o.is_addon) { (addons[o.category] ||= []).push(o); continue }
       ;((groups[o.category] ||= {})[o.spec_group] ||= []).push(o)
     }
     const tierMap: PricingData['tiers'] = {}
     for (const t of (tiers.data || []) as QtyTier[]) (tierMap[t.category] ||= []).push(t)
     const models = Object.fromEntries((cats.data || []).map((c: any) => [c.slug, c.price_model || 'unit']))
-    cache = { at: Date.now(), groups, tiers: tierMap, models }
+    cache = { at: Date.now(), groups, addons, tiers: tierMap, models }
     return cache
   } catch {
     return cache

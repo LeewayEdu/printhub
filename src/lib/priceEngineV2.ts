@@ -1,8 +1,8 @@
 import { supabase } from '@/lib/supabase/client'
 
-import { calculate, getDefaultSelection } from './priceCalc'
+import { calculate, getDefaultSelection, buildSpecSummary } from './priceCalc'
 import type { SpecOption, QtyTier, SpecSelection, AddonSelection, CalcResult } from './priceCalc'
-export { calculate, getDefaultSelection }
+export { calculate, getDefaultSelection, buildSpecSummary }
 export type { SpecOption, QtyTier, SpecSelection, AddonSelection, CalcResult }
 
 // ── CACHE ─────────────────────────────────────────────────────
@@ -67,30 +67,4 @@ export async function getAddonOptions(category: string): Promise<SpecOption[]> {
 export async function getQtyTiers(category: string): Promise<QtyTier[]> {
   const cache = await getCache()
   return cache.tiers[category] || []
-}
-
-// ── SPEC SUMMARY FOR ORDER ────────────────────────────────────
-
-export function buildSpecSummary(
-  specs: SpecSelection,
-  qty: number,
-  widthFt?: number,
-  heightFt?: number,
-  pages?: number,
-  addons?: AddonSelection[]
-): Record<string, string> {
-  const summary: Record<string, string> = { Quantity: String(qty) }
-  if (widthFt && heightFt) summary['Dimensions'] = `${widthFt}ft × ${heightFt}ft`
-  if (pages) summary['Pages'] = String(pages)
-  for (const [group, option] of Object.entries(specs)) {
-    const label = group.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-    summary[label] = option.option_label
-  }
-  for (const a of addons || []) {
-    if (a.qty > 0) {
-      const label = a.option.spec_group.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-      summary[label] = `${a.option.option_label} ×${a.qty}`
-    }
-  }
-  return summary
 }

@@ -5,6 +5,7 @@ import { visibleBadge } from '@/lib/catalog'
 import { BRAND } from '@/lib/constants'
 import { yearsLabel } from '@/lib/company'
 import { turnaroundFor } from '@/lib/turnaround'
+import { fixedPriceTotal } from '@/lib/priceCalc'
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
@@ -43,6 +44,12 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
   const [designPricingResolved, setDesignPricingResolved] = useState<DesignPricingResolved | null>(null)
   const [linkedAddons, setLinkedAddons] = useState<any[]>([])
 
+  // Fixed-price products (is_fixed_price) are priced from their stored price x quantity and
+  // NEVER from option rates, so the option calculator is not used for them at all.
+  const isFixed = !!product.is_fixed_price
+  const effectivePrice: number | null = isFixed ? fixedPriceTotal(product, qty) : calculatedPrice
+  const effectiveSpecs: Record<string, string> = isFixed ? { Quantity: String(qty) } : specs
+
   const hasDesignPricing = product.design_pricing_type && product.design_pricing_type !== 'none'
 
   const { addToCart } = useCartStore()
@@ -68,20 +75,20 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
   const images = product.images?.length ? product.images
     : product.image_url ? [product.image_url] : []
 
-  const printPrice = calculatedPrice || product.display_price || product.price || 0
+  const printPrice = effectivePrice || product.display_price || product.price || 0
   const designCost = designPricingResolved?.designCostTotal ?? 0
   const totalPrice = printPrice + designCost
 
   // The button is never disabled. Until a price exists it explains why, in plain
   // sight beside the button, and clicking it repeats the reason.
-  const hasPrice = !!calculatedPrice || !!product.is_fixed_price
+  const hasPrice = !!effectivePrice || !!product.is_fixed_price
 
   const handleAddToCart = () => {
     if (!hasPrice) {
       toast.error('Choose your options first so we can work out the price')
       return
     }
-    const finalPrintPrice = calculatedPrice || product.display_price || product.price || 0
+    const finalPrintPrice = effectivePrice || product.display_price || product.price || 0
     const displayQty = ['area', 'area_sqin'].includes(resolvedPriceModel)
       ? `${qty} piece${qty !== 1 ? 's' : ''}`
       : `${qty} pcs`
@@ -90,7 +97,7 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
       product.name,
       finalPrintPrice,
       displayQty,
-      specs,
+      effectiveSpecs,
       hasDesignPricing
         ? (designPricingResolved ?? { hasOwnDesign: true, designCostTotal: 0, designAddons: [] })
         : null,
@@ -102,14 +109,14 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
 
   // Pre-filled WhatsApp message: product, chosen options, quantity, total and page link.
   const buildWhatsAppUrl = () => {
-    const options = Object.entries(specs).filter(([k, v]) => v && k !== 'Quantity').map(([k, v]) => `${k}: ${v}`).join(', ')
+    const options = Object.entries(effectiveSpecs).filter(([k, v]) => v && k !== 'Quantity').map(([k, v]) => `${k}: ${v}`).join(', ')
     const lines = [
       "Hello, I'm interested in ordering:",
       '',
       `Product: ${product.name}`,
       options ? `Options: ${options}` : '',
       `Quantity: ${qty}`,
-      calculatedPrice ? `Estimated total: ₦${totalPrice.toLocaleString()}` : '',
+      effectivePrice ? `Estimated total: ₦${totalPrice.toLocaleString()}` : '',
       `Link: ${window.location.origin}/products/${product.slug}`,
       '',
       'Please confirm availability and delivery timeline.',
@@ -120,7 +127,7 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
   const handleWhatsApp = () => {
     // Record the lead first, but never wait for it: if it fails, WhatsApp still opens.
     try {
-      const options = Object.entries(specs).filter(([k, v]) => v && k !== 'Quantity').map(([k, v]) => `${k}: ${v}`).join(', ')
+      const options = Object.entries(effectiveSpecs).filter(([k, v]) => v && k !== 'Quantity').map(([k, v]) => `${k}: ${v}`).join(', ')
       fetch('/api/leads', {
         method: 'POST',
         keepalive: true,
@@ -129,7 +136,7 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
           source: 'whatsapp',
           product_interest: product.name,
           quantity: qty,
-          notes: [options && `Options: ${options}`, calculatedPrice ? `Estimated total: ₦${totalPrice.toLocaleString()}` : '', `Page: ${window.location.href}`].filter(Boolean).join('\n'),
+          notes: [options && `Options: ${options}`, effectivePrice ? `Estimated total: ₦${totalPrice.toLocaleString()}` : '', `Page: ${window.location.href}`].filter(Boolean).join('\n'),
         }),
       }).catch(() => {})
     } catch { /* ignore */ }
@@ -237,9 +244,9 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
           )}
 
           {/* Price: one primary figure (live total), per-piece price as small secondary text */}
-          {(calculatedPrice || product.display_price || product.price) ? (
+          {(effectivePrice || product.display_price || product.price) ? (
             <div className="price-sticky" style={{ marginBottom: 20 }} aria-live="polite">
-              {calculatedPrice ? (
+              {effectivePrice ? (
                 <>
                   <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 30, color: 'var(--red)', lineHeight: 1.1 }}>
                     ₦{totalPrice.toLocaleString()}
@@ -270,6 +277,7 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
           ) : null}
 
           {/* Live calculator */}
+          {!isFixed && (
           <div style={{ marginBottom: 24 }}>
             <LiveCalculatorV2
               category={product.product_type || product.category}
@@ -296,6 +304,7 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
               onPriceModelResolved={setResolvedPriceModel}
             />
           </div>
+          )}
 
           {/* Quantity selector */}
           <div style={{ marginBottom: 20 }}>
@@ -319,7 +328,7 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
           {tierRows.length > 1 && (() => {
             const activeIdx = Math.max(0, tierRows.findIndex(r => qty >= r.minQty && (r.maxQty === null || qty <= r.maxQty)))
             const next = tierRows[activeIdx + 1]
-            const currentEach = calculatedPrice && qty ? printPrice / qty : 0
+            const currentEach = effectivePrice && qty ? printPrice / qty : 0
             const saving = next && currentEach ? Math.round(currentEach * next.qty - next.total) : 0
             return (
               <div style={{ marginBottom: 20 }}>
@@ -409,9 +418,9 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
       {/* ── Sticky mobile buy bar (screens under 768px) ── */}
       <div className="mobile-buy-bar" role="region" aria-label="Order summary">
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 12, color: 'var(--gray)' }}>{calculatedPrice ? 'Total' : 'From'}</div>
+          <div style={{ fontSize: 12, color: 'var(--gray)' }}>{effectivePrice ? 'Total' : 'From'}</div>
           <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 18, color: 'var(--red)', lineHeight: 1.1 }}>
-            ₦{(calculatedPrice ? totalPrice : Number(product.display_price || product.price || 0)).toLocaleString()}
+            ₦{(effectivePrice ? totalPrice : Number(product.display_price || product.price || 0)).toLocaleString()}
           </div>
         </div>
         <button onClick={handleAddToCart}

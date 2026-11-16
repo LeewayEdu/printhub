@@ -289,3 +289,98 @@ export function lowestConfigurationTotal(i: FromPriceInput): number {
   }
   return Number.isFinite(best) ? best : 0
 }
+
+// ── SPEC SUMMARY FOR ORDER ────────────────────────────────────
+
+export function buildSpecSummary(
+  specs: SpecSelection,
+  qty: number,
+  widthFt?: number,
+  heightFt?: number,
+  pages?: number,
+  addons?: AddonSelection[]
+): Record<string, string> {
+  const summary: Record<string, string> = { Quantity: String(qty) }
+  if (widthFt && heightFt) summary['Dimensions'] = `${widthFt}ft × ${heightFt}ft`
+  if (pages) summary['Pages'] = String(pages)
+  for (const [group, option] of Object.entries(specs)) {
+    const label = group.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+    summary[label] = option.option_label
+  }
+  for (const a of addons || []) {
+    if (a.qty > 0) {
+      const label = a.option.spec_group.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+      // Several add-ons can share one group: keep them all in one readable entry so the server
+      // can rebuild the exact price ("Eyelets ×4; Pole pockets ×2"), instead of overwriting.
+      const entry = `${a.option.option_label} ×${a.qty}`
+      summary[label] = summary[label] ? `${summary[label]}; ${entry}` : entry
+    }
+  }
+  return summary
+}
+
+// ── FIXED-PRICE PRODUCTS ──────────────────────────────────────
+// A product flagged is_fixed_price has ONE stored price per piece. It is never priced from option
+// rates (those belong to the category's other, calculator-priced products).
+// ASSUMPTION: the stored price is per piece and final (the same figure shop cards show).
+export function fixedUnitPrice(p: { display_price?: number | null; price?: number | null }): number {
+  return Number(p.display_price || p.price) || 0
+}
+export function fixedPriceTotal(p: { display_price?: number | null; price?: number | null }, qty: number): number {
+  return Math.round(fixedUnitPrice(p) * Math.max(Number(qty) || 1, 1))
+}
+
+// ── SERVER RECOMPUTE OF A CART LINE ───────────────────────────
+// A cart line only stores the human-readable summary of the options (buildSpecSummary). This
+// turns that summary back into a selection and runs the same calculate() the browser ran, so the
+// server can check the price the browser claims. Returns an error string when the summary does not
+// match the catalogue (unknown option, bad quantity).
+
+const groupLabel = (g: string) => g.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+
+export interface RecomputeInput {
+  category: string
+  priceModel: string
+  groups: Record<string, SpecOption[]>   // non add-on options by spec group
+  addons: SpecOption[]
+  tiers: QtyTier[]
+  minWidth?: number | null
+  minHeight?: number | null
+  minOrderAmount?: number | null
+  specs: Record<string, string>
+}
+
+export function recomputePrintTotal(i: RecomputeInput): { total: number; qty: number } | { error: string } {
+  const qty = Number(String(i.specs.Quantity ?? '').replace(/[^\d.]/g, ''))
+  if (!(qty > 0) || qty > 1_000_000) return { error: 'invalid quantity' }
+
+  const selection: SpecSelection = {}
+  for (const [g, opts] of Object.entries(i.groups)) {
+    const label = groupLabel(g)
+    const want = i.specs[label]
+    if (want === undefined) { const d = getDefaultSelection({ [g]: opts })[g]; if (d) selection[g] = d; continue }
+    const opt = opts.find(o => o.option_label === want) || opts.find(o => o.option_label.trim() === String(want).trim())
+    if (!opt) return { error: `unknown option "${want}" for ${label}` }
+    selection[g] = opt
+  }
+
+  const addons: AddonSelection[] = []
+  for (const a of i.addons) {
+    const raw = i.specs[groupLabel(a.spec_group)]
+    for (const part of raw ? raw.split('; ') : []) {
+      const m = part.match(/^(.*) ×(\d+)$/)
+      if (m && (m[1] === a.option_label || m[1].trim() === a.option_label.trim())) addons.push({ option: a, qty: Number(m[2]) })
+    }
+  }
+
+  const dims = String(i.specs.Dimensions ?? '').match(/([\d.]+)\s*ft\s*×\s*([\d.]+)\s*ft/)
+  const pages = Number(i.specs.Pages) || 0
+  const minWidth = Number(i.minWidth) || 0.1
+  const minHeight = Number(i.minHeight) || 0.1
+  const r = calculate({
+    category: i.category, priceModel: i.priceModel, specs: selection, addons, qty,
+    widthFt: dims ? Number(dims[1]) : 1, heightFt: dims ? Number(dims[2]) : 1, minWidth, minHeight, pages,
+    tiers: i.tiers, minOrderAmount: Number(i.minOrderAmount) || 0,
+  })
+  return { total: r.total, qty }
+}

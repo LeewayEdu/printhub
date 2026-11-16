@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { rateLimit, clientIp } from '@/lib/rate-limit'
+import { priceOrder } from '@/lib/order-pricing'
 
 // Creates an order on the server. The order is ALWAYS saved as 'pending': the only code that
 // can mark a Paystack order paid is lib/paystack.ts (after Paystack confirms the payment), and
@@ -37,10 +38,17 @@ export async function POST(req: NextRequest) {
     if (existing && existing.length) return NextResponse.json({ error: 'Payment reference already used' }, { status: 409 })
   }
 
-  const subtotal = num(body.subtotal), deliveryFee = num(body.deliveryFee), total = num(body.total)
-  if ([subtotal, deliveryFee, total].some(n => !Number.isFinite(n) || n < 0) || total <= 0) {
-    return NextResponse.json({ error: 'Invalid amounts' }, { status: 400 })
+  // Recompute every price from the database. The browser's numbers are only compared, never stored.
+  const priced = await priceOrder(db, body)
+  if (!priced.ok) {
+    console.error('[orders/create] rejected:', priced.error, JSON.stringify(priced.lines || priced.detail || ''))
+    const message = priced.error === 'price_mismatch'
+      ? 'Some prices changed since you added them to your cart. Please refresh your cart and try again.'
+      : (priced.detail || 'Order could not be verified')
+    return NextResponse.json({ error: message, code: priced.error }, { status: priced.error === 'pricing_unavailable' ? 503 : 400 })
   }
+  const { subtotal, deliveryFee, total } = priced
+  if (total <= 0) return NextResponse.json({ error: 'Invalid amounts' }, { status: 400 })
 
   const c = body.customer || {}
   const d = body.delivery || {}
@@ -50,7 +58,7 @@ export async function POST(req: NextRequest) {
     shipping_method: d.type === 'pickup' ? 'pickup' : 'home',
     address_line1: str(d.address, 300),
     state: str(d.state, 60),
-    delivery_area: str(d.area, 120),
+    delivery_area: priced.delivery?.name || str(d.area, 120),
     subtotal, delivery_fee: deliveryFee, total_amount: total,
     status: 'pending',
     paystack_reference: reference || null,
@@ -58,11 +66,11 @@ export async function POST(req: NextRequest) {
   }).select().single()
   if (error || !order) return NextResponse.json({ error: error?.message || 'Could not create order' }, { status: 500 })
 
-  const rows = body.items.map((i: any) => ({
+  const rows = body.items.map((i: any, idx: number) => ({
     order_id: order.id,
     product_id: str(i.productId, 60),
     name: str(i.name, 200),
-    price: num(i.price),
+    price: priced.linePrices[idx],          // the server's price, not the browser's
     quantity: 1,
     specs: i.specs && typeof i.specs === 'object' ? i.specs : {},
     design_type: i.design?.type || null,
@@ -72,7 +80,7 @@ export async function POST(req: NextRequest) {
     has_own_design: i.designPricing?.hasOwnDesign ?? null,
     design_addons_selected: i.designPricing?.designAddons?.length ? i.designPricing.designAddons : null,
     design_units: i.designPricing?.designUnits ?? null,
-    design_cost_total: num(i.designPricing?.designCostTotal) || 0,
+    design_cost_total: i.designPricing?.hasOwnDesign ? 0 : num(i.designPricing?.designCostTotal) || 0,
     design_request_notes: i.designPricing?.designRequestNotes ?? null,
   }))
   const { error: itemsErr } = await db.from('order_items').insert(rows)

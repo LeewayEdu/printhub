@@ -142,6 +142,8 @@ export default function CheckoutPage() {
           state: deliveryType === 'interstate' ? selectedDelivery?.state : 'FCT',
           area: selectedDelivery?.name || '',
         },
+        deliveryId: selectedDelivery?.id,
+        promoCode: promoApplied?.code,
         subtotal, deliveryFee, total,
         items: items.map(item => ({
           productId: item.productId, name: item.name, price: item.price, specs: item.specs,

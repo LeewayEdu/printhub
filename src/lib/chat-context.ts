@@ -57,7 +57,7 @@ export async function getChatContext(): Promise<ChatContext> {
       const time = t ? `, typical turnaround ${t}` : ''
       if (!price) return `- ${name}: no live price, send to WhatsApp for a quote (${link})`
       return p.is_fixed_price
-        ? `- ${name}: fixed price ${naira(price)}${min}${time} (${link})`
+        ? `- ${name}: fixed price ${naira(price)} per piece${min}${time} (${link})`
         : `- ${name}: from ${naira(price)}${min ? ` for the minimum order${min.replace(', minimum order', ' of')}` : ''}${time}; options change the price (${link})`
     }).join('\n')
 
