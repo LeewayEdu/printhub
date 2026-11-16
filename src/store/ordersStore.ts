@@ -14,7 +14,7 @@ export interface OrderItem {
 }
 
 export type OrderStatus =
-  | 'pending' | 'paid' | 'processing'
+  | 'pending' | 'payment_review' | 'paid' | 'processing'
   | 'shipped' | 'delivered' | 'cancelled' | 'refunded';
 
 export interface Order {

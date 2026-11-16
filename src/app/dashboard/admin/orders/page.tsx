@@ -7,14 +7,16 @@ import { useRouter } from 'next/navigation'
 import { OrderStatus } from '@/store/ordersStore'
 import { RefreshCw, FileText, MessageSquare, CheckCircle, Image, ExternalLink, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react'
 
-const STATUSES: (OrderStatus | 'all')[] = ['all', 'pending', 'paid', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded']
+const STATUSES: (OrderStatus | 'all')[] = ['all', 'pending', 'payment_review', 'paid', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded']
+
+const statusLabel = (s: string) => s === 'payment_review' ? 'Payment review' : s.charAt(0).toUpperCase() + s.slice(1)
 
 function itemNeedsDesign(item: any): boolean {
   return item.has_own_design === false
 }
 
 const statusColor: Record<string, string> = {
-  pending: '#f59e0b', paid: '#3b82f6', processing: '#8b5cf6',
+  pending: '#f59e0b', payment_review: '#dc2626', paid: '#3b82f6', processing: '#8b5cf6',
   shipped: '#06b6d4', delivered: '#10b981', cancelled: '#ef4444', refunded: '#6b7280',
 }
 
@@ -70,13 +72,15 @@ function generateReceipt(order: any) {
 }
 
 export default function AdminOrdersPage() {
-  const { filteredOrders, fetchAllOrders, updateOrderStatus, addProductionNote, approveReceipt, setFilter, isLoading, filter } = useAdminOrdersStore()
+  const { orders: allOrders, filteredOrders, fetchAllOrders, updateOrderStatus, addProductionNote, approveReceipt, setFilter, isLoading, filter } = useAdminOrdersStore()
   const router = useRouter()
   const [isAdmin, setIsAdmin] = useState(false)
   const [expanded, setExpanded] = useState<string | null>(null)
   const [noteInput, setNoteInput] = useState<Record<string, string>>({})
   const [savingNote, setSavingNote] = useState<string | null>(null)
   const [filterDesign, setFilterDesign] = useState(false)
+  const [reconciling, setReconciling] = useState(false)
+  const [reconcileMsg, setReconcileMsg] = useState<string | null>(null)
 
   useEffect(() => {
     const check = async () => {
@@ -99,6 +103,19 @@ export default function AdminOrdersPage() {
     setSavingNote(null)
   }
 
+  async function runReconcile() {
+    setReconciling(true); setReconcileMsg(null)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/admin/reconcile', { method: 'POST', headers: { Authorization: `Bearer ${session?.access_token || ''}` } })
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok || !j.ok) setReconcileMsg(`Check could not run: ${j.error || res.status}`)
+      else if (j.unmatched.length === 0) setReconcileMsg(`All good: ${j.checked} PrintHub payment(s) in the last 48 hours, each has an order.`)
+      else setReconcileMsg(`${j.unmatched.length} payment(s) with no order: ` + j.unmatched.map((t: any) => `${t.reference} (₦${Number(t.amount).toLocaleString()})`).join(', ') + (j.alerted ? '. Alert email sent.' : '.'))
+    } catch { setReconcileMsg('Check could not run (network error).') }
+    setReconciling(false)
+  }
+
   if (!isAdmin) return null
 
   const pendingBankTransfers = filteredOrders.filter(o => o.status === 'pending' && !(o as any).receipt_verified && !(o as any).paystack_reference)
@@ -110,10 +127,26 @@ export default function AdminOrdersPage() {
           <h1 style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 22, marginBottom: 4 }}>All Orders</h1>
           <p style={{ fontSize: 14, color: 'var(--gray)' }}>{filteredOrders.length} orders</p>
         </div>
+        <button onClick={runReconcile} disabled={reconciling} title="Looks for card payments from the last 48 hours that have no order. Read-only." style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 18px', background: 'var(--light)', border: '1px solid var(--border)', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+          {reconciling ? 'Checking…' : 'Check payments vs orders'}
+        </button>
         <button onClick={fetchAllOrders} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 18px', background: 'var(--light)', border: '1px solid var(--border)', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
           <RefreshCw size={14} /> Refresh
         </button>
       </div>
+
+      {reconcileMsg && (
+        <div role="status" style={{ background: 'var(--light)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 18px', marginBottom: 20, fontSize: 13 }}>{reconcileMsg}</div>
+      )}
+
+      {allOrders.filter(o => o.status === 'payment_review').length > 0 && (
+        <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 10, padding: '12px 18px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <AlertCircle size={16} color="#dc2626" />
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#991b1b' }}>
+            {allOrders.filter(o => o.status === 'payment_review').length} order(s) in payment review: the amount paid did not match the order. Check Paystack before accepting.
+          </span>
+        </div>
+      )}
 
       {/* Bank transfer alert */}
       {pendingBankTransfers.length > 0 && (
@@ -130,7 +163,8 @@ export default function AdminOrdersPage() {
         {STATUSES.map(s => (
           <button key={s} onClick={() => setFilter(s)}
             style={{ padding: '6px 16px', borderRadius: 20, border: `1px solid ${filter === s ? (statusColor[s] || 'var(--red)') : 'var(--border)'}`, background: filter === s ? `${statusColor[s] || 'var(--red)'}15` : 'white', color: filter === s ? (statusColor[s] || 'var(--red)') : 'var(--gray)', fontSize: 13, fontWeight: filter === s ? 700 : 400, fontFamily: 'Montserrat', cursor: 'pointer', textTransform: 'capitalize' as const }}>
-            {s}
+            {s === 'all' ? 'all' : statusLabel(s)}
+            {s === 'pending' || s === 'payment_review' ? ` (${allOrders.filter(o => o.status === s).length})` : ''}
           </button>
         ))}
       </div>
@@ -199,6 +233,17 @@ export default function AdminOrdersPage() {
                         <span style={{ fontSize: 11, fontWeight: 700, color: '#7c3aed' }}>{designItems.length} design file{designItems.length > 1 ? 's' : ''}</span>
                       </div>
                     )}
+                    {order.status === 'payment_review' && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: '#fee2e2', borderRadius: 20, padding: '3px 10px' }}>
+                        <AlertCircle size={12} color="#dc2626" />
+                        <span style={{ fontSize: 11, fontWeight: 700, color: '#dc2626' }}>Payment under review: expected ₦{Number(order.total_amount).toLocaleString()}, amount paid differs (see Paystack {(order as any).paystack_reference || ''})</span>
+                      </div>
+                    )}
+                    {order.status === 'pending' && (order as any).paystack_reference && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: '#fef3c7', borderRadius: 20, padding: '3px 10px' }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: '#92400e' }}>Awaiting card payment confirmation</span>
+                      </div>
+                    )}
                     {isBankPending && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: '#fef9c3', borderRadius: 20, padding: '3px 10px' }}>
                         <AlertCircle size={12} color="#d97706" />
@@ -221,7 +266,7 @@ export default function AdminOrdersPage() {
                       onChange={e => { e.stopPropagation(); updateOrderStatus(order.id, e.target.value as OrderStatus) }}
                       style={{ padding: '6px 12px', borderRadius: 8, border: `1px solid ${statusColor[order.status]}`, background: `${statusColor[order.status]}15`, color: statusColor[order.status], fontSize: 13, fontWeight: 600, fontFamily: 'Montserrat', cursor: 'pointer', outline: 'none' }}>
                       {STATUSES.filter(s => s !== 'all').map(s => (
-                        <option key={s} value={s} style={{ background: 'white', color: '#1A1A1A' }}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                        <option key={s} value={s} style={{ background: 'white', color: '#1A1A1A' }}>{statusLabel(s)}</option>
                       ))}
                     </select>
                     <span style={{ color: 'var(--gray)', fontSize: 18, transition: 'transform 0.2s', transform: isExpanded ? 'rotate(180deg)' : 'none', display: 'inline-block' }}>⌄</span>

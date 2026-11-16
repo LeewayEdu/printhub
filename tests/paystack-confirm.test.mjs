@@ -67,3 +67,12 @@ test('a review-held order can still become paid once the right amount is confirm
   const rows = [order({ status: 'payment_review' })]
   assert.equal((await confirmOrderPayment(fakeDb(rows), tx())).state, 'paid')
 })
+
+test('amount mismatch holds the order for review and reports expected vs paid (alert fires only the first time)', async () => {
+  const rows = [order()]
+  const first = await confirmOrderPayment(fakeDb(rows), tx({ amountKobo: 100000 }))
+  assert.equal(first.state, 'amount_mismatch'); assert.equal(rows[0].status, 'payment_review')
+  assert.deepEqual(first.review, { expectedNaira: 13975, paidNaira: 1000, currency: 'NGN', firstTime: true })
+  const second = await confirmOrderPayment(fakeDb(rows), tx({ amountKobo: 100000 }))
+  assert.equal(second.review.firstTime, false)
+})

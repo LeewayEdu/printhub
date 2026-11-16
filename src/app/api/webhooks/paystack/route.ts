@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
 import { confirmOrderPayment } from '@/lib/paystack'
+import { alertPaymentReview } from '@/lib/alerts'
 
 // Use service role key — this runs server-side only, never exposed to client
 const supabase = createClient(
@@ -54,6 +55,9 @@ export async function POST(req: NextRequest) {
       const result = await confirmOrderPayment(supabase, {
         reference, status, amountKobo, currency: String(data.currency || ''),
       })
+      if (result.state === 'amount_mismatch' && result.review?.firstTime && result.order) {
+        await alertPaymentReview({ orderId: result.order.id, reference, ...result.review })
+      }
       if (result.state === 'order_not_found') {
         // The order may not exist yet (the browser creates it after the popup); the verify route
         // will confirm it then.

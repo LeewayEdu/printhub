@@ -39,7 +39,12 @@ export type ConfirmState =
   | 'reference_conflict'// more than one order carries this reference
   | 'amount_mismatch'   // paid amount or currency differs from the order: held for review
 
-export interface ConfirmResult { state: ConfirmState; order?: any }
+export interface ConfirmResult {
+  state: ConfirmState
+  order?: any
+  /** Set when the order is held for review; firstTime is true only on the call that moved it there */
+  review?: { expectedNaira: number; paidNaira: number; currency: string; firstTime: boolean }
+}
 
 export async function confirmOrderPayment(db: SupabaseClient, tx: PaystackTx): Promise<ConfirmResult> {
   if (tx.status !== 'success') return { state: 'not_successful' }
@@ -58,8 +63,9 @@ export async function confirmOrderPayment(db: SupabaseClient, tx: PaystackTx): P
   // Amount and currency must match the order exactly (₦1 rounding allowed)
   const paidNaira = tx.amountKobo / 100
   if (tx.currency !== 'NGN' || Math.abs(paidNaira - Number(order.total_amount)) > 1) {
+    const firstTime = order.status !== 'payment_review'
     await db.from('orders').update({ status: 'payment_review' }).eq('id', order.id).in('status', ['pending', 'payment_review'])
-    return { state: 'amount_mismatch', order }
+    return { state: 'amount_mismatch', order, review: { expectedNaira: Number(order.total_amount), paidNaira, currency: tx.currency, firstTime } }
   }
 
   // Compare-and-set: only a still-unpaid order can become paid, so two callers cannot both win
