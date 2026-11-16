@@ -40,6 +40,9 @@ export interface ProductCardData {
 export function displayPrice(p: ProductCardData) {
   if (p.pricing_model === 'area') return `₦${Number(p.area_rate).toLocaleString()}/${p.area_unit}`
   const base = p.display_price || p.price
+  // Area-priced products (banners, backdrops, window graphics): the "from" figure is the rate for one
+  // square foot, so say so instead of implying a finished job costs that much.
+  if (p.price_model === 'area' && !p.is_fixed_price && (p.moq || 1) <= 1) return `From ₦${Number(base).toLocaleString()} per sq ft`
   if (p.is_fixed_price) return `₦${Number(base).toLocaleString()}`
   return `From ₦${Number(base).toLocaleString()}`
 }

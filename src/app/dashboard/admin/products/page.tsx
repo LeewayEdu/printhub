@@ -391,7 +391,7 @@ export default function AdminProductsPage() {
   const handleSave = async () => {
     if (!form.name) { toast.error('Product name is required'); return }
     if (!form.category) { toast.error('Category is required'); return }
-    if (!form.display_price && !form.is_fixed_price) { toast.error('Display price is required'); return }
+    if (!form.display_price && form.is_fixed_price) { toast.error('Fixed price is required for a fixed-price product'); return }
     setIsLoading(true)
     const newImageUrls = form.images.length > 0 ? await uploadImages(form.images) : []
     const allImages = [...form.existing_images, ...newImageUrls]
@@ -844,7 +844,7 @@ export default function AdminProductsPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse' as const, fontSize: 13 }}>
               <thead>
                 <tr style={{ background: 'var(--bg-secondary)' }}>
-                  {(sortKey === 'custom' ? [''] : []).concat(['', 'Name', 'Category', 'Price (₦)', 'MOQ', 'Badge', 'Featured', 'Active', '']).map((h, i) => (
+                  {(sortKey === 'custom' ? [''] : []).concat(['', 'Name', 'Category', 'Fixed price (₦)', 'MOQ', 'Badge', 'Featured', 'Active', '']).map((h, i) => (
                     <th key={i} style={{ padding: '10px 14px', textAlign: 'left' as const, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', whiteSpace: 'nowrap' as const, borderBottom: '1px solid var(--border-color)' }}>{h}</th>
                   ))}
                 </tr>
@@ -903,8 +903,8 @@ export default function AdminProductsPage() {
                           a responsive typing feel — the approval gating happens later, when
                           "Save Changes" is actually clicked (see saveInlineChanges). */}
                       <td style={{ padding: '10px 14px', minWidth: 110 }}>
-                        {product.pricing_model === 'area' ? (
-                          <span style={{ fontFamily: 'Montserrat', fontWeight: 700, color: 'var(--red)', whiteSpace: 'nowrap' as const }}>{priceLabel(product)}</span>
+                        {!product.is_fixed_price ? (
+                          <span title="Computed from the product's options" style={{ fontSize: 12, color: '#888', whiteSpace: 'nowrap' as const }}>computed</span>
                         ) : (
                           <input
                             type="number"
@@ -1101,19 +1101,23 @@ export default function AdminProductsPage() {
 
                   {/* Display price */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
-                    <div>
-                      <label style={labelStyle}>
-                        {form.is_fixed_price ? 'Price per unit (₦) *' : 'Display price (₦) *'}
-                      </label>
-                      <input type="number"
-                        value={form.display_price}
-                        onChange={e => setF('display_price', e.target.value === '' ? '' : Number(e.target.value))}
-                        placeholder={form.is_fixed_price ? 'e.g. 75000' : 'e.g. 4500'}
-                        style={inputStyle} />
-                      <div style={{ fontSize: 10, color: '#888', marginTop: 4 }}>
-                        {form.is_fixed_price ? 'Price charged per piece' : 'Shown as "From ₦X" on product card'}
+                    {form.is_fixed_price ? (
+                      <div>
+                        <label style={labelStyle}>Fixed price (overrides computed price) (₦) *</label>
+                        <input type="number"
+                          value={form.display_price}
+                          onChange={e => setF('display_price', e.target.value === '' ? '' : Number(e.target.value))}
+                          placeholder="e.g. 75000"
+                          style={inputStyle} />
+                        <div style={{ fontSize: 10, color: '#888', marginTop: 4 }}>
+                          Price charged per piece. Options never change it.
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div style={{ fontSize: 12, color: '#666', alignSelf: 'center' }}>
+                        This product is priced from its options (the calculator). The &quot;From ₦X&quot; price shown to customers is computed automatically, so there is no price to enter here. Tick &quot;fixed price&quot; to set a single price instead.
+                      </div>
+                    )}
                     <div>
                       <label style={labelStyle}>MOQ (Min order qty)</label>
                       <input type="number"

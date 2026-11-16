@@ -1,5 +1,6 @@
 'use client'
 
+import { useFromPrices } from '@/lib/use-from-prices'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Navbar from '@/components/layout/Navbar'
@@ -62,7 +63,7 @@ const KITS = [
       '30 Branded Pens',
       '1 Car Sticker (vinyl, 12×12in)',
       '1 Office Door Sign',
-      'Turnaround: 10-14 working days',
+      'Turnaround: message us for timing',
     ],
   },
 ]
@@ -88,6 +89,7 @@ interface Product {
 
 export default function StarterKitsPage() {
   const [products, setProducts] = useState<Product[]>([])
+  const fromPrices = useFromPrices()   // shared "from" price, same as the shop
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -125,7 +127,7 @@ export default function StarterKitsPage() {
   }, [])
 
   const priceLabel = (p: Product) => {
-    const base = Number(p.display_price || p.price || 0)
+    const base = Number(fromPrices[p.id] || p.display_price || p.price || 0)
     if (!base) return 'Get a quote'
     return p.is_fixed_price ? `₦${base.toLocaleString()}` : `From ₦${base.toLocaleString()}`
   }

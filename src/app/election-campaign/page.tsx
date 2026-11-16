@@ -1,5 +1,6 @@
 'use client'
 
+import { useFromPrices } from '@/lib/use-from-prices'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Navbar from '@/components/layout/Navbar'
@@ -57,6 +58,7 @@ interface Product {
 
 export default function ElectionCampaignPage() {
   const [products, setProducts] = useState<Product[]>([])
+  const fromPrices = useFromPrices()   // shared "from" price, same as the shop
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -95,7 +97,7 @@ export default function ElectionCampaignPage() {
   }, [])
 
   const priceLabel = (p: Product) => {
-    const base = Number(p.display_price || p.price || 0)
+    const base = Number(fromPrices[p.id] || p.display_price || p.price || 0)
     if (!base) return 'Get a quote'
     return p.is_fixed_price ? `₦${base.toLocaleString()}` : `From ₦${base.toLocaleString()}`
   }
@@ -130,7 +132,7 @@ export default function ElectionCampaignPage() {
         <section style={{ background: 'var(--bg-secondary)', padding: '60px 40px' }}>
           <div style={{ maxWidth: 1100, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20 }} className="why-grid">
             {[
-              { icon: '⚡', title: 'Fast turnaround', desc: 'Most orders ready in 3–5 working days' },
+              { icon: '⚡', title: 'Rush service available', desc: 'Message us on WhatsApp for turnaround on your job' },
               { icon: '🇳🇬', title: 'Nationwide delivery', desc: 'We ship to all 36 states' },
               { icon: '💰', title: 'Bulk discounts', desc: 'Better prices on larger quantities' },
               { icon: '✅', title: 'Worked with several parties', desc: 'We have printed for APC, LP, ADC and others. Not an endorsement of any party.' },

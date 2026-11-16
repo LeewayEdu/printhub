@@ -43,7 +43,7 @@ HOW TO ORDER
 2. Browse products, choose specs, upload your design (or submit a brief)
 3. Add to cart, checkout, pay via Paystack or bank transfer
 4. We produce, then you pick up from the Karu office or we deliver
-Turnaround depends on the product (shown on the product page where available). Rush service available: message us on WhatsApp for turnaround on your job.
+Turnaround depends on the product (shown on the product page where available). Book printing (printing copies): 2–5 working days after proof approval. Full publishing (editing, typesetting, ISBN, cover): 7–14 working days. Rush service available: message us on WhatsApp for turnaround on your job.
 
 ${liveBlock}
 

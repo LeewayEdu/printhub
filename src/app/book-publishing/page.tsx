@@ -1,5 +1,6 @@
 'use client'
 
+import { useFromPrices } from '@/lib/use-from-prices'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Navbar from '@/components/layout/Navbar'
@@ -71,6 +72,7 @@ interface BookProduct {
 
 export default function BookPublishingPage() {
   const [printProducts, setPrintProducts] = useState<BookProduct[]>([])
+  const fromPrices = useFromPrices()   // shared "from" price, same as the shop
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -96,7 +98,7 @@ export default function BookPublishingPage() {
   }, [])
 
   const priceLabel = (p: BookProduct) => {
-    const base = Number(p.display_price || p.price || 0)
+    const base = Number(fromPrices[p.id] || p.display_price || p.price || 0)
     if (!base) return 'Get a quote'
     return p.is_fixed_price ? `₦${base.toLocaleString()}` : `From ₦${base.toLocaleString()}`
   }
