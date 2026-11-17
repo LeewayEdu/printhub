@@ -2,7 +2,7 @@
 // review, rating or testimonial structured data.
 
 import type { Metadata } from 'next'
-import { pageMetadata } from '@/components/seo'
+import { pageMetadata } from '@/lib/seo-meta'
 import { SITE_URL } from '@/lib/site-url'
 import type { CaseStudy, CaseView } from '@/lib/case-studies'
 
