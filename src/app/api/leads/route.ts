@@ -8,7 +8,7 @@ const supabase = createClient(
 )
 
 // Where a lead came from. 'chatbot' is what the chat widget already sends.
-const SOURCES = ['chatbot', 'whatsapp', 'quote_form', 'ad', 'organic', 'affiliate']
+const SOURCES = ['chatbot', 'whatsapp', 'quote_form', 'ad', 'organic', 'affiliate', 'case_study']
 
 const clip = (v: unknown, max: number): string | null =>
   typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null
