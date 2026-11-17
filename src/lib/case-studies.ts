@@ -7,7 +7,7 @@
 //
 // HOW TO SWITCH A CASE ON
 //   * Publish WITHOUT naming the client: set `published: true`, leave `consentGiven: false`.
-//     The neutral wording is used (neutral title, clientLine.withoutConsent, no book titles, party name replaced).
+//     The neutral wording is used (neutral title, clientLine.withoutConsent, no book titles, party name and place names replaced).
 //   * Publish WITH the client named: set `published: true` AND `consentGiven: true`, only after written consent.
 //   * The sitemap lists a case only when BOTH flags are true.
 //   * Fill in `date` (for example "March 2026") when you have it. `dateTODO` is never shown on the site.
@@ -66,7 +66,7 @@ const img = (folder: string, file: string, width: number, height: number, alt: s
 
 export const CASE_STUDIES: CaseStudy[] = [
   {
-    slug: 'apc-grand-rally-branding',
+    slug: 'state-rally-banners',
     category: 'Campaign & large-format branding',
     title: '550 banners and iron frames in five days: branding Nasarawa State for the APC Grand Rally',
     neutralTitle: '550 banners and iron frames in five days for a state rally',
@@ -107,11 +107,11 @@ export const CASE_STUDIES: CaseStudy[] = [
     },
     serviceLink: { href: '/election-campaign', label: 'See campaign printing' },
     images: [
-      img('apc-grand-rally', 'apc-banner-iron-frame-roadside.jpg', 1280, 1280, 'Large printed campaign banner mounted on a welded iron frame beside a road', 'A 10 × 20 ft banner on its iron structure', 'hero'),
-      img('apc-grand-rally', 'apc-large-banner-close-up.jpg', 1280, 1280, 'Close view of a large printed banner for the grand rally on its frame', 'Print detail on a large banner'),
-      img('apc-grand-rally', 'apc-banner-installation-on-frame.jpg', 1280, 1280, 'Workers fixing a large printed banner onto an iron frame', 'Installation on the frame'),
-      img('apc-grand-rally', 'apc-banner-installation-ladder.jpg', 1280, 1280, 'Team members on a ladder and the frame top securing a large printed banner', 'Fitting the banner on site'),
-      img('apc-grand-rally', 'apc-banner-on-poles-scale.jpg', 1280, 1280, 'A large printed banner on poles with people standing below for scale', 'The scale of a 10 × 20 ft banner'),
+      img('state-rally-banners', 'rally-banner-iron-frame-roadside.jpg', 1280, 1280, 'Large printed campaign banner mounted on a welded iron frame beside a road', 'A 10 × 20 ft banner on its iron structure', 'hero'),
+      img('state-rally-banners', 'rally-large-banner-close-up.jpg', 1280, 1280, 'Close view of a large printed banner for the grand rally on its frame', 'Print detail on a large banner'),
+      img('state-rally-banners', 'rally-banner-installation-on-frame.jpg', 1280, 1280, 'Workers fixing a large printed banner onto an iron frame', 'Installation on the frame'),
+      img('state-rally-banners', 'rally-banner-installation-ladder.jpg', 1280, 1280, 'Team members on a ladder and the frame top securing a large printed banner', 'Fitting the banner on site'),
+      img('state-rally-banners', 'rally-banner-on-poles-scale.jpg', 1280, 1280, 'A large printed banner on poles with people standing below for scale', 'The scale of a 10 × 20 ft banner'),
     ],
     seo: {
       title: 'Case study: 550 rally banners and iron frames in five days | C-Chu Media',
@@ -120,12 +120,15 @@ export const CASE_STUDIES: CaseStudy[] = [
     published: false,
     consentGiven: false,
     noConsentReplacements: [
+      ['Nasarawa State ahead of the APC Grand Rally', 'a state rally'],
+      ['Nasarawa State for the APC Grand Rally', 'a state rally'],
       ['the APC Grand Rally', 'a state rally'],
       ['APC Grand Rally', 'state rally'],
+      ['Nasarawa State', 'a state'],
     ],
   },
   {
-    slug: 'ezra-book-printing',
+    slug: 'book-printing-600-copies',
     category: 'Book printing',
     title: 'From a ChatGPT search to 600 printed books',
     summary: 'A client in Jalingo, Taraba State, found C-Chu Media online and commissioned two book titles of about 257 pages each, with 300 copies of each.',
@@ -167,13 +170,13 @@ export const CASE_STUDIES: CaseStudy[] = [
     },
     serviceLink: { href: '/book-publishing', label: 'See book publishing and printing' },
     images: [
-      img('ezra-book-printing', 'volume-1-cover-on-desk.jpg', 1010, 1079, 'Volume 1 book with an orange cover showing a classroom scene, standing on a wooden desk beside a plant', 'Volume 1: orange cover', 'hero'),
-      img('ezra-book-printing', 'volume-2-cover-on-desk.jpg', 1080, 1080, 'Volume 2 book with a deep navy blue cover showing the same classroom scene, standing on a desk', 'Volume 2: deep navy cover'),
-      img('ezra-book-printing', 'volume-1-copies-boxed.jpg', 1280, 720, 'Stacks of orange-covered Volume 1 copies packed in a carton', 'Volume 1 copies packed for delivery'),
-      img('ezra-book-printing', 'volume-2-copies-boxed.jpg', 1280, 720, 'Stacks of navy-covered Volume 2 copies packed in a carton', 'Volume 2 copies packed for delivery'),
-      img('ezra-book-printing', 'volume-1-cover-in-hand.jpg', 720, 1280, 'A hand holding up a finished copy of Volume 1', 'A finished Volume 1'),
-      img('ezra-book-printing', 'volume-2-cover-in-hand.jpg', 720, 1280, 'A hand holding up a finished copy of Volume 2', 'A finished Volume 2'),
-      img('ezra-book-printing', 'volume-2-spine.jpg', 720, 1280, 'Spine of a finished book showing the printed title along its edge', 'Spine detail'),
+      img('book-printing-600-copies', 'volume-1-cover-on-desk.jpg', 1010, 1079, 'Volume 1 book with an orange cover showing a classroom scene, standing on a wooden desk beside a plant', 'Volume 1: orange cover', 'hero'),
+      img('book-printing-600-copies', 'volume-2-cover-on-desk.jpg', 1080, 1080, 'Volume 2 book with a deep navy blue cover showing the same classroom scene, standing on a desk', 'Volume 2: deep navy cover'),
+      img('book-printing-600-copies', 'volume-1-copies-boxed.jpg', 1280, 720, 'Stacks of orange-covered Volume 1 copies packed in a carton', 'Volume 1 copies packed for delivery'),
+      img('book-printing-600-copies', 'volume-2-copies-boxed.jpg', 1280, 720, 'Stacks of navy-covered Volume 2 copies packed in a carton', 'Volume 2 copies packed for delivery'),
+      img('book-printing-600-copies', 'volume-1-cover-in-hand.jpg', 720, 1280, 'A hand holding up a finished copy of Volume 1', 'A finished Volume 1'),
+      img('book-printing-600-copies', 'volume-2-cover-in-hand.jpg', 720, 1280, 'A hand holding up a finished copy of Volume 2', 'A finished Volume 2'),
+      img('book-printing-600-copies', 'volume-2-spine.jpg', 720, 1280, 'Spine of a finished book showing the printed title along its edge', 'Spine detail'),
     ],
     seo: {
       title: 'Case study: 600 books for a client in Taraba State | C-Chu Media',
@@ -181,7 +184,13 @@ export const CASE_STUDIES: CaseStudy[] = [
     },
     published: false,
     consentGiven: false,
-    noConsentReplacements: [],
+    noConsentReplacements: [
+      ['Jalingo, Taraba State, Nigeria', 'Another state in Nigeria'],
+      ['in Jalingo, Taraba State', 'in another state'],
+      ['in Taraba State', 'in another state'],
+      ['in Jalingo', 'in another state'],
+      ['Jalingo, Taraba State', 'another state'],
+    ],
   },
 ]
 
@@ -226,7 +235,7 @@ export function buildView(c: CaseStudy): CaseView {
     summary: swap(c.summary),
     date: c.date && !/TODO/i.test(c.date) ? c.date : null,          // a date shows only once it has been filled in
     stats: c.stats, atAGlance: rows,
-    clientLine: c.consentGiven ? c.clientLine.withConsent : c.clientLine.withoutConsent,
+    clientLine: c.consentGiven ? c.clientLine.withConsent : swap(c.clientLine.withoutConsent),
     sections: c.sections.map(s => ({ heading: swap(s.heading), body: swap(s.body) })),
     pullQuote: c.pullQuote ? { text: c.pullQuote.text, attribution: 'C-Chu Media' } : null,
     demonstrates: c.demonstrates.map(swap),

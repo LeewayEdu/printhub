@@ -39,8 +39,8 @@ Page layouts (`book-publishing`, `election-campaign`, home), `Footer`, `HomeClie
 
 ## Assumptions (please read)
 1. **AI vendor name.** The project rules file says no AI vendor names in user-facing copy. The Ezra copy names "ChatGPT" in the title, the at-a-glance row and one story paragraph. I render "an AI search" and "an AI assistant" instead (rules in the data file). The original text stays in the data. Say if you want the vendor name shown after all.
-2. **The slug and image file names contain "apc"** (`apc-grand-rally-branding`, `/images/case-studies/apc-grand-rally/...`). You asked to keep file names, so a no-consent publication still has "apc" in the web address. A neutral slug can be added later with a redirect.
-3. **"Nasarawa State"** stays in the APC body copy in neutral mode (it names a place, not the party). The Ezra copy shows "Jalingo, Taraba State" in neutral mode because the supplied `withoutConsent` line says so, although the handover README lists the location as needing consent.
+2. **Slugs** are now neutral: `state-rally-banners` and `book-printing-600-copies`, with image folders and file names to match. Nothing was published, so no redirects were added.
+3. **Place names** ("Nasarawa State", "Jalingo, Taraba State") are hidden while `consentGiven` is false, in copy, at-a-glance rows, the client line, SEO text and alt text, and replaced with "a state" / "another state". They show only when `consentGiven` is true.
 4. **Images** are served by `next/image` (WebP, resized). Gallery thumbnails use one consistent 4:3 crop; the lightbox shows the full image uncropped.
 5. **Link blocks** on the service pages and the footer ask `/api/case-studies/links` at runtime, so unpublished copy never reaches the browser bundle. The home page gets its data from the server.
 6. **Leads:** a lead needs `product_interest` only, which passes the existing validation. If the lead-capture migration has not been run the endpoint already falls back to the original columns.

@@ -13,10 +13,10 @@ import { publicCaseLinks } from '../src/lib/case-study-access.ts'
 
 const TOKEN = 'a-long-random-preview-token-123'
 const env = { CASE_STUDY_PREVIEW_TOKEN: TOKEN }
-const apc = CASE_STUDIES.find(c => c.slug === 'apc-grand-rally-branding')
-const ezra = CASE_STUDIES.find(c => c.slug === 'ezra-book-printing')
+const apc = CASE_STUDIES.find(c => c.slug === 'state-rally-banners')
+const ezra = CASE_STUDIES.find(c => c.slug === 'book-printing-600-copies')
 const flip = (c, flags) => ({ ...c, ...flags })
-const NAMES = /\bAPC\b|Paula|Ezra|Dumpho|Phokh|Wurkun|Anpandi/
+const NAMES = /\bAPC\b|Paula|Ezra|Dumpho|Phokh|Wurkun|Anpandi|Nasarawa|Jalingo|Taraba/
 
 // ── both cases ship unpublished and without consent ─────────────────────────────────────────────────
 test('both cases are unpublished and have no consent in the data', () => {
@@ -29,7 +29,7 @@ test('unpublished cases are not in the sitemap, the index or the links list', ()
   assert.deepEqual(caseSitemapPaths(CASE_STUDIES), [])
   assert.equal(publishedCaseViews().length, 0)
   assert.deepEqual(publicCaseLinks(), [])
-  assert.deepEqual(publicCaseLinks([flip(ezra, { published: true })]).map(c => c.slug), ['ezra-book-printing'])
+  assert.deepEqual(publicCaseLinks([flip(ezra, { published: true })]).map(c => c.slug), ['book-printing-600-copies'])
   assert.match(readFileSync(new URL('../src/app/api/case-studies/links/route.ts', import.meta.url), 'utf8'), /publicCaseLinks\(\)/)
   assert.equal(caseIndexMetadata(false).robots.index, false, 'index is noindex while nothing is published')
   assert.equal(caseIndexMetadata(true).robots, undefined)
@@ -37,18 +37,18 @@ test('unpublished cases are not in the sitemap, the index or the links list', ()
 test('the sitemap lists a case only when it is published AND consented', () => {
   assert.deepEqual(caseSitemapPaths([flip(apc, { published: true })]), [])
   assert.deepEqual(caseSitemapPaths([flip(apc, { consentGiven: true })]), [])
-  assert.deepEqual(caseSitemapPaths([flip(apc, { published: true, consentGiven: true }), ezra]), ['/case-studies', '/case-studies/apc-grand-rally-branding'])
+  assert.deepEqual(caseSitemapPaths([flip(apc, { published: true, consentGiven: true }), ezra]), ['/case-studies', '/case-studies/state-rally-banners'])
 })
 
 // ── public routes and preview ──────────────────────────────────────────────────────────────────────────────
 test('public routes: unpublished slugs are a 404, unknown slugs are a 404', () => {
-  assert.equal(resolveCase('apc-grand-rally-branding', undefined, env), null)
-  assert.equal(resolveCase('ezra-book-printing', 'wrong', env), null)
+  assert.equal(resolveCase('state-rally-banners', undefined, env), null)
+  assert.equal(resolveCase('book-printing-600-copies', 'wrong', env), null)
   assert.equal(resolveCase('nope', TOKEN, env), null)
 })
 test('preview: a valid token shows an unpublished case, flagged as preview', () => {
-  const r = resolveCase('apc-grand-rally-branding', TOKEN, env)
-  assert.equal(r.preview, true); assert.equal(r.v.slug, 'apc-grand-rally-branding')
+  const r = resolveCase('state-rally-banners', TOKEN, env)
+  assert.equal(r.preview, true); assert.equal(r.v.slug, 'state-rally-banners')
 })
 test('preview is off when the token is missing or too short, and it is compared safely', () => {
   assert.equal(isValidPreview(TOKEN, {}), false)
@@ -56,10 +56,10 @@ test('preview is off when the token is missing or too short, and it is compared 
   assert.equal(isValidPreview(TOKEN + 'x', env), false)
   assert.equal(isValidPreview(undefined, env), false)
   assert.equal(isValidPreview([TOKEN], env), true)
-  assert.equal(resolveCase('ezra-book-printing', TOKEN, {}), null)
+  assert.equal(resolveCase('book-printing-600-copies', TOKEN, {}), null)
 })
 test('a published case is public with no token, and is not a preview', () => {
-  const r = resolveCase('ezra-book-printing', undefined, {}, [flip(ezra, { published: true })])
+  const r = resolveCase('book-printing-600-copies', undefined, {}, [flip(ezra, { published: true })])
   assert.equal(r.preview, false)
 })
 test('the preview token is never in the code or in any response data', () => {
@@ -80,7 +80,7 @@ test('without consent: no client name, no book titles, no Titles row, no party n
   const a = buildView(apc), e = buildView(ezra)
   assert.equal(a.title, '550 banners and iron frames in five days for a state rally')
   assert.equal(a.clientLine, "Coordinated through the party's South-South coordination office.")
-  assert.equal(e.clientLine, 'A client in Jalingo, Taraba State.')
+  assert.equal(e.clientLine, 'A client in another state.')
   assert.ok(/state rally/.test(a.cta.whatsappMessage))
 })
 test('with consent: the named wording and the Titles row are used', () => {
@@ -88,6 +88,24 @@ test('with consent: the named wording and the Titles row are used', () => {
   assert.match(a.title, /APC Grand Rally/); assert.match(a.clientLine, /Dr\. Paula/)
   assert.ok(e.atAGlance.some(r => r.label === 'Titles' && /Dumpho/.test(r.value)))
   assert.equal(e.clientLine, 'Mr. Ezra, Jalingo, Taraba State.')
+  assert.match(JSON.stringify(a), /Nasarawa State/); assert.match(JSON.stringify(e), /Jalingo, Taraba State/)
+})
+test('without consent no place name appears in copy, rows, client line, SEO text, metadata or alt text; with consent it does', () => {
+  const PLACES = /Nasarawa|Jalingo|Taraba/
+  for (const c of [apc, ezra]) {
+    const v = buildView(c)
+    assert.ok(!PLACES.test(JSON.stringify(v)), `${c.slug}: ${JSON.stringify(v).match(PLACES)}`)
+    assert.ok(!PLACES.test(JSON.stringify(caseMetadata(v))) && !PLACES.test(JSON.stringify(articleJsonLd(v))))
+    assert.ok(v.images.every(i => !PLACES.test(i.alt + i.caption)))
+  }
+  assert.equal(buildView(apc).atAGlance[0].value, 'Branding for a state rally')
+  assert.equal(buildView(ezra).atAGlance[0].value, 'Another state in Nigeria')
+  assert.equal(buildView(ezra).seo.title, 'Case study: 600 books for a client in another state | C-Chu Media')
+  assert.ok(PLACES.test(JSON.stringify(buildView(flip(ezra, { consentGiven: true })).seo)))
+})
+test('slugs and image paths are neutral', () => {
+  assert.deepEqual(CASE_STUDIES.map(c => c.slug), ['state-rally-banners', 'book-printing-600-copies'])
+  for (const c of CASE_STUDIES) for (const i of c.images) assert.ok(!/apc|ezra/i.test(i.src), i.src)
 })
 test('no AI vendor name appears in the displayed copy (site rule)', () => {
   for (const consent of [false, true]) for (const c of CASE_STUDIES) assert.ok(!/ChatGPT|OpenAI/i.test(JSON.stringify(buildView(flip(c, { consentGiven: consent })))))
@@ -124,8 +142,8 @@ test('Article JSON-LD parses, is an Article, and has no rating, review or testim
 })
 test('metadata comes from the data, with the hero as the social image and a canonical URL', () => {
   const m = caseMetadata(buildView(ezra))
-  assert.equal(m.title.absolute, 'Case study: 600 books for a client in Taraba State | C-Chu Media')
-  assert.match(m.alternates.canonical, /\/case-studies\/ezra-book-printing$/)
+  assert.equal(m.title.absolute, 'Case study: 600 books for a client in another state | C-Chu Media')
+  assert.match(m.alternates.canonical, /\/case-studies\/book-printing-600-copies$/)
   assert.match(m.openGraph.images[0].url, /volume-1-cover-on-desk\.jpg$/); assert.match(m.twitter.images[0], /volume-1-cover-on-desk\.jpg$/)
   assert.equal(m.robots, undefined)
 })
