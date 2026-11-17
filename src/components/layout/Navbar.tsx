@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { NAV_LINKS } from '@/lib/constants'
@@ -21,13 +21,29 @@ export default function Navbar() {
   const cartCount = useCartStore(state => state.totalItems())
   const { theme, toggleTheme } = useThemeStore()
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  // False until the saved session has been read, so the account icon does not flash the logged-out look
+  const [authReady, setAuthReady] = useState(false)
+  // Pulses the cart badge once when an item is added
+  const [pulse, setPulse] = useState(false)
+  const prevCount = useRef(cartCount)
+  useEffect(() => {
+    if (cartCount > prevCount.current) {
+      setPulse(true)
+      const t = setTimeout(() => setPulse(false), 700)
+      prevCount.current = cartCount
+      return () => clearTimeout(t)
+    }
+    prevCount.current = cartCount
+  }, [cartCount])
 
 useEffect(() => {
   supabase.auth.getSession().then(({ data: { session } }) => {
     setIsLoggedIn(!!session)
+    setAuthReady(true)
   })
   const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
     setIsLoggedIn(!!session)
+    setAuthReady(true)
   })
   return () => subscription.unsubscribe()
 }, [])
@@ -138,7 +154,7 @@ useEffect(() => {
           >
             <ShoppingCart size={17} />
             {cartCount > 0 && (
-              <span style={{
+              <span className={pulse ? 'cart-badge-pulse' : undefined} style={{
                 position: 'absolute', top: -4, right: -4,
                 background: 'var(--red)', color: 'white',
                 fontSize: 12, fontWeight: 700, width: 16, height: 16,
@@ -149,7 +165,10 @@ useEffect(() => {
             )}
           </Link>
 
-          {/* Dashboard / Login — always visible as icon */}
+          {/* Dashboard / Login — always visible as icon. Neutral same-size placeholder until the session is known. */}
+          {!authReady ? (
+            <span aria-hidden="true" style={{ display: 'block', width: 38, height: 38, borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }} />
+          ) : (
           <Link
             href={isLoggedIn ? '/dashboard' : '/auth'}
             title={isLoggedIn ? 'Dashboard' : 'Login'}
@@ -173,6 +192,7 @@ useEffect(() => {
           >
             <User size={17} color={isLoggedIn ? 'white' : 'currentColor'} />
           </Link>
+          )}
 
           {/* Order Now */}
           <Link
@@ -284,7 +304,7 @@ useEffect(() => {
               className="btn btn-ghost"
               style={{ flex: 1, justifyContent: 'center' }}
             >
-              {isLoggedIn ? 'Dashboard' : 'Login'}
+              {authReady && isLoggedIn ? 'Dashboard' : 'Login'}
             </Link>
             <Link
               href="/auth?tab=register"
@@ -319,6 +339,9 @@ useEffect(() => {
           .nav-order-btn { display: none !important; }
         }
         @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes cartBadgePulse { 0% { transform: scale(1) } 40% { transform: scale(1.5) } 100% { transform: scale(1) } }
+        .cart-badge-pulse { animation: cartBadgePulse 0.6s ease; }
+        @media (prefers-reduced-motion: reduce) { .cart-badge-pulse { animation: none; } }
       `}</style>
     </header>
   )

@@ -102,9 +102,6 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
         ? (designPricingResolved ?? { hasOwnDesign: true, designCostTotal: 0, designAddons: [] })
         : null,
     )
-    toast.success(designPricingResolved?.hasOwnDesign === false || !hasDesignPricing
-      ? 'Added to cart'
-      : 'Added to cart. You can upload your design file in the cart.')
   }
 
   // Pre-filled WhatsApp message: product, chosen options, quantity, total and page link.

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Suspense } from 'react'
 import './globals.css'
 import { Toaster } from 'react-hot-toast'
+import MiniCartNotice from '@/components/layout/MiniCartNotice'
 import ThemeProvider from '@/components/layout/ThemeProvider'
 import ChatWidget from '@/components/layout/ChatWidget'
 import ReferralCapture from '@/components/layout/ReferralCapture'
@@ -72,6 +73,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             success: { iconTheme: { primary: '#C0392B', secondary: 'white' } },
           }}
         />
+        <MiniCartNotice />
         <ChatWidget />
       </body>
     </html>

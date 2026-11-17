@@ -39,8 +39,12 @@ export interface CartItem {
   designPricing?: DesignPricingResolved | null
 }
 
+export interface LastAdded { key: number; cartItemId: string; name: string; summary: string; price: number }
+
 interface CartState {
   items: CartItem[]
+  /** The most recent add, for the "added to cart" panel. Not saved with the cart. */
+  lastAdded: LastAdded | null
   addToCart: (
     productId: string,
     name: string,
@@ -48,6 +52,7 @@ interface CartState {
     displayQty: string,
     specs?: Record<string, string>,
     designPricing?: DesignPricingResolved | null,
+    silent?: boolean,
   ) => void
   removeFromCart: (cartItemId: string) => void
   updateDesign: (cartItemId: string, design: DesignDetails) => void
@@ -60,8 +65,9 @@ export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
       items: [],
+      lastAdded: null,
 
-      addToCart: (productId, name, price, displayQty, specs = {}, designPricing = null) => {
+      addToCart: (productId, name, price, displayQty, specs = {}, designPricing = null, silent = false) => {
         const designCost = designPricing?.designCostTotal ?? 0
         const newItem: CartItem = {
           cartItemId: crypto.randomUUID(),
@@ -75,8 +81,12 @@ export const useCartStore = create<CartState>()(
           design: null,
           designPricing,
         }
-        set({ items: [...get().items, newItem] })
-        toast.success(`${name} added to cart!`)
+        // Short options summary for the panel: the chosen values, not the quantity line
+        const summary = [displayQty, ...Object.entries(specs).filter(([k, v]) => v && k !== 'Quantity').map(([, v]) => String(v))].join(' · ')
+        set({
+          items: [...get().items, newItem],
+          lastAdded: silent ? get().lastAdded : { key: Date.now(), cartItemId: newItem.cartItemId, name, summary: summary.slice(0, 120), price: newItem.price },
+        })
       },
 
       removeFromCart: (cartItemId) => {
@@ -101,6 +111,7 @@ export const useCartStore = create<CartState>()(
     {
       name: 'printhub-cart',
       storage: createJSONStorage(() => cookieStorage),
+      partialize: (state) => ({ items: state.items }),   // only the items are saved, never the panel state
     }
   )
 )
