@@ -125,6 +125,8 @@ export default function CheckoutPage() {
   }
 
   const saveOrder = async (paystackRef?: string) => {
+    // every order with a printed item needs a delivery choice (free pickup counts); the server checks this too
+    if (!digitalOnly && !selectedDelivery) throw new Error('Please choose a delivery option. Free pickup is one of the choices.')
     let receiptUrl = null
     if (receiptFile) {
       const path = `receipts/${crypto.randomUUID()}-${receiptFile.name}`

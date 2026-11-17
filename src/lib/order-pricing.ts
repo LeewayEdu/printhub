@@ -38,6 +38,24 @@ function designCost(product: any, dp: any, linked: Record<string, number>): numb
   }
 }
 
+export type DeliveryResolution =
+  | { ok: true; delivery: any | null; fee: number }
+  | { ok: false; error: 'invalid_delivery'; detail: string }
+
+/**
+ * Every order that contains a physical item (a printed product or a print book) must name a delivery option, and the fee
+ * comes from the delivery table, never from the browser. Free pickup is one of the options (a row with price 0), so a
+ * customer who wants no delivery still chooses it. An order with only digital items has nothing to deliver and ignores
+ * any delivery option that was sent.
+ */
+export async function resolveDelivery(db: SupabaseClient, needsDelivery: boolean, deliveryId: unknown): Promise<DeliveryResolution> {
+  if (!needsDelivery) return { ok: true, delivery: null, fee: 0 }
+  if (!deliveryId) return { ok: false, error: 'invalid_delivery', detail: 'Please choose a delivery option. Free pickup is one of the choices.' }
+  const { data: d } = await db.from('delivery_settings').select('*').eq('id', String(deliveryId)).eq('is_active', true).maybeSingle()
+  if (!d) return { ok: false, error: 'invalid_delivery', detail: 'Delivery option not found' }
+  return { ok: true, delivery: d, fee: Number(d.price) || 0 }
+}
+
 export async function priceOrder(db: SupabaseClient, body: any): Promise<OrderPricing> {
   const items: any[] = body.items
   const currency: Currency = body.currency === 'USD' ? 'USD' : 'NGN'
@@ -49,6 +67,10 @@ export async function priceOrder(db: SupabaseClient, body: any): Promise<OrderPr
     if (!usdEnabled() || productEntries.length > 0 || body.promoCode || body.deliveryId) {
       return { ok: false, error: 'currency_not_available', detail: 'USD is not available for this order' }
     }
+  }
+  // Printed products always need a delivery option. Checked first, before any price is loaded.
+  if (productEntries.length > 0 && !body.deliveryId) {
+    return { ok: false, error: 'invalid_delivery', detail: 'Please choose a delivery option. Free pickup is one of the choices.' }
   }
   const ids = Array.from(new Set(productEntries.map(x => String(x.it.productId))))
   let products: any[] = [], data: any = null, links: any[] = []
@@ -114,18 +136,10 @@ export async function priceOrder(db: SupabaseClient, body: any): Promise<OrderPr
   const needsDelivery = productEntries.length > 0 || bookPhysical
 
   // Delivery fee comes from the delivery table, never from the browser
-  let deliveryFee = 0
-  let delivery: any = null
-  if (!needsDelivery) {
-    // ebook-only order: nothing to deliver, any delivery option sent by the browser is ignored
-  } else if (bookPhysical && !body.deliveryId) {
-    return { ok: false, error: 'invalid_delivery', detail: 'Choose a delivery option for your printed books' }
-  } else if (body.deliveryId) {
-    const { data: d } = await db.from('delivery_settings').select('*').eq('id', String(body.deliveryId)).eq('is_active', true).maybeSingle()
-    if (!d) return { ok: false, error: 'invalid_delivery', detail: 'Delivery option not found' }
-    delivery = d
-    deliveryFee = Number(d.price) || 0
-  }
+  const dres = await resolveDelivery(db, needsDelivery, body.deliveryId)
+  if (!dres.ok) return dres
+  const delivery = dres.delivery
+  const deliveryFee = dres.fee
 
   // Promo: same rules the checkout applies
   let discount = 0

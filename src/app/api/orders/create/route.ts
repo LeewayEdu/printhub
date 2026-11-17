@@ -75,7 +75,8 @@ export async function POST(req: NextRequest) {
   const { data: order, error } = await withOptionalColumns(inc => db.from('orders').insert({
     user_id: user.id,                       // taken from the verified session, never from the request
     first_name: str(c.firstName, 80), last_name: str(c.lastName, 80), email: str(c.email, 160), phone: str(c.phone, 40),
-    shipping_method: digitalOnly || d.type === 'pickup' ? 'pickup' : 'home',
+    // taken from the delivery row the server priced, not from what the browser says (a pickup row can never become a home delivery)
+    shipping_method: digitalOnly || priced.delivery?.type === 'pickup' ? 'pickup' : 'home',
     address_line1: digitalOnly ? '' : str(d.address, 300),
     state: digitalOnly ? '' : str(d.state, 60),
     delivery_area: digitalOnly ? 'Digital (no delivery)' : (priced.delivery?.name || str(d.area, 120)),
