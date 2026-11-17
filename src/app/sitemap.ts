@@ -8,6 +8,8 @@ import { MetadataRoute } from 'next'
 import { createClient } from '@supabase/supabase-js'
 import { SITE_URL } from '@/lib/site-url'
 import { bookSitemapPaths, loadPublishedBooks } from '@/lib/books/catalogue'
+import { CASE_STUDIES } from '@/lib/case-studies'
+import { caseSitemapPaths } from '@/lib/case-studies-seo'
 
 export const revalidate = 3600
 
@@ -29,6 +31,8 @@ function entry(path: string, lastmod?: string | null): MetadataRoute.Sitemap[num
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticEntries = STATIC_PATHS.map(p => entry(p))
+  // Case studies: only when a case is published AND consent has been given (see lib/case-studies.ts)
+  const caseEntries = caseSitemapPaths(CASE_STUDIES).map(p => entry(p))
 
   // C-Chu Books: published books and their (published) authors only; /books is listed once a book exists
   const books = await loadPublishedBooks().catch(() => [])
@@ -36,7 +40,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  if (!url || !key) return [...staticEntries, ...bookEntries]
+  if (!url || !key) return [...staticEntries, ...bookEntries, ...caseEntries]
 
   const db = createClient(url, key, { auth: { persistSession: false } })
   const safe = async <T,>(q: PromiseLike<{ data: T[] | null; error: unknown }>): Promise<T[]> => {
@@ -67,5 +71,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...industries.map(i => entry(`/industries/${i.slug}`, i.updated_at)),
     ...campaigns.map(c => entry(`/campaigns/${c.slug}`, c.updated_at || c.created_at)),
     ...bookEntries,
+    ...caseEntries,
   ]
 }

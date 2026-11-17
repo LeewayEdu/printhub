@@ -1,5 +1,6 @@
 'use client'
 
+import CaseCard, { type CaseCardData } from '@/components/case-studies/CaseCard'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -21,7 +22,7 @@ interface Testimonial { id: string; name: string; company: string | null; text: 
 type Product = ProductCardData
 
 // ─── MAIN PAGE ────────────────────────────────────────────────
-export default function HomePage({ data }: { data: HomeData }) {
+export default function HomePage({ data, recentJobs = [] }: { data: HomeData; recentJobs?: CaseCardData[] }) {
   const router = useRouter()
   // Server-fetched, revalidated every 5 minutes (see app/page.tsx). Everything
   // below that states a fact (counts, prices, bestsellers) comes from this object.
@@ -471,6 +472,21 @@ export default function HomePage({ data }: { data: HomeData }) {
             </div>
           </div>
         </section>
+
+        {/* ── RECENT JOBS (published case studies only; renders nothing while none are published) ── */}
+        {recentJobs.length > 0 && (
+          <section aria-labelledby="recent-jobs" className="section" style={{ background: 'var(--light)', paddingLeft: 'clamp(16px, 3vw, 40px)', paddingRight: 'clamp(16px, 3vw, 40px)', paddingTop: 40, paddingBottom: 40 }}>
+            <div className="section-inner" style={{ paddingLeft: 0, paddingRight: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' as const, marginBottom: 24 }}>
+                <h2 id="recent-jobs" style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 'clamp(24px, 3vw, 36px)', color: 'var(--text-primary)' }}>Recent jobs</h2>
+                <Link href="/case-studies" style={{ color: 'var(--red)', fontWeight: 700, fontSize: 14 }}>See all our work →</Link>
+              </div>
+              <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>
+                {recentJobs.map(c => <li key={c.slug}><CaseCard c={c} headingLevel="h3" /></li>)}
+              </ul>
+            </div>
+          </section>
+        )}
 
         {/* ── WHY CHOOSE US ── */}
         <section className="section" style={{ background: 'var(--black)', paddingLeft: 'clamp(16px, 3vw, 40px)', paddingRight: 'clamp(16px, 3vw, 40px)', paddingTop: 40, paddingBottom: 40 }}>

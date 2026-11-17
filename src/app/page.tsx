@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import HomeClient from './HomeClient'
 import { LocalBusinessSchema } from '@/components/seo'
 import { getHomeData } from '@/lib/home-data'
+import { publishedCaseViews } from '@/lib/case-studies'
 
 // Rebuilt at most every 5 minutes instead of on every request.
 export const revalidate = 300
@@ -25,10 +26,12 @@ export const metadata: Metadata = {
 
 export default async function Page() {
   const data = await getHomeData()
+  // Published case studies only (none today). Display-safe: the consent rules are already applied.
+  const recentJobs = publishedCaseViews().map(c => ({ slug: c.slug, title: c.title, summary: c.summary, category: c.category, stats: c.stats, heroSrc: c.hero.src, heroAlt: c.hero.alt }))
   return (
     <>
       <LocalBusinessSchema />
-      <HomeClient data={data} />
+      <HomeClient data={data} recentJobs={recentJobs} />
     </>
   )
 }
