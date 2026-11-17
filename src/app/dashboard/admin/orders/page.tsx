@@ -73,6 +73,42 @@ function generateReceipt(order: any) {
   receiptWindow.document.close()
 }
 
+// Ebook download counts for one order (admin screen only). Loads when the order is opened; shows nothing for orders without ebooks.
+function EbookDownloads({ orderId }: { orderId: string }) {
+  const [rows, setRows] = useState<{ entitlementId: string; title: string; downloads: number; lastDownloadedAt: string | null; revoked: boolean }[] | null>(null)
+  const [failed, setFailed] = useState(false)
+  useEffect(() => {
+    let live = true
+    ;(async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        const res = await fetch(`/api/admin/orders/downloads?orderId=${encodeURIComponent(orderId)}`, { headers: { Authorization: `Bearer ${session?.access_token || ''}` } })
+        const j = await res.json().catch(() => ({}))
+        if (!live) return
+        if (!res.ok) setFailed(true); else setRows(j.downloads || [])
+      } catch { if (live) setFailed(true) }
+    })()
+    return () => { live = false }
+  }, [orderId])
+  if (failed) return <div style={{ padding: '12px 24px', fontSize: 12, color: 'var(--gray)', borderBottom: '1px solid var(--border)' }}>Ebook download counts could not be loaded.</div>
+  if (!rows || rows.length === 0) return null
+  return (
+    <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)' }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 8 }}>Ebook downloads (for refund decisions)</div>
+      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+        {rows.map(r => (
+          <div key={r.entitlementId} style={{ fontSize: 13, display: 'flex', gap: 12, flexWrap: 'wrap' as const, alignItems: 'baseline' }}>
+            <span style={{ fontWeight: 600 }}>{r.title}</span>
+            <span style={{ color: r.downloads === 0 ? '#166534' : '#b45309', fontWeight: 600 }}>{r.downloads === 0 ? 'Not downloaded' : `Downloaded ${r.downloads} time${r.downloads === 1 ? '' : 's'}`}</span>
+            {r.lastDownloadedAt && <span style={{ color: 'var(--gray)' }}>last {new Date(r.lastDownloadedAt).toLocaleString('en-NG', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>}
+            {r.revoked && <span style={{ color: 'var(--gray)' }}>access withdrawn</span>}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function AdminOrdersPage() {
   const { orders: allOrders, filteredOrders, fetchAllOrders, updateOrderStatus, addProductionNote, markPaidManually, setFilter, isLoading, filter } = useAdminOrdersStore()
   const router = useRouter()
@@ -349,6 +385,8 @@ export default function AdminOrdersPage() {
                         </div>
                       ))}
                     </div>
+
+                    <EbookDownloads orderId={order.id} />
 
                     {/* Order items with design files */}
                     <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)' }}>
