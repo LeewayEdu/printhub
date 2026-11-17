@@ -8,7 +8,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { SITE_URL } from '@/lib/site-url'
 import { resendMailer, type Mailer } from '@/lib/design-reminders'
 import { DEFAULT_MAX_DOWNLOADS } from './download'
-import { computeRoyalty, negate, pickRule, type RoyaltyRule } from './royalty'
+import { computeRoyalty, negate, pickRule, printAuthorShare, type RoyaltyRule } from './royalty'
 
 export const PAID_OR_LATER = ['paid', 'processing', 'shipped', 'delivered']
 const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string))
@@ -33,7 +33,7 @@ export async function fulfilBooksForOrder(db: SupabaseClient, orderId: string, d
   const [{ data: formats }, { data: siblings }, { data: books }, { data: rules }] = await Promise.all([
     db.from('book_formats').select('id, type, book_id, price_ngn, print_cost_ngn').in('id', formatIds),
     db.from('book_formats').select('id, type, book_id, price_ngn').in('book_id', bookIds),
-    db.from('books').select('id, title, author_id').in('id', bookIds),
+    db.from('books').select('*').in('id', bookIds),     // '*' includes royalty_option once books-1b-migration.sql has run
     db.from('royalty_rules').select('*'),
   ])
   const authorIds = Array.from(new Set((books || []).map((b: any) => b.author_id)))
@@ -73,7 +73,7 @@ export async function fulfilBooksForOrder(db: SupabaseClient, orderId: string, d
       const sib = (siblings || []).filter((s: any) => s.book_id === book.id)
       const eb = sib.find((s: any) => s.type === 'ebook'), pr = sib.find((s: any) => s.type === 'print')
       const ratio = eb && pr && Number(eb.price_ngn) + Number(pr.price_ngn) > 0 ? Number(eb.price_ngn) / (Number(eb.price_ngn) + Number(pr.price_ngn)) : null
-      const rule = pickRule((rules || []) as RoyaltyRule[], book.id)
+      const rule = pickRule((rules || []) as RoyaltyRule[], book.id, book.royalty_option || 'distribution')
       const parts = computeRoyalty({
         formatType: fmt.type, gross: Number(item.price), quantity: Number(item.quantity) || 1, orderFee, orderTotal,
         printCostPerCopy: fmt.print_cost_ngn == null ? null : Number(fmt.print_cost_ngn), rule, referral, bundleEbookRatio: ratio,
@@ -84,7 +84,7 @@ export async function fulfilBooksForOrder(db: SupabaseClient, orderId: string, d
           order_id: orderId, order_item_id: item.id, book_id: book.id, author_id: book.author_id, book_format_id: fmt.id,
           part: p.part, currency, gross: p.gross, payment_fee: p.payment_fee, net: p.net,
           author_share: p.author_share, company_share: p.company_share, source: p.source,
-          status: 'pending', payable_at: payableAt, note: p.note,
+          status: 'pending', payable_at: payableAt, note: p.note, flag: p.flag,
         })
         if (!error) ledger++
         else if (!isDuplicate(error)) return { ...none('error', `ledger: ${error.message}`), granted, ledger }
@@ -128,4 +128,30 @@ export async function reverseBooksForOrder(db: SupabaseClient, orderId: string):
     reversed++
   }
   return { revoked: (revoked || []).length, reversed }
+}
+
+
+/**
+ * After a missing print cost has been entered for a book, recompute its flagged ledger entries. Only entries that
+ * are still unpaid and not in a payout are touched; the net never changes, only the author/company split.
+ */
+export async function recalcFlaggedForBook(db: SupabaseClient, bookId: string): Promise<{ updated: number; stillMissing: number }> {
+  const { data: entries } = await db.from('royalty_entries').select('*').eq('book_id', bookId).eq('flag', 'needs_print_cost')
+  const { data: book } = await db.from('books').select('*').eq('id', bookId).maybeSingle()
+  const { data: rules } = await db.from('royalty_rules').select('*')
+  const rule = pickRule((rules || []) as RoyaltyRule[], bookId, book?.royalty_option || 'distribution')
+  let updated = 0, stillMissing = 0
+  for (const e of (entries || []) as any[]) {
+    if (e.status === 'paid' || e.status === 'reversed' || e.payout_id) continue
+    const { data: fmt } = await db.from('book_formats').select('print_cost_ngn').eq('id', e.book_format_id).maybeSingle()
+    const { data: item } = await db.from('order_items').select('quantity').eq('id', e.order_item_id).maybeSingle()
+    if (!fmt || fmt.print_cost_ngn == null || !rule || rule.print_author_share_pct == null) { stillMissing++; continue }
+    const author = printAuthorShare(Number(e.net), Number(item?.quantity) || 1, Number(fmt.print_cost_ngn), Number(rule.print_author_share_pct))
+    const { error } = await db.from('royalty_entries').update({
+      author_share: author, company_share: Math.round((Number(e.net) - author) * 100) / 100, flag: null,
+      note: `print cost added later (${fmt.print_cost_ngn} per copy)`,
+    }).eq('id', e.id)
+    if (!error) updated++
+  }
+  return { updated, stillMissing }
 }

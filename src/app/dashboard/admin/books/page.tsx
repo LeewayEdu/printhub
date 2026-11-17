@@ -60,7 +60,7 @@ export default function AdminBooksPage() {
     for (const f of b?.formats || []) { const slot = fm.find(x => x.type === f.type); if (slot) Object.assign(slot, { on: f.active, price_ngn: f.price_ngn ?? '', price_usd: f.price_usd ?? '', stock: f.stock ?? '', print_cost_ngn: f.print_cost_ngn ?? '', has_pdf: f.has_pdf, has_epub: f.has_epub }) }
     setEditing({
       id: b?.id, title: b?.title || '', slug: b?.slug || '', subtitle: b?.subtitle || '', description: b?.description || '', author_id: b?.author_id || data?.authors?.[0]?.id || '',
-      language: b?.language || 'English', categories: (b?.categories || []).join(', '), isbn: b?.isbn || '', page_count: b?.page_count || '', published_date: b?.published_date || '',
+      royalty_option: b?.royalty_option || 'distribution', language: b?.language || 'English', categories: (b?.categories || []).join(', '), isbn: b?.isbn || '', page_count: b?.page_count || '', published_date: b?.published_date || '',
       seo_title: b?.seo_title || '', seo_description: b?.seo_description || '', rights_document_ref: b?.rights_document_ref || '',
       status: b?.status || 'draft', rights_confirmed: !!b?.rights_confirmed, cover_url: b?.cover_url || '', preview_url: b?.preview_url || '',
       formats: fm, rule: { option_name: b?.rule?.option_name || '', ebook_author_share_pct: b?.rule?.ebook_author_share_pct ?? '', print_author_share_pct: b?.rule?.print_author_share_pct ?? '', referral_share_pct: b?.rule?.referral_share_pct ?? '', hold_days: b?.rule?.hold_days ?? 30, minimum_payout: b?.rule?.minimum_payout ?? 5000 },
@@ -154,13 +154,14 @@ export default function AdminBooksPage() {
           </div>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-              <thead><tr style={{ textAlign: 'left', borderBottom: '2px solid var(--border)' }}><th style={{ padding: 8 }}>Title</th><th>Author</th><th>Status</th><th>Rights</th><th>Formats</th><th>Sold</th><th /></tr></thead>
+              <thead><tr style={{ textAlign: 'left', borderBottom: '2px solid var(--border)' }}><th style={{ padding: 8 }}>Title</th><th>Author</th><th>Status</th><th>Rights</th><th>Formats</th><th>Alerts</th><th>Sold</th><th /></tr></thead>
               <tbody>{data.books.map((b: any) => (
                 <tr key={b.id} style={{ borderBottom: '1px solid var(--border)' }}>
                   <td style={{ padding: 8, fontWeight: 600 }}>{b.title}</td><td>{b.author_name}</td>
                   <td><span style={{ padding: '2px 10px', borderRadius: 20, background: b.status === 'published' ? '#dcfce7' : '#f3f4f6', color: b.status === 'published' ? '#166534' : '#555', fontWeight: 700, fontSize: 12 }}>{b.status}</span></td>
                   <td>{b.rights_confirmed ? 'Confirmed' : <span style={{ color: '#b91c1c' }}>Not confirmed</span>}</td>
                   <td>{b.formats.filter((f: any) => f.active).map((f: any) => f.type).join(', ') || '-'}</td>
+                  <td>{b.formats.some((f: any) => f.active && f.type !== 'ebook' && (f.print_cost_ngn == null || f.print_cost_ngn === '')) ? <span style={{ color: '#b91c1c', fontWeight: 700, fontSize: 12 }}>print cost missing</span> : <span style={{ color: 'var(--gray)' }}>-</span>}</td>
                   <td>{b.sales}</td>
                   <td><button style={ghost} onClick={() => openBook(b)}>Edit</button></td>
                 </tr>))}
@@ -180,6 +181,10 @@ export default function AdminBooksPage() {
               <div><label style={lab} htmlFor="b-slug">Slug (web address)</label><input id="b-slug" className="form-input" value={editing.slug} placeholder="auto from title" onChange={e => set('slug', e.target.value)} /></div>
               <div><label style={lab} htmlFor="b-sub">Subtitle</label><input id="b-sub" className="form-input" value={editing.subtitle} onChange={e => set('subtitle', e.target.value)} /></div>
               <div><label style={lab} htmlFor="b-author">Author</label><select id="b-author" className="form-input" value={editing.author_id} onChange={e => set('author_id', e.target.value)}>{data.authors.map((a: any) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></div>
+              <div><label style={lab} htmlFor="b-roy">Royalty option</label>
+                <select id="b-roy" className="form-input" value={editing.royalty_option} onChange={e => set('royalty_option', e.target.value)}>
+                  <option value="distribution">Distribution-only author</option><option value="package">C-Chu publishing package</option>
+                </select></div>
               <div><label style={lab} htmlFor="b-lang">Language</label><input id="b-lang" className="form-input" value={editing.language} onChange={e => set('language', e.target.value)} /></div>
               <div><label style={lab} htmlFor="b-cats">Categories (comma separated)</label><input id="b-cats" className="form-input" value={editing.categories} onChange={e => set('categories', e.target.value)} /></div>
               <div><label style={lab} htmlFor="b-isbn">ISBN</label><input id="b-isbn" className="form-input" value={editing.isbn} onChange={e => set('isbn', e.target.value)} /></div>
@@ -200,7 +205,8 @@ export default function AdminBooksPage() {
                 <div><label style={lab}>Price (₦)</label><input className="form-input" type="number" min={0} value={f.price_ngn} onChange={e => setFormat(f.type, 'price_ngn', e.target.value)} /></div>
                 {f.type === 'ebook' && <div><label style={lab}>Price (USD, optional)</label><input className="form-input" type="number" min={0} step="0.01" value={f.price_usd} onChange={e => setFormat(f.type, 'price_usd', e.target.value)} /></div>}
                 {f.type !== 'ebook' && <div><label style={lab}>Stock</label><input className="form-input" type="number" min={0} value={f.stock} placeholder="blank = unlimited" onChange={e => setFormat(f.type, 'stock', e.target.value)} /></div>}
-                {f.type !== 'ebook' && <div><label style={lab}>Print cost (₦ per copy)</label><input className="form-input" type="number" min={0} value={f.print_cost_ngn} onChange={e => setFormat(f.type, 'print_cost_ngn', e.target.value)} /></div>}
+                {f.type !== 'ebook' && <div><label style={lab}>Print cost (₦ per copy)</label><input className="form-input" type="number" min={0} value={f.print_cost_ngn} onChange={e => setFormat(f.type, 'print_cost_ngn', e.target.value)} />
+                  {f.on && f.print_cost_ngn === '' && <div role="alert" style={{ color: '#b91c1c', fontSize: 12, fontWeight: 700, marginTop: 4 }}>Print cost missing: sales of this format are flagged "needs print cost" and the author share stays 0 until it is set.</div>}</div>}
               </div>
             ))}
           </div>
@@ -289,11 +295,18 @@ export default function AdminBooksPage() {
 
       {tab === 'settings' && (
         <div style={{ display: 'grid', gap: 16 }}>
-          <div style={card}>
-            <h2 style={{ fontSize: 16, marginBottom: 4 }}>Default royalty rule</h2>
-            <p style={{ fontSize: 12, color: 'var(--gray)', marginBottom: 12 }}>Used by every book without its own rule. No figures are pre-filled: set the percentages you have agreed with authors.</p>
-            <DefaultRule initial={data.defaultRule} onSave={async rule => { const r = await api({ action: 'save_default_rule', rule }); r.ok ? (toast.success('Default rule saved'), load()) : toast.error(r.error) }} />
-          </div>
+          {[['distribution', 'Distribution-only authors (default)'], ['package', 'C-Chu publishing package books']].map(([key, title]) => {
+            const initial = (data.optionRules || []).find((r: any) => r.option_key === key) || (key === 'distribution' ? data.defaultRule : null)
+            return (
+              <div key={key} style={card}>
+                <h2 style={{ fontSize: 16, marginBottom: 4 }}>{title}</h2>
+                <p style={{ fontSize: 12, color: 'var(--gray)', marginBottom: 12 }}>
+                  {initial ? 'Percentages are stored in the database. Referral share applies to ebook sales through the author\'s own link or code.' : 'Not set yet: run books-royalty-seed.sql or enter the percentages here. Until then, sales are recorded with an author share of 0 and a note.'}
+                </p>
+                <DefaultRule key={key + (initial?.id || 'new')} initial={initial} onSave={async rule => { const r = await api({ action: 'save_option_rule', optionKey: key, rule }); r.ok ? (toast.success('Saved'), load()) : toast.error(r.error) }} />
+              </div>
+            )
+          })}
           <div style={card}>
             <h2 style={{ fontSize: 16, marginBottom: 4 }}>Affiliate commission on books</h2>
             <p style={{ fontSize: 12, color: 'var(--gray)', marginBottom: 12 }}>Separate from the 10% / 5% / 3% product tiers, which do not apply to book lines. Default 0%.</p>

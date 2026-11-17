@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { requireAdmin, isResponse } from '@/lib/admin-auth'
 import { publishBlockers } from '@/lib/books/rules'
-import { PAID_OR_LATER } from '@/lib/books/fulfil'
+import { PAID_OR_LATER, recalcFlaggedForBook } from '@/lib/books/fulfil'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,7 +31,8 @@ async function list(db: SupabaseClient) {
   const authorName = new Map<string, string>((authors || []).map((a: any) => [a.id, a.name]))
   return {
     authors: authors || [],
-    defaultRule: (rules || []).find((r: any) => r.book_id == null) || null,
+    defaultRule: (rules || []).find((r: any) => r.book_id == null && (r.option_key === 'distribution' || r.option_key == null)) || null,
+    optionRules: (rules || []).filter((r: any) => r.book_id == null),      // 'distribution' and 'package'
     settings: settings || null,
     books: (books || []).map((b: any) => ({
       ...b, author_name: authorName.get(b.author_id) || '', sales: sales.get(b.id) || 0,
@@ -45,14 +46,14 @@ async function list(db: SupabaseClient) {
   }
 }
 
-async function upsertRule(db: SupabaseClient, bookId: string | null, r: any) {
+async function upsertRule(db: SupabaseClient, bookId: string | null, r: any, optionKey: string | null = null) {
   const row = {
-    book_id: bookId, option_name: nul(r.option_name, 80),
+    book_id: bookId, ...(bookId == null ? { option_key: optionKey || 'distribution' } : {}), option_name: nul(r.option_name, 80),
     ebook_author_share_pct: pct(r.ebook_author_share_pct), print_author_share_pct: pct(r.print_author_share_pct), referral_share_pct: pct(r.referral_share_pct),
     hold_days: Math.max(0, Math.floor(Number(r.hold_days) || 30)), minimum_payout: Math.max(0, Number(r.minimum_payout) || 5000),
     updated_at: new Date().toISOString(),
   }
-  const q = bookId ? db.from('royalty_rules').select('id').eq('book_id', bookId) : db.from('royalty_rules').select('id').is('book_id', null)
+  const q = bookId ? db.from('royalty_rules').select('id').eq('book_id', bookId) : db.from('royalty_rules').select('id').is('book_id', null).eq('option_key', optionKey || 'distribution')
   const { data: existing } = await q.maybeSingle()
   return existing ? db.from('royalty_rules').update(row).eq('id', existing.id) : db.from('royalty_rules').insert(row)
 }
@@ -95,6 +96,7 @@ export async function POST(req: NextRequest) {
       const row: Record<string, unknown> = {
         title, slug, subtitle: nul(b.subtitle, 200), description: nul(b.description, 10000), author_id: b.author_id,
         language: txt(b.language, 40) || 'English', categories, isbn: nul(b.isbn, 20), page_count: numOrNull(b.page_count),
+        royalty_option: ['distribution', 'package'].includes(b.royalty_option) ? b.royalty_option : 'distribution',
         published_date: nul(b.published_date, 10), rights_document_ref: nul(b.rights_document_ref, 300),
         seo_title: nul(b.seo_title, 120), seo_description: nul(b.seo_description, 200), updated_at: new Date().toISOString(),
       }
@@ -112,7 +114,9 @@ export async function POST(req: NextRequest) {
         if (w.error) return fail(w.error.message)
       }
       if (body.rule) { const w = await upsertRule(db, bookId, body.rule); if (w.error) return fail(w.error.message) }
-      return NextResponse.json({ ok: true, id: bookId })
+      // a print cost that has just been entered clears this book's "needs print cost" ledger flags
+      const recalculated = (body.formats || []).some((f: any) => f.type !== 'ebook' && numOrNull(f.print_cost_ngn) != null) ? await recalcFlaggedForBook(db, bookId) : null
+      return NextResponse.json({ ok: true, id: bookId, recalculated })
     }
 
     case 'set_rights': {
@@ -143,9 +147,15 @@ export async function POST(req: NextRequest) {
       return error ? fail(error.message) : NextResponse.json({ ok: true })
     }
 
-    case 'save_default_rule': {
-      const w = await upsertRule(db, null, body.rule || {})
+    case 'save_default_rule':
+    case 'save_option_rule': {
+      const key = body.action === 'save_default_rule' ? 'distribution' : String(body.optionKey || '')
+      if (!['distribution', 'package'].includes(key)) return fail('Unknown royalty option')
+      const w = await upsertRule(db, null, body.rule || {}, key)
       return w.error ? fail(w.error.message) : NextResponse.json({ ok: true })
+    }
+    case 'recalc_flagged': {
+      return NextResponse.json({ ok: true, ...(await recalcFlaggedForBook(db, txt(body.bookId, 40))) })
     }
     case 'save_settings': {
       const rate = pct(body.book_affiliate_rate)

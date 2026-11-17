@@ -75,13 +75,14 @@ export default function RoyaltiesPage() {
         <h2 style={{ fontSize: 16, marginBottom: 10 }}>By author and month</h2>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead><tr style={{ textAlign: 'left', borderBottom: '2px solid var(--border)' }}>{['Author', 'Month', 'Entries', 'Gross', 'Fees', 'Net', 'Author share', 'Company share', 'Pending', 'Payable', 'Paid'].map(h => <th key={h} style={{ padding: 8 }}>{h}</th>)}</tr></thead>
+            <thead><tr style={{ textAlign: 'left', borderBottom: '2px solid var(--border)' }}>{['Author', 'Month', 'Entries', 'Gross', 'Fees', 'Net', 'Author share', 'Company share', 'Pending', 'Payable', 'Paid', 'Flagged'].map(h => <th key={h} style={{ padding: 8 }}>{h}</th>)}</tr></thead>
             <tbody>{data.summary.map((s: any) => (
               <tr key={`${s.author_id}${s.month}${s.currency}`} style={{ borderBottom: '1px solid var(--border)' }}>
                 <td style={{ padding: 8, fontWeight: 600 }}>{s.author_name}</td><td>{s.month}</td><td>{s.entries}</td>
                 <td>{money(s.gross, s.currency)}</td><td>{money(s.payment_fee, s.currency)}</td><td>{money(s.net, s.currency)}</td>
                 <td>{money(s.author_share, s.currency)}</td><td>{money(s.company_share, s.currency)}</td>
                 <td>{money(s.pending, s.currency)}</td><td>{money(s.payable, s.currency)}</td><td>{money(s.paid, s.currency)}</td>
+                <td>{s.flagged ? <span style={{ color: '#b91c1c', fontWeight: 700 }}>{s.flagged} need print cost</span> : '-'}</td>
               </tr>))}</tbody>
           </table>
           {data.summary.length === 0 && <p style={{ padding: 20, textAlign: 'center', color: 'var(--gray)' }}>No royalty entries yet.</p>}

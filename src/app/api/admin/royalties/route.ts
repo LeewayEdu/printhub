@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     case 'report': {
       const rows = await loadEntries(b.month, b.authorId)
       const { data: payouts } = await db.from('royalty_payouts').select('*').order('created_at', { ascending: false }).limit(200)
-      const { data: def } = await db.from('royalty_rules').select('minimum_payout').is('book_id', null).maybeSingle()
+      const { data: def } = await db.from('royalty_rules').select('minimum_payout').is('book_id', null).eq('option_key', 'distribution').maybeSingle()
       return NextResponse.json({
         summary: summariseEntries(rows, now).map((s: any) => ({ ...s, author_name: authorName.get(s.author_id) || s.author_id })),
         payouts: (payouts || []).map((p: any) => ({ ...p, author_name: authorName.get(p.author_id) || p.author_id })),
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
     case 'create_payout': {
       if (typeof b.authorId !== 'string') return fail('Choose an author')
       const currency = b.currency === 'USD' ? 'USD' : 'NGN'
-      const { data: def } = await db.from('royalty_rules').select('minimum_payout').is('book_id', null).maybeSingle()
+      const { data: def } = await db.from('royalty_rules').select('minimum_payout').is('book_id', null).eq('option_key', 'distribution').maybeSingle()
       const minimum = Number(def?.minimum_payout ?? 5000)
       const rows = (await loadEntries(undefined, b.authorId)).filter(r => r.currency === currency)
       const d = payoutDecision(rows, minimum, now)

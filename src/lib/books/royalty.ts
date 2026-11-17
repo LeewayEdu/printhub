@@ -6,6 +6,7 @@ import { round2 } from './currency'
 
 export interface RoyaltyRule {
   book_id: string | null
+  option_key?: string | null
   ebook_author_share_pct: number | null
   print_author_share_pct: number | null
   referral_share_pct: number | null
@@ -13,9 +14,21 @@ export interface RoyaltyRule {
   minimum_payout: number
 }
 
-/** The book's own rule if it has one, otherwise the default rule (book_id null), otherwise none. */
-export function pickRule(rules: RoyaltyRule[], bookId: string): RoyaltyRule | null {
-  return rules.find(r => r.book_id === bookId) || rules.find(r => r.book_id == null) || null
+/**
+ * The book's own override if it has one, otherwise the rule for the book's royalty option ('distribution' by
+ * default, 'package' for books published through a C-Chu publishing package), otherwise none. A book on an
+ * option whose rule has not been set gets NO rule (flagged in the ledger); it never silently falls back.
+ */
+export function pickRule(rules: RoyaltyRule[], bookId: string, optionKey: string = 'distribution'): RoyaltyRule | null {
+  return rules.find(r => r.book_id === bookId)
+    || rules.find(r => r.book_id == null && r.option_key === optionKey)
+    || (optionKey === 'distribution' ? rules.find(r => r.book_id == null && r.option_key == null) : undefined)
+    || null
+}
+
+/** Author share of a print sale: pct % of (net minus print cost), never below 0. */
+export function printAuthorShare(net: number, quantity: number, costPerCopy: number, pct: number): number {
+  return round2(Math.max(0, round2(net - round2(costPerCopy * quantity))) * Number(pct) / 100)
 }
 
 export interface RoyaltyPartInput {
@@ -36,29 +49,34 @@ export interface RoyaltyPart {
   author_share: number; company_share: number
   source: 'store' | 'referral'
   note: string | null
+  /** 'needs_print_cost' when a print part could not be computed because the book has no print cost yet */
+  flag: string | null
 }
 
 function onePart(part: 'ebook' | 'print', gross: number, fee: number, i: RoyaltyPartInput): RoyaltyPart {
   const net = round2(gross - fee)
   const rule = i.rule
   const normalPct = part === 'ebook' ? rule?.ebook_author_share_pct : rule?.print_author_share_pct
-  const usingReferral = i.referral && rule?.referral_share_pct != null
+  // The referral share applies to EBOOK sales only (own link or code); print uses the normal print share
+  const usingReferral = part === 'ebook' && i.referral && rule?.referral_share_pct != null
   const pct = usingReferral ? rule!.referral_share_pct : normalPct
   const notes: string[] = []
   if (!rule) notes.push('no royalty rule configured')
   else if (pct == null) notes.push(`no ${part} share set in the rule`)
   if (i.orderFee === 0) notes.push('payment fee not reported, 0 used')
-  let base = net
-  if (part === 'print') {
-    const cost = round2((i.printCostPerCopy ?? 0) * i.quantity)
-    if (i.printCostPerCopy == null) notes.push('print cost not set, 0 used')
-    base = Math.max(0, round2(net - cost))
+  let author = 0
+  let flag: string | null = null
+  if (part === 'print' && i.printCostPerCopy == null) {
+    // Never guess a cost: record the sale, give the author 0 for now and flag it until the cost is set
+    flag = 'needs_print_cost'
+    notes.unshift('needs print cost')
+  } else if (pct != null) {
+    author = part === 'print' ? printAuthorShare(net, i.quantity, i.printCostPerCopy as number, Number(pct)) : round2(net * Number(pct) / 100)
   }
-  const author = pct == null ? 0 : round2(base * Number(pct) / 100)
   return {
     part, gross: round2(gross), payment_fee: round2(fee), net,
     author_share: author, company_share: round2(net - author),
-    source: usingReferral ? 'referral' : 'store', note: notes.length ? notes.join('; ') : null,
+    source: usingReferral ? 'referral' : 'store', note: notes.length ? notes.join('; ') : null, flag,
   }
 }
 
@@ -85,6 +103,7 @@ export function negate(e: { gross: number; payment_fee: number; net: number; aut
 }
 
 export interface LedgerRow {
+  flag?: string | null
   id: string; author_id: string; book_id: string; order_id: string; part: string; currency: string; source: string
   gross: number; payment_fee: number; net: number; author_share: number; company_share: number
   status: string; payable_at: string | null; created_at: string; payout_id?: string | null; note?: string | null
@@ -96,9 +115,10 @@ export function summariseEntries(rows: LedgerRow[], now: Date) {
   for (const r of rows) {
     const month = r.created_at.slice(0, 7)
     const key = `${r.author_id}|${month}|${r.currency}`
-    const s = map.get(key) || { author_id: r.author_id, month, currency: r.currency, entries: 0, gross: 0, payment_fee: 0, net: 0, author_share: 0, company_share: 0, pending: 0, payable: 0, paid: 0 }
+    const s = map.get(key) || { author_id: r.author_id, month, currency: r.currency, entries: 0, gross: 0, payment_fee: 0, net: 0, author_share: 0, company_share: 0, pending: 0, payable: 0, paid: 0, flagged: 0 }
     const st = effectiveStatus(r, now)
     if (st !== 'reversed') {
+      if (r.flag) s.flagged++
       s.entries++; s.gross += Number(r.gross); s.payment_fee += Number(r.payment_fee); s.net += Number(r.net)
       s.author_share += Number(r.author_share); s.company_share += Number(r.company_share)
       if (st === 'pending') s.pending += Number(r.author_share)
@@ -112,14 +132,15 @@ export function summariseEntries(rows: LedgerRow[], now: Date) {
 
 const csvCell = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`
 export function ledgerCsv(rows: (LedgerRow & { author_name?: string; book_title?: string })[], now: Date): string {
-  const head = ['date', 'author', 'book', 'order', 'part', 'source', 'currency', 'gross', 'payment_fee', 'net', 'author_share', 'company_share', 'status', 'payable_at', 'note']
-  const lines = rows.map(r => [r.created_at.slice(0, 10), r.author_name || r.author_id, r.book_title || r.book_id, r.order_id.slice(0, 8), r.part, r.source, r.currency, r.gross, r.payment_fee, r.net, r.author_share, r.company_share, effectiveStatus(r, now), r.payable_at?.slice(0, 10) || '', r.note || ''].map(csvCell).join(','))
+  const head = ['date', 'author', 'book', 'order', 'part', 'source', 'currency', 'gross', 'payment_fee', 'net', 'author_share', 'company_share', 'status', 'payable_at', 'flag', 'note']
+  const lines = rows.map(r => [r.created_at.slice(0, 10), r.author_name || r.author_id, r.book_title || r.book_id, r.order_id.slice(0, 8), r.part, r.source, r.currency, r.gross, r.payment_fee, r.net, r.author_share, r.company_share, effectiveStatus(r, now), r.payable_at?.slice(0, 10) || '', r.flag || '', r.note || ''].map(csvCell).join(','))
   return [head.join(','), ...lines].join('\n') + '\n'
 }
 
 /** What an author may be paid now: due entries not already in a payout, and whether the minimum is met */
 export function payoutDecision(rows: LedgerRow[], minimum: number, now: Date) {
-  const due = rows.filter(r => !r.payout_id && r.status !== 'reversed' && r.status !== 'paid' && ['payable'].includes(effectiveStatus(r, now)))
+  // flagged entries (for example "needs print cost") are held back until the flag is cleared
+  const due = rows.filter(r => !r.flag && !r.payout_id && r.status !== 'reversed' && r.status !== 'paid' && ['payable'].includes(effectiveStatus(r, now)))
   const total = round2(due.reduce((s, r) => s + Number(r.author_share), 0))
   return { due, total, meetsMinimum: total >= minimum && total > 0 }
 }
