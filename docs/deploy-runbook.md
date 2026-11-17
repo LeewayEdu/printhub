@@ -183,11 +183,14 @@ prepare that statement rather than deleting the row by hand.
 |---|---|---|
 | `BOOKS_USD_ENABLED` | `false` at launch | Set to `true` only when you want USD ebook prices to show to visitors outside Nigeria. Your Paystack account must have USD enabled first, or those payments will fail at Paystack |
 | `DOWNLOAD_LOG_SALT` | optional random string | Salts the one-way hash of the network address in the download log. If unset the service key is used as the salt |
+| `BOOKS_NAV_ENABLED` | `false` (default) | `true` shows "Books" in the menu and footer. It is read at build time, so change it and redeploy. The /books pages work either way |
+| `CRON_SECRET` | already required for the other jobs | Also protects `/api/cron/books-stamp` (background ebook stamping). Without it the on-demand trigger is off and only the daily sweep stamps new purchases |
 | `BOOKS_USE_FIXTURES` | never set on Vercel | Local development fixtures only; ignored when `VERCEL_ENV` is `production` |
 
 ### Order
 1. Deploy the code (it works with the books tables missing: `/books` shows "Books are coming soon", nothing else changes, the sitemap adds no book URLs).
-2. Run `books-migration.sql` in the Supabase SQL editor. It is independent of the other four migrations and can run before or after them. (Run it before adding the first book.)
+2. Run `books-migration.sql`, then `books-1b-migration.sql` (royalty options, ledger flags, naira settlement, background stamping, ebook size limit), in the Supabase SQL editor. It is independent of the other four migrations and can run before or after them. (Run it before adding the first book.)
+2b. Run `books-royalty-seed.sql` (default royalty rules: distribution 70/30/85, package 80/40/85, hold 30 days, minimum ₦5,000). It never overwrites a rule that already exists. Then fill in the print cost per copy for each book in Admin > Books (until you do, print sales are flagged "needs print cost" and the author share stays 0), and set `royalty_option` to `package` for package books.
 3. Check the two buckets exist in Storage: `book-files` must show **Private**, `book-public` **Public**. If the SQL could not create them, create them by hand with those settings.
 4. Run the RLS checks below.
 5. In Admin: add an author, add a book with an ebook format, upload the files, set the default royalty rule (no percentages are pre-filled), confirm rights, publish.
@@ -209,6 +212,20 @@ prepare that statement rather than deleting the row by hand.
 - [ ] Open a book URL with `?aref=CODE` of the author, buy, and check the entry source says "referral"
 - [ ] With `BOOKS_USD_ENABLED=false`, a visitor from outside Nigeria (test with a VPN) sees naira and "Ask us about international print"
 - [ ] The sitemap lists the published book and its author and no drafts
+
+### Rollback of books-1b-migration.sql
+```sql
+-- additive columns; the code tolerates their absence only for the original books features, so roll the code back first
+alter table public.royalty_rules drop column if exists option_key;
+alter table public.books drop column if exists royalty_option;
+alter table public.royalty_entries drop column if exists flag, drop column if exists rate_to_ngn, drop column if exists author_share_ngn, drop column if exists settled_note;
+alter table public.orders drop column if exists settled_ngn;
+alter table public.entitlements drop column if exists stamp_status, drop column if exists stamped_pdf_path, drop column if exists stamped_epub_path, drop column if exists stamp_attempts, drop column if exists stamp_error, drop column if exists stamp_started_at;
+alter table public.books_settings drop column if exists max_ebook_mb;
+drop index if exists public.royalty_rules_option_key;
+create unique index if not exists royalty_rules_default_key on public.royalty_rules ((true)) where book_id is null;
+```
+The seed has no rollback beyond deleting the two rules: `delete from public.royalty_rules where book_id is null and option_key in ('distribution','package');`
 
 ### Rollback (books)
 Code: Vercel "Promote to Production" on the previous deployment (no data is lost; entitlements and entries stay in the tables).

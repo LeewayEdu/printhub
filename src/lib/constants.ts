@@ -32,9 +32,13 @@ export const BRAND = {
   mapsUrl: 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('Mazfallah Shopping Complex, Karu, Abuja'),
 }
 
+// "Books" appears in the menu and footer only when BOOKS_NAV_ENABLED=true (see next.config.js). The /books pages exist either way.
+export const BOOKS_NAV_ENABLED = process.env.NEXT_PUBLIC_BOOKS_NAV_ENABLED === 'true'
+
 export const NAV_LINKS = [
   { label: 'How it works', href: '/how-it-works' },
   { label: 'Shop', href: '/shop' },
+  ...(BOOKS_NAV_ENABLED ? [{ label: 'Books', href: '/books' }] : []),
   { label: 'Starter Kits', href: '/starter-kits' },
   { label: 'Campaign', href: '/election-campaign' },
   { label: 'Publishing', href: '/book-publishing' },
