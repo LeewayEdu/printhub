@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
-import { useCartStore, type DesignDetails } from '@/store/cartStore'
+import { useCartStore, cartCurrency, type DesignDetails } from '@/store/cartStore'
+import { formatMoney } from '@/lib/books/currency'
 import { supabase } from '@/lib/supabase/client'
 import ProformaRequest from '@/components/shop/ProformaRequest'
 import { Trash2, ShoppingBag, ArrowRight, Upload, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
@@ -32,7 +33,7 @@ export default function CartPage() {
   useEffect(() => { setReady(true) }, [])
   // Product photos for the cart lines (looked up by product id; not stored in the cart cookie)
   const [thumbs, setThumbs] = useState<Record<string, string>>({})
-  const productKey = Array.from(new Set(items.map(i => i.productId))).sort().join(',')
+  const productKey = Array.from(new Set(items.filter(i => i.kind !== 'book').map(i => i.productId))).sort().join(',')
   useEffect(() => {
     const ids = productKey ? productKey.split(',') : []
     if (!ids.length) return
@@ -54,6 +55,8 @@ export default function CartPage() {
         if (fees.length) setMinDelivery(Math.min(...fees))
       })
   }, [])
+
+  const fmt = (n: number) => formatMoney(n, cartCurrency(items))
 
   const panel = (id: string): PanelState => panels[id] ?? defaultPanel()
 
@@ -184,9 +187,9 @@ export default function CartPage() {
                     {/* Item header row */}
                     <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
                       <div style={{ width: 64, height: 64, borderRadius: 10, background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, flexShrink: 0, overflow: 'hidden' }}>
-                        {thumbs[item.productId]
+                        {(item.image || thumbs[item.productId])
                           // eslint-disable-next-line @next/next/no-img-element
-                          ? <img src={thumbs[item.productId]} alt={item.name} width={64} height={64} loading="lazy" style={{ width: 64, height: 64, objectFit: 'cover' }} />
+                          ? <img src={item.image || thumbs[item.productId]} alt={item.name} width={64} height={64} loading="lazy" style={{ width: 64, height: 64, objectFit: 'cover' }} />
                           : <span aria-hidden="true">🖨️</span>}
                       </div>
                       <div style={{ flex: 1 }}>
@@ -216,7 +219,7 @@ export default function CartPage() {
                           <Trash2 size={16} />
                         </button>
                         <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 18, color: 'var(--red)' }}>
-                          ₦{Number(item.price).toLocaleString()}
+                          {fmt(Number(item.price))}
                         </div>
                       </div>
                     </div>
@@ -334,7 +337,7 @@ export default function CartPage() {
                 {items.map(item => (
                   <div key={item.cartItemId} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
                     <span style={{ color: 'var(--text-secondary)', maxWidth: 180 }}>{item.name} ({item.displayQty})</span>
-                    <span style={{ fontFamily: 'Montserrat', fontWeight: 600, color: 'var(--text-primary)', flexShrink: 0 }}>₦{Number(item.price).toLocaleString()}</span>
+                    <span style={{ fontFamily: 'Montserrat', fontWeight: 600, color: 'var(--text-primary)', flexShrink: 0 }}>{fmt(Number(item.price))}</span>
                   </div>
                 ))}
               </div>
@@ -342,15 +345,15 @@ export default function CartPage() {
               <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 16, marginBottom: 8 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Subtotal</span>
-                  <span style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 16, color: 'var(--text-primary)' }}>₦{totalPrice().toLocaleString()}</span>
+                  <span style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 16, color: 'var(--text-primary)' }}>{fmt(totalPrice())}</span>
                 </div>
-                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 6 }}>Pickup free{minDelivery ? ` · Delivery from ₦${minDelivery.toLocaleString()}` : ''}. The exact fee is shown before you pay.</div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 6 }}>{items.every(i => i.kind === 'book' && i.bookType === 'ebook') ? 'Ebooks are delivered by download after payment. No delivery fee.' : <>Pickup free{minDelivery ? ` · Delivery from ₦${minDelivery.toLocaleString()}` : ''}. The exact fee is shown before you pay.</>}</div>
               </div>
 
               <div style={{ borderTop: '2px solid var(--text-primary)', paddingTop: 16, marginBottom: 20 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 16, color: 'var(--text-primary)' }}>Total</span>
-                  <span style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 22, color: 'var(--red)' }}>₦{totalPrice().toLocaleString()}</span>
+                  <span style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 22, color: 'var(--red)' }}>{fmt(totalPrice())}</span>
                 </div>
               </div>
 

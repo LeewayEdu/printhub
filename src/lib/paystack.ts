@@ -12,7 +12,7 @@ const PAYSTACK_BASE = process.env.PAYSTACK_API_BASE || 'https://api.paystack.co'
 // Statuses that mean "already paid or beyond"
 export const PAID_OR_LATER = ['paid', 'processing', 'shipped', 'delivered']
 
-export interface PaystackTx { reference: string; status: string; amountKobo: number; currency: string; domain?: string }
+export interface PaystackTx { reference: string; status: string; amountKobo: number; currency: string; domain?: string; feeKobo?: number }
 
 /** Asks Paystack itself whether the transaction really succeeded. Never trusts the browser. */
 export async function fetchPaystackTransaction(reference: string): Promise<{ tx?: PaystackTx; error?: string }> {
@@ -26,7 +26,7 @@ export async function fetchPaystackTransaction(reference: string): Promise<{ tx?
     const json: any = await res.json().catch(() => ({}))
     if (!res.ok || !json?.status || !json?.data) return { error: json?.message || `Paystack HTTP ${res.status}` }
     const d = json.data
-    return { tx: { reference: String(d.reference), status: String(d.status), amountKobo: Number(d.amount), currency: String(d.currency), domain: d.domain ? String(d.domain) : undefined } }
+    return { tx: { reference: String(d.reference), status: String(d.status), amountKobo: Number(d.amount), currency: String(d.currency), domain: d.domain ? String(d.domain) : undefined, feeKobo: d.fees != null && Number.isFinite(Number(d.fees)) ? Number(d.fees) : undefined } }
   } catch (e: any) {
     return { error: e?.message || 'Paystack unreachable' }
   }
@@ -49,7 +49,12 @@ export interface ConfirmResult {
 
 /** What the verify response tells us, stored on the order. A test-mode transaction marks the order as a test. */
 function verifiedFields(tx: PaystackTx): Record<string, unknown> {
-  return { paystack_status: tx.status, ...(tx.domain === 'test' ? { is_test: true } : {}) }
+  return {
+    paystack_status: tx.status,
+    ...(tx.domain === 'test' ? { is_test: true } : {}),
+    // the real Paystack fee from the verify response (never a hard-coded rate)
+    ...(tx.feeKobo != null ? { payment_fee: tx.feeKobo / 100 } : {}),
+  }
 }
 
 export async function confirmOrderPayment(db: SupabaseClient, tx: PaystackTx): Promise<ConfirmResult> {
@@ -64,7 +69,7 @@ export async function confirmOrderPayment(db: SupabaseClient, tx: PaystackTx): P
 
   const { data: orders, error } = await db
     .from('orders')
-    .select('id, status, total_amount, user_id, email, first_name, last_name')
+    .select('*')   // '*' so the optional currency column is read when it exists
     .eq('paystack_reference', tx.reference)
     .limit(2)
   if (error || !orders || orders.length === 0) return { state: 'order_not_found' }
@@ -73,9 +78,12 @@ export async function confirmOrderPayment(db: SupabaseClient, tx: PaystackTx): P
 
   if (PAID_OR_LATER.includes(order.status)) return { state: 'already_paid', order }
 
-  // Amount and currency must match the order exactly (₦1 rounding allowed)
-  const paidNaira = tx.amountKobo / 100
-  if (tx.currency !== 'NGN' || Math.abs(paidNaira - Number(order.total_amount)) > 1) {
+  // Amount and currency must match the order exactly (₦1 rounding allowed; 1 cent for USD book orders).
+  // The order's own currency is used: NGN unless a USD ebook order was created (see books-migration.sql).
+  const orderCurrency: string = order.currency || 'NGN'
+  const paidNaira = tx.amountKobo / 100        // major units of whichever currency was paid
+  const tolerance = orderCurrency === 'USD' ? 0.01 : 1
+  if (tx.currency !== orderCurrency || Math.abs(paidNaira - Number(order.total_amount)) > tolerance) {
     const firstTime = order.status !== 'payment_review'
     await withOptionalColumns(inc => db.from('orders')
       .update({ status: 'payment_review', ...(inc ? { ...verifiedFields(tx), paid_amount: paidNaira } : {}) })

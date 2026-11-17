@@ -97,6 +97,17 @@ export const useAdminOrdersStore = create<AdminOrdersState>((set, get) => ({
       } catch (e) { console.error('Commission award failed:', e); }
     }
 
+    // ── On refund: withdraw ebook access and reverse any royalty entries (server, safe to repeat) ──
+    if (status === 'refunded') {
+      try {
+        await fetch('/api/admin/orders/books-refund', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ orderId }),
+        });
+      } catch (e) { console.error('Books refund failed:', e); }
+    }
+
     // ── On paid: verify bank transfer receipt ──
     if (status === 'paid') {
       await supabase.from('orders').update({

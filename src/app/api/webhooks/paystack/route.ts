@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
 import { confirmOrderPayment } from '@/lib/paystack'
 import { alertPaymentReview } from '@/lib/alerts'
+import { fulfilBooksForOrder } from '@/lib/books/fulfil'
 
 // Use service role key — this runs server-side only, never exposed to client
 const supabase = createClient(
@@ -63,6 +64,11 @@ export async function POST(req: NextRequest) {
         // will confirm it then.
         console.error('Order not found for reference:', reference)
         return NextResponse.json({ received: true })
+      }
+      // Book items: entitlements and royalty entries, only now that the server has confirmed the payment.
+      // Idempotent, and also run when the order was already confirmed so a failed first attempt is repaired.
+      if ((result.state === 'paid' || result.state === 'already_paid') && result.order) {
+        try { await fulfilBooksForOrder(supabase, result.order.id) } catch (e) { console.error('[books] fulfil failed', e) }
       }
       if (result.state !== 'paid' || !result.order) {
         console.log(`Webhook for ${reference}: ${result.state}`)

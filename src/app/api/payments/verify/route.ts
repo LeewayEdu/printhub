@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { fetchPaystackTransaction, confirmOrderPayment } from '@/lib/paystack'
 import { alertPaymentReview } from '@/lib/alerts'
+import { fulfilBooksForOrder } from '@/lib/books/fulfil'
 import { rateLimit, clientIp } from '@/lib/rate-limit'
 
 // Called by the checkout page after Paystack's popup closes. It does NOT trust the browser:
@@ -34,6 +35,9 @@ export async function POST(req: NextRequest) {
   const result = await confirmOrderPayment(db, tx)
   if (result.state === 'amount_mismatch' && result.review?.firstTime && result.order) {
     await alertPaymentReview({ orderId: result.order.id, reference: tx.reference, ...result.review })
+  }
+  if ((result.state === 'paid' || result.state === 'already_paid') && result.order) {
+    try { await fulfilBooksForOrder(db, result.order.id) } catch (e) { console.error('[books] fulfil failed', e) }
   }
   const status = result.state === 'paid' || result.state === 'already_paid' ? 'paid'
     : result.state === 'amount_mismatch' ? 'review' : 'pending'
