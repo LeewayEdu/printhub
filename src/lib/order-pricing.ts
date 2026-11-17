@@ -7,12 +7,15 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { loadPricingData } from '@/lib/pricing-server'
 import { recomputePrintTotal, fixedPriceTotal } from '@/lib/priceCalc'
+import { priceBookLines, type BookCartLine, type PricedBookLine } from '@/lib/books/pricing'
+import { usdEnabled, PRICE_TOLERANCE_USD } from '@/lib/books/currency'
+import type { Currency } from '@/lib/books/types'
 
 export const PRICE_TOLERANCE = 1   // ₦
 
 export interface LineCheck { index: number; name: string; claimed: number; expected: number | null; problem?: string }
 export type OrderPricing =
-  | { ok: true; subtotal: number; deliveryFee: number; discount: number; total: number; delivery: any | null; linePrices: number[] }
+  | { ok: true; subtotal: number; deliveryFee: number; discount: number; total: number; delivery: any | null; linePrices: number[]; currency: Currency; bookLines: PricedBookLine[] }
   | { ok: false; error: string; lines?: LineCheck[]; detail?: string }
 
 function designCost(product: any, dp: any, linked: Record<string, number>): number | { error: string } {
@@ -35,15 +38,51 @@ function designCost(product: any, dp: any, linked: Record<string, number>): numb
   }
 }
 
+export type DeliveryResolution =
+  | { ok: true; delivery: any | null; fee: number }
+  | { ok: false; error: 'invalid_delivery'; detail: string }
+
+/**
+ * Every order that contains a physical item (a printed product or a print book) must name a delivery option, and the fee
+ * comes from the delivery table, never from the browser. Free pickup is one of the options (a row with price 0), so a
+ * customer who wants no delivery still chooses it. An order with only digital items has nothing to deliver and ignores
+ * any delivery option that was sent.
+ */
+export async function resolveDelivery(db: SupabaseClient, needsDelivery: boolean, deliveryId: unknown): Promise<DeliveryResolution> {
+  if (!needsDelivery) return { ok: true, delivery: null, fee: 0 }
+  if (!deliveryId) return { ok: false, error: 'invalid_delivery', detail: 'Please choose a delivery option. Free pickup is one of the choices.' }
+  const { data: d } = await db.from('delivery_settings').select('*').eq('id', String(deliveryId)).eq('is_active', true).maybeSingle()
+  if (!d) return { ok: false, error: 'invalid_delivery', detail: 'Delivery option not found' }
+  return { ok: true, delivery: d, fee: Number(d.price) || 0 }
+}
+
 export async function priceOrder(db: SupabaseClient, body: any): Promise<OrderPricing> {
   const items: any[] = body.items
-  const ids = Array.from(new Set(items.map(i => String(i.productId))))
-  const [{ data: products }, data, { data: links }] = await Promise.all([
-    db.from('products').select('*').in('id', ids).eq('is_active', true),
-    loadPricingData(true),
-    db.from('product_design_addons').select('product_id, design_addons(name, price)').in('product_id', ids),
-  ])
-  if (!products || !data) return { ok: false, error: 'pricing_unavailable', detail: 'Could not load prices to verify the order' }
+  const currency: Currency = body.currency === 'USD' ? 'USD' : 'NGN'
+  // Product lines and book lines are priced separately; both keep their position in the cart
+  const productEntries = items.map((it, index) => ({ it, index })).filter(x => x.it?.kind !== 'book')
+  const bookEntries = items.map((it, index) => ({ it, index })).filter(x => x.it?.kind === 'book')
+  if (currency === 'USD') {
+    // USD is for ebooks only: no products, no delivery, no promo code, and only while the flag is on
+    if (!usdEnabled() || productEntries.length > 0 || body.promoCode || body.deliveryId) {
+      return { ok: false, error: 'currency_not_available', detail: 'USD is not available for this order' }
+    }
+  }
+  // Printed products always need a delivery option. Checked first, before any price is loaded.
+  if (productEntries.length > 0 && !body.deliveryId) {
+    return { ok: false, error: 'invalid_delivery', detail: 'Please choose a delivery option. Free pickup is one of the choices.' }
+  }
+  const ids = Array.from(new Set(productEntries.map(x => String(x.it.productId))))
+  let products: any[] = [], data: any = null, links: any[] = []
+  if (productEntries.length > 0) {
+    const [p, d, l] = await Promise.all([
+      db.from('products').select('*').in('id', ids).eq('is_active', true),
+      loadPricingData(true),
+      db.from('product_design_addons').select('product_id, design_addons(name, price)').in('product_id', ids),
+    ])
+    if (!p.data || !d) return { ok: false, error: 'pricing_unavailable', detail: 'Could not load prices to verify the order' }
+    products = p.data; data = d; links = l.data || []
+  }
   const byId = Object.fromEntries(products.map((p: any) => [p.id, p]))
   const linkedByProduct: Record<string, Record<string, number>> = {}
   for (const l of (links || []) as any[]) {
@@ -53,7 +92,7 @@ export async function priceOrder(db: SupabaseClient, body: any): Promise<OrderPr
   const lines: LineCheck[] = []
   let subtotal = 0
   let bad = false
-  items.forEach((it, index) => {
+  productEntries.forEach(({ it, index }) => {
     const p = byId[String(it.productId)]
     const claimed = Number(it.price)
     if (!p) { lines.push({ index, name: String(it.name), claimed, expected: null, problem: 'product not found or inactive' }); bad = true; return }
@@ -82,15 +121,25 @@ export async function priceOrder(db: SupabaseClient, body: any): Promise<OrderPr
   })
   if (bad) return { ok: false, error: 'price_mismatch', lines }
 
-  // Delivery fee comes from the delivery table, never from the browser
-  let deliveryFee = 0
-  let delivery: any = null
-  if (body.deliveryId) {
-    const { data: d } = await db.from('delivery_settings').select('*').eq('id', String(body.deliveryId)).eq('is_active', true).maybeSingle()
-    if (!d) return { ok: false, error: 'invalid_delivery', detail: 'Delivery option not found' }
-    delivery = d
-    deliveryFee = Number(d.price) || 0
+  // Book lines: priced from book_formats only, in the order's currency
+  let bookLines: PricedBookLine[] = []
+  let bookPhysical = false
+  if (bookEntries.length > 0) {
+    const bp = await priceBookLines(db, bookEntries.map(({ it, index }): BookCartLine => ({
+      index, bookFormatId: String(it.bookFormatId || ''), quantity: Number(it.quantity ?? 1), claimed: Number(it.price), name: it.name,
+    })), currency, usdEnabled())
+    if (!bp.ok) return { ok: false, error: bp.error, detail: bp.detail }
+    bookLines = bp.lines
+    bookPhysical = bp.hasPhysical
+    subtotal = Math.round((subtotal + bp.total) * 100) / 100
   }
+  const needsDelivery = productEntries.length > 0 || bookPhysical
+
+  // Delivery fee comes from the delivery table, never from the browser
+  const dres = await resolveDelivery(db, needsDelivery, body.deliveryId)
+  if (!dres.ok) return dres
+  const delivery = dres.delivery
+  const deliveryFee = dres.fee
 
   // Promo: same rules the checkout applies
   let discount = 0
@@ -104,9 +153,14 @@ export async function priceOrder(db: SupabaseClient, body: any): Promise<OrderPr
     discount = promo.type === 'percentage' ? Math.round(subtotal * promo.value / 100) : Number(promo.value) || 0
   }
 
-  const total = subtotal + deliveryFee - discount
-  if (Math.abs(Number(body.total) - total) > PRICE_TOLERANCE) {
+  const total = Math.round((subtotal + deliveryFee - discount) * 100) / 100
+  const tol = currency === 'USD' ? PRICE_TOLERANCE_USD : PRICE_TOLERANCE
+  if (Math.abs(Number(body.total) - total) > tol) {
     return { ok: false, error: 'price_mismatch', detail: `total ${body.total} vs ${total}` }
   }
-  return { ok: true, subtotal, deliveryFee, discount, total, delivery, linePrices: lines.map(l => l.expected as number) }
+  // Prices stay aligned with the cart order: product lines from the loop above, book lines from the book check
+  const linePrices: number[] = new Array(items.length).fill(0)
+  lines.forEach(l => { linePrices[l.index] = l.expected as number })
+  bookLines.forEach(b => { linePrices[b.index] = b.total })
+  return { ok: true, subtotal, deliveryFee, discount, total, delivery, linePrices, currency, bookLines }
 }

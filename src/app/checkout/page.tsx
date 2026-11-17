@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
-import { useCartStore } from '@/store/cartStore'
+import { useCartStore, cartCurrency } from '@/store/cartStore'
+import { formatMoney } from '@/lib/books/currency'
 import { supabase } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 import { ShoppingBag, MapPin, CreditCard, Check, Upload } from 'lucide-react'
@@ -58,6 +59,12 @@ export default function CheckoutPage() {
     : 0
   const total = subtotal + deliveryFee - promoDiscount
   const filteredDelivery = deliveryOptions.filter(d => d.type === deliveryType)
+  // Books: an ebook-only cart has nothing to deliver, and a USD cart (ebooks only) pays in dollars
+  const digitalOnly = items.length > 0 && items.every(i => i.kind === 'book' && i.bookType === 'ebook')
+  const cur = cartCurrency(items)
+  const fmt = (n: number) => formatMoney(n, cur)
+  // an author's referral link (?aref=CODE on a book page) leaves this cookie; the server checks the code
+  const authorRef = typeof document !== 'undefined' ? (document.cookie.match(/(?:^|; )author_ref=([^;]+)/)?.[1] || '') : ''
 
   // ── EFFECTS ──────────────────────────────────────────────────
   useEffect(() => {
@@ -118,6 +125,8 @@ export default function CheckoutPage() {
   }
 
   const saveOrder = async (paystackRef?: string) => {
+    // every order with a printed item needs a delivery choice (free pickup counts); the server checks this too
+    if (!digitalOnly && !selectedDelivery) throw new Error('Please choose a delivery option. Free pickup is one of the choices.')
     let receiptUrl = null
     if (receiptFile) {
       const path = `receipts/${crypto.randomUUID()}-${receiptFile.name}`
@@ -140,17 +149,20 @@ export default function CheckoutPage() {
         receiptUrl,
         customer: { firstName, lastName, email, phone },
         delivery: {
-          type: deliveryType === 'pickup' ? 'pickup' : 'home',
+          type: digitalOnly || deliveryType === 'pickup' ? 'pickup' : 'home',
           address: address || selectedDelivery?.address || '',
           state: deliveryType === 'interstate' ? selectedDelivery?.state : 'FCT',
           area: selectedDelivery?.name || '',
         },
-        deliveryId: selectedDelivery?.id,
+        deliveryId: digitalOnly ? undefined : selectedDelivery?.id,
+        currency: cur,
+        authorRef: authorRef || undefined,
         promoCode: promoApplied?.code,
         subtotal, deliveryFee, total,
         items: items.map(item => ({
           productId: item.productId, name: item.name, price: item.price, specs: item.specs,
           design: item.design, designPricing: item.designPricing,
+          ...(item.kind === 'book' ? { kind: 'book', bookFormatId: item.bookFormatId, quantity: item.quantity } : {}),
         })),
       }),
     })
@@ -237,7 +249,7 @@ export default function CheckoutPage() {
         key: paystackKey,
         email,
         amount: Math.round(total * 100),
-        currency: 'NGN',
+        currency: cur,
         ref: `PRINTHUB-${Date.now()}`,
         callback: (response: any) => handlePaystackSuccess(response),
         onClose: () => toast('Payment window closed'),
@@ -251,7 +263,7 @@ export default function CheckoutPage() {
 
   const initPaystack = () => {
     if (!email) { toast.error('Please enter your email address'); return }
-    if (!selectedDelivery) { toast.error('Please select a delivery option first'); return }
+    if (!digitalOnly && !selectedDelivery) { toast.error('Please select a delivery option first'); return }
 
     // @ts-ignore
     if (window.PaystackPop) {
@@ -345,7 +357,7 @@ export default function CheckoutPage() {
                           </div>
                         )}
                       </div>
-                      <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 15, color: 'var(--red)', flexShrink: 0 }}>₦{Number(item.price).toLocaleString()}</div>
+                      <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 15, color: 'var(--red)', flexShrink: 0 }}>{fmt(Number(item.price))}</div>
                     </div>
                   ))}
                   <button onClick={() => setStep(1)} style={{ marginTop: 24, width: '100%', padding: '13px', background: 'var(--red)', color: 'white', border: 'none', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>
@@ -358,8 +370,10 @@ export default function CheckoutPage() {
               {step === 1 && (
                 <div>
                   <h2 style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 17, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10, color: 'var(--text-primary)' }}>
-                    <MapPin size={18} color="var(--red)" /> Delivery details
+                    <MapPin size={18} color="var(--red)" /> {digitalOnly ? 'Your details' : 'Delivery details'}
                   </h2>
+                  {digitalOnly && <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>Your ebooks are delivered by download after payment. Nothing is shipped.</p>}
+                  {!digitalOnly && (<>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 20 }}>
                     {[
                       { type: 'pickup', label: '🏪 Pickup', sub: 'Free' },
@@ -390,7 +404,8 @@ export default function CheckoutPage() {
                       </div>
                     )}
                   </div>
-                  {deliveryType !== 'pickup' && (
+                  </>)}
+                  {(digitalOnly || deliveryType !== 'pickup') && (
                     <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 12, marginBottom: 8 }}>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                         <div>
@@ -406,16 +421,18 @@ export default function CheckoutPage() {
                         <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 5, color: 'var(--text-primary)' }}>Phone *</label>
                         <input aria-label="Phone number" value={phone} onChange={e => setPhone(e.target.value)} className="form-input" />
                       </div>
+                      {!digitalOnly && (
                       <div>
                         <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 5, color: 'var(--text-primary)' }}>Delivery address</label>
                         <input value={address} onChange={e => setAddress(e.target.value)} placeholder="House number, street, landmark" className="form-input" />
                       </div>
+                      )}
                     </div>
                   )}
                   <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
                     <button onClick={() => setStep(0)} style={{ flex: 1, padding: '12px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 600, fontSize: 14, cursor: 'pointer', color: 'var(--text-primary)' }}>Back</button>
                     <button onClick={() => {
-                        if (!selectedDelivery) { toast.error('Please select a delivery option'); return }
+                        if (!digitalOnly && !selectedDelivery) { toast.error('Please select a delivery option'); return }
                         // a phone number is needed before payment so we can reach the customer about the order
                         if (phone.replace(/\D/g, '').length < 10) { toast.error('Please enter a phone number we can reach you on'); return }
                         setStep(2)
@@ -454,7 +471,7 @@ export default function CheckoutPage() {
                           { label: 'Bank', value: BANK_DETAILS.bankName },
                           { label: 'Account Number', value: BANK_DETAILS.accountNumber },
                           { label: 'Account Name', value: BANK_DETAILS.accountName },
-                          { label: 'Amount', value: `₦${total.toLocaleString()}` },
+                          { label: 'Amount', value: fmt(total) },
                         ].map(({ label, value }) => (
                           <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 8 }}>
                             <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
@@ -504,7 +521,7 @@ export default function CheckoutPage() {
                       <button onClick={initPaystack} disabled={isProcessing}
                         style={{ flex: 2, padding: '12px', background: isProcessing ? '#ccc' : 'var(--red)', color: 'white', border: 'none', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, cursor: isProcessing ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                         <CreditCard size={16} />
-                        {isProcessing ? 'Processing...' : !paystackReady ? 'Loading payment...' : `Pay ₦${total.toLocaleString()} via Paystack`}
+                        {isProcessing ? 'Processing...' : !paystackReady ? 'Loading payment...' : `Pay ${fmt(total)} via Paystack`}
                       </button>
                     ) : (
                       <button onClick={handleBankPayment} disabled={isProcessing}
@@ -523,17 +540,17 @@ export default function CheckoutPage() {
               {items.map(item => (
                 <div key={item.cartItemId} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 8 }}>
                   <span style={{ color: 'var(--text-secondary)', maxWidth: 140 }}>{item.name} ({item.displayQty})</span>
-                  <span style={{ fontFamily: 'Montserrat', fontWeight: 600, color: 'var(--text-primary)', flexShrink: 0 }}>₦{Number(item.price).toLocaleString()}</span>
+                  <span style={{ fontFamily: 'Montserrat', fontWeight: 600, color: 'var(--text-primary)', flexShrink: 0 }}>{fmt(Number(item.price))}</span>
                 </div>
               ))}
               <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 10, marginTop: 10 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 6 }}>
                   <span style={{ color: 'var(--text-secondary)' }}>Subtotal</span>
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>₦{subtotal.toLocaleString()}</span>
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{fmt(subtotal)}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 10 }}>
                   <span style={{ color: 'var(--text-secondary)' }}>Delivery</span>
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{selectedDelivery ? (deliveryFee === 0 ? 'FREE' : `₦${deliveryFee.toLocaleString()}`) : 'TBD'}</span>
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{digitalOnly ? 'None (digital)' : selectedDelivery ? (deliveryFee === 0 ? 'FREE' : `₦${deliveryFee.toLocaleString()}`) : 'TBD'}</span>
                 </div>
                 {promoApplied && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 6 }}>
@@ -543,7 +560,7 @@ export default function CheckoutPage() {
                 )}
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'Montserrat', fontWeight: 800, fontSize: 18 }}>
                   <span style={{ color: 'var(--text-primary)' }}>Total</span>
-                  <span style={{ color: 'var(--red)' }}>₦{total.toLocaleString()}</span>
+                  <span style={{ color: 'var(--red)' }}>{fmt(total)}</span>
                 </div>
               </div>
               <ProformaRequest

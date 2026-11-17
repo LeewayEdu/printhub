@@ -22,6 +22,11 @@ const csp = [
 ].join('; ')
 
 const nextConfig = {
+  // Navigation flag for C-Chu Books. Set BOOKS_NAV_ENABLED=true (and redeploy) to show "Books" in the menu and footer.
+  // Default false. It is passed to the browser code at build time, so changing it needs a new deployment.
+  env: {
+    NEXT_PUBLIC_BOOKS_NAV_ENABLED: process.env.BOOKS_NAV_ENABLED === 'true' ? 'true' : 'false',
+  },
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'res.cloudinary.com' },

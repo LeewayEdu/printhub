@@ -17,7 +17,7 @@ const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;
 
 export type Mailer = (to: string, subject: string, html: string) => Promise<boolean>
 
-const resendMailer: Mailer = async (to, subject, html) => {
+export const resendMailer: Mailer = async (to, subject, html) => {
   if (!process.env.RESEND_API_KEY) return false
   try {
     const r = await new Resend(process.env.RESEND_API_KEY).emails.send({ from: 'PrintHub Orders <orders@cchumedia.com>', to, subject, html })

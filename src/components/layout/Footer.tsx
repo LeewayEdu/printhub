@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { BRAND } from '@/lib/constants'
+import { BRAND, BOOKS_NAV_ENABLED } from '@/lib/constants'
 import SiteImage from '@/components/ui/SiteImage'
 
 export default function Footer() {
@@ -49,6 +49,7 @@ export default function Footer() {
                 { label: 'Starter Kits', href: '/starter-kits' },
                 { label: 'Campaign Materials', href: '/election-campaign' },
                 { label: 'Book Publishing', href: '/book-publishing' },
+                ...(BOOKS_NAV_ENABLED ? [{ label: 'Books', href: '/books' }] : []),
                 { label: 'Affiliate Program', href: '/affiliate' },
               ].map(item => (
                 <Link key={item.label} href={item.href}

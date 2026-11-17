@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react'
 import { BRAND, BANK_DETAILS, PROFORMA_VALIDITY_DAYS } from '@/lib/constants'
 import { PROFORMA_STORAGE_KEY, type Proforma } from '@/lib/proforma'
 
-const money = (n: number) => `₦${Math.round(n).toLocaleString('en-NG')}`
+const makeMoney = (c: 'NGN' | 'USD') => (n: number) => c === 'USD'
+  ? `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  : `₦${Math.round(n).toLocaleString('en-NG')}`
 const date = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
 
 // Plain black-and-white, Arial, print-ready. "Save as PDF" in the print dialog gives the PDF
@@ -36,6 +38,7 @@ export default function ProformaPage() {
     )
   }
   if (!doc) return null
+  const money = makeMoney(doc.currency || 'NGN')
 
   const th: React.CSSProperties = { textAlign: 'left', padding: '8px 6px', borderBottom: '2px solid #000', fontSize: 12 }
   const td: React.CSSProperties = { padding: '8px 6px', borderBottom: '1px solid #ccc', verticalAlign: 'top', fontSize: 13 }

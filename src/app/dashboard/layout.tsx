@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/lib/supabase/client'
-import { LayoutDashboard, ShoppingBag, User, LogOut, Package, Menu, X, ChevronRight, MessageSquare, TrendingUp, Truck, Tag, Bell, Image, DollarSign, Users, Zap, Star, FileSpreadsheet, Heart, AlignJustify, ShieldAlert, Palette } from 'lucide-react'
+import { LayoutDashboard, ShoppingBag, User, LogOut, Package, Menu, X, ChevronRight, MessageSquare, TrendingUp, Truck, Tag, Bell, Image, DollarSign, Users, Zap, Star, FileSpreadsheet, Heart, AlignJustify, ShieldAlert, Palette, BookOpen } from 'lucide-react'
 import SiteImage from '@/components/ui/SiteImage'
 
 interface NavLink {
@@ -17,6 +17,7 @@ interface NavLink {
 const customerLinks: NavLink[] = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
   { href: '/dashboard/orders', label: 'My Orders', icon: ShoppingBag },
+  { href: '/dashboard/my-books', label: 'My Books', icon: BookOpen },
   { href: '/dashboard/wishlist', label: 'Wishlist', icon: Heart },
   { href: '/dashboard/affiliate', label: 'Affiliate', icon: TrendingUp },
   { href: '/dashboard/profile', label: 'Profile', icon: User },
@@ -26,6 +27,8 @@ const adminLinks: NavLink[] = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
   { href: '/dashboard/admin/orders', label: 'All Orders', icon: ShoppingBag },
   { href: '/dashboard/admin/products', label: 'Add Products', icon: Package },
+  { href: '/dashboard/admin/books', label: 'Books', icon: BookOpen },
+  { href: '/dashboard/admin/royalties', label: 'Royalties', icon: DollarSign },
   { href: '/dashboard/admin/bulk-upload', label: 'Bulk Upload', icon: FileSpreadsheet },
   { href: '/dashboard/admin/testimonials', label: 'Testimonials', icon: Star },
   { href: '/dashboard/admin/reviews', label: 'Product Reviews', icon: MessageSquare },
@@ -40,6 +43,8 @@ const superAdminLinks: NavLink[] = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
   { href: '/dashboard/admin/orders', label: 'All Orders', icon: ShoppingBag },
   { href: '/dashboard/admin/products', label: 'Products', icon: Package },
+  { href: '/dashboard/admin/books', label: 'Books', icon: BookOpen },
+  { href: '/dashboard/admin/royalties', label: 'Royalties', icon: DollarSign },
   { href: '/dashboard/admin/bulk-upload', label: 'Bulk Upload', icon: FileSpreadsheet },
   { href: '/dashboard/admin/delivery', label: 'Delivery Settings', icon: Truck },
   { href: '/dashboard/admin/promos', label: 'Promo Codes', icon: Tag },

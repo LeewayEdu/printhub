@@ -15,7 +15,7 @@ export function commissionRate(earlierOrders: number): number {
 
 export type AwardState =
   | 'awarded' | 'already_awarded' | 'not_delivered' | 'no_order'
-  | 'test_order' | 'guest_order' | 'no_referrer' | 'no_affiliate' | 'inactive_affiliate' | 'error'
+  | 'test_order' | 'usd_order' | 'no_commission_base' | 'guest_order' | 'no_referrer' | 'no_affiliate' | 'inactive_affiliate' | 'error'
 
 export interface AwardResult { state: AwardState; amount?: number; rate?: number; detail?: string }
 
@@ -24,6 +24,7 @@ export async function awardCommissionForOrder(db: SupabaseClient, orderId: strin
   if (!order) return { state: 'no_order' }
   if (order.status !== 'delivered') return { state: 'not_delivered' }
   if (order.is_test) return { state: 'test_order' }   // test orders never earn commission
+  if (order.currency === 'USD') return { state: 'usd_order' }   // USD ebook orders: no commission in Phase 1 (amounts here are naira)
   if (!order.user_id) return { state: 'guest_order' }
 
   // Already paid for this order? (the unique index on commissions.order_id enforces this in the database too)
@@ -41,9 +42,21 @@ export async function awardCommissionForOrder(db: SupabaseClient, orderId: strin
 
   const { data: earlier } = await db
     .from('commissions').select('id').eq('affiliate_id', affiliate.id).eq('referred_customer', order.user_id)
-  const rate = commissionRate((earlier || []).length)
+  const tierRate = commissionRate((earlier || []).length)
   const orderTotal = Number(order.total_amount) || 0
-  const amount = Math.round(orderTotal * rate * 100) / 100
+
+  // Book lines are NOT part of the 10/5/3 tiers. They earn the separate book rate (books_settings, default 0%).
+  const { data: bookItems } = await db.from('order_items').select('price').eq('order_id', order.id).eq('item_type', 'book')
+  const bookTotal = (bookItems || []).reduce((s: number, i: any) => s + (Number(i.price) || 0), 0)
+  let bookRate = 0
+  if (bookTotal > 0) {
+    const { data: st } = await db.from('books_settings').select('book_affiliate_rate').maybeSingle()
+    bookRate = (Number(st?.book_affiliate_rate) || 0) / 100
+  }
+  const productBase = Math.max(0, orderTotal - bookTotal)           // product lines and delivery, as before
+  const amount = Math.round((productBase * tierRate + bookTotal * bookRate) * 100) / 100
+  const rate = productBase > 0 ? tierRate : bookRate
+  if (!(amount > 0)) return { state: 'no_commission_base' }
 
   const { error: insErr } = await db.from('commissions').insert({
     affiliate_id: affiliate.id, order_id: order.id, referred_customer: order.user_id,

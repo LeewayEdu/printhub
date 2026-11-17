@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { withOptionalColumns } from '@/lib/order-columns'
+import { fulfilBooksForOrder } from '@/lib/books/fulfil'
 
 // An admin marks an order paid BY HAND (bank transfer received, cash, and so on). A written reason is
 // required, and who did it and when is recorded on the order (payment_note) and in the admin audit log.
@@ -48,6 +49,9 @@ export async function POST(req: NextRequest) {
     })
     if (error) audited = false
   } catch { audited = false }
+
+  // A confirmed bank transfer for ebooks unlocks them the same way a card payment does
+  try { await fulfilBooksForOrder(db, orderId) } catch (e) { console.error('[books] fulfil failed', e) }
 
   return NextResponse.json({ ok: true, audited })
 }

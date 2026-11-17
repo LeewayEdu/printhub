@@ -14,6 +14,9 @@ export interface ProformaCartItem {
   displayQty: string
   specs?: Record<string, string>
   designPricing?: { hasOwnDesign: boolean; designCostTotal: number } | null
+  kind?: 'product' | 'book'          // books: no design, no VAT figure
+  bookType?: 'print' | 'ebook' | 'bundle'
+  currency?: 'NGN' | 'USD'
 }
 
 export interface ProformaDelivery { label: string; fee: number }
@@ -27,6 +30,7 @@ export interface ProformaLine {
   unitPrice: number | null   // print price per piece
   designFee: number
   designNote: string
+  isBook?: boolean
   total: number
 }
 
@@ -38,6 +42,7 @@ export interface Proforma {
   lines: ProformaLine[]
   itemsTotal: number
   vatIncluded: number
+  currency: 'NGN' | 'USD'
   vatRate: number
   delivery: ProformaDelivery | null
   total: number
@@ -63,7 +68,8 @@ export function buildProforma(items: ProformaCartItem[], delivery: ProformaDeliv
       qtyLabel: i.displayQty,
       unitPrice: qty ? Math.round(printPart / qty) : null,
       designFee,
-      designNote: i.designPricing ? (i.designPricing.hasOwnDesign ? "Customer's own design file (can be sent after payment)" : designFee > 0 ? 'Design by PrintHub' : 'Design included') : '',
+      isBook: i.kind === 'book',
+      designNote: i.kind === 'book' ? (i.bookType === 'ebook' ? 'Digital download after payment' : 'Print copy, delivered within Nigeria') : i.designPricing ? (i.designPricing.hasOwnDesign ? "Customer's own design file (can be sent after payment)" : designFee > 0 ? 'Design by PrintHub' : 'Design included') : '',
       total: i.price,
     }
   })
@@ -77,7 +83,9 @@ export function buildProforma(items: ProformaCartItem[], delivery: ProformaDeliv
     validUntil: valid.toISOString(),
     customer, lines, itemsTotal,
     vatRate: VAT_RATE,
-    vatIncluded: Math.round(itemsTotal * VAT_RATE / (100 + VAT_RATE)),
+    // VAT is shown for print products only; no VAT claim is made for book lines
+    vatIncluded: Math.round(lines.filter(l => !l.isBook).reduce((s, l) => s + l.total, 0) * VAT_RATE / (100 + VAT_RATE)),
+    currency: items.length > 0 && items.every(i => i.currency === 'USD') ? 'USD' : 'NGN',
     delivery, total,
   }
 }

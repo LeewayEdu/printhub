@@ -173,3 +173,74 @@ backfill are described with their row ids in `docs/referral-bug-findings-and-pla
 `docs/option-data-bug.md` and `docs/two-bad-prices-proposal.md`. The BLESSING commission row is
 `03da7371-b412-48cc-ae6a-2625a72969a4`; undoing it also needs the affiliate totals reversed, so ask me to
 prepare that statement rather than deleting the row by hand.
+
+## 6. C-Chu Books (branch `books-store`)
+
+**Nothing for books has been run against any database.** The migration is `books-migration.sql`.
+
+### Environment variables
+| Variable | Value | Note |
+|---|---|---|
+| `BOOKS_USD_ENABLED` | `false` at launch | Set to `true` only when you want USD ebook prices to show to visitors outside Nigeria. Your Paystack account must have USD enabled first, or those payments will fail at Paystack |
+| `DOWNLOAD_LOG_SALT` | optional random string | Salts the one-way hash of the network address in the download log. If unset the service key is used as the salt |
+| `BOOKS_NAV_ENABLED` | `false` (default) | `true` shows "Books" in the menu and footer. It is read at build time, so change it and redeploy. The /books pages work either way |
+| `CRON_SECRET` | already required for the other jobs | Also protects `/api/cron/books-stamp` (background ebook stamping). Without it the on-demand trigger is off and only the daily sweep stamps new purchases |
+| `BOOKS_USE_FIXTURES` | never set on Vercel | Local development fixtures only; ignored when `VERCEL_ENV` is `production` |
+
+### Order
+1. Deploy the code (it works with the books tables missing: `/books` shows "Books are coming soon", nothing else changes, the sitemap adds no book URLs).
+2. Run `books-migration.sql`, then `books-1b-migration.sql` (royalty options, ledger flags, naira settlement, background stamping, ebook size limit), in the Supabase SQL editor. It is independent of the other four migrations and can run before or after them. (Run it before adding the first book.)
+2b. Run `books-royalty-seed.sql` (default royalty rules: distribution 70/30/85, package 80/40/85, hold 30 days, minimum ₦5,000). It never overwrites a rule that already exists. Then fill in the print cost per copy for each book in Admin > Books (until you do, print sales are flagged "needs print cost" and the author share stays 0), and set `royalty_option` to `package` for package books.
+3. Check the two buckets exist in Storage: `book-files` must show **Private**, `book-public` **Public**. If the SQL could not create them, create them by hand with those settings.
+4. Run the RLS checks below.
+5. In Admin: add an author, add a book with an ebook format, upload the files, set the default royalty rule (no percentages are pre-filled), confirm rights, publish.
+6. Do a first purchase with a TEST-mode order (section 1a) of a book you can delete, then check My books, one download, and the email.
+
+### RLS and storage checks after the migration (repeat these by hand: the automated tests only read the SQL)
+- Signed in as an ordinary customer, `select * from entitlements` returns only that customer's rows.
+- As that customer, `insert into entitlements ...` and `update entitlements ...` are refused.
+- As an anonymous visitor, `select ebook_pdf_path from book_formats` is refused (permission denied for the column).
+- Opening a path in `book-files` without a signed link returns "Object not found" or "Unauthorized", never the file.
+- A draft book cannot be read by an anonymous visitor; `update books set status='published' where rights_confirmed = false` fails with the `books_rights_before_publish` constraint.
+
+### Post-deploy checklist for books
+- [ ] `/books` and a book page return 200; the book page shows each format with one price and one Add to cart button; the sticky bar shows on a phone
+- [ ] Add an ebook to the cart, check out: no delivery step, no design-file step; pay with the test card; the order is paid only after verification; **My books** lists the book; Download PDF works; the file shows your name on each page; a 6th download is refused
+- [ ] Print book: delivery step appears, fee from the delivery table; the order appears in Admin > Orders like any other
+- [ ] Set the order to refunded in Admin: the ebook access disappears and the royalty entries are reversed (Admin > Royalties)
+- [ ] Admin > Royalties shows the sale; CSV export opens; a payout below the minimum is refused
+- [ ] Open a book URL with `?aref=CODE` of the author, buy, and check the entry source says "referral"
+- [ ] With `BOOKS_USD_ENABLED=false`, a visitor from outside Nigeria (test with a VPN) sees naira and "Ask us about international print"
+- [ ] The sitemap lists the published book and its author and no drafts
+
+### Rollback of books-1b-migration.sql
+```sql
+-- additive columns; the code tolerates their absence only for the original books features, so roll the code back first
+alter table public.royalty_rules drop column if exists option_key;
+alter table public.books drop column if exists royalty_option;
+alter table public.royalty_entries drop column if exists flag, drop column if exists rate_to_ngn, drop column if exists author_share_ngn, drop column if exists settled_note;
+alter table public.orders drop column if exists settled_ngn;
+alter table public.entitlements drop column if exists stamp_status, drop column if exists stamped_pdf_path, drop column if exists stamped_epub_path, drop column if exists stamp_attempts, drop column if exists stamp_error, drop column if exists stamp_started_at;
+alter table public.books_settings drop column if exists max_ebook_mb;
+drop index if exists public.royalty_rules_option_key;
+create unique index if not exists royalty_rules_default_key on public.royalty_rules ((true)) where book_id is null;
+```
+The seed has no rollback beyond deleting the two rules: `delete from public.royalty_rules where book_id is null and option_key in ('distribution','package');`
+
+### Rollback (books)
+Code: Vercel "Promote to Production" on the previous deployment (no data is lost; entitlements and entries stay in the tables).
+Database (only if you must remove books entirely; this deletes books data):
+```sql
+-- 1. stop selling and withdraw access first
+update public.books set status = 'draft';
+-- 2. remove the new tables (order matters because of references)
+drop table if exists public.royalty_entries, public.royalty_payouts, public.royalty_rules,
+  public.download_log, public.entitlements, public.book_formats, public.books, public.authors, public.books_settings cascade;
+-- 3. optional: remove the added columns (existing orders keep working without them)
+alter table public.order_items drop column if exists item_type, drop column if exists book_id, drop column if exists book_format_id;
+alter table public.orders drop column if exists currency, drop column if exists payment_fee, drop column if exists author_ref_code;
+-- 4. buckets: empty them in the dashboard, then
+delete from storage.buckets where id in ('book-files', 'book-public');
+drop function if exists public.is_admin();
+```
+Do not drop `order_items.item_type` or `orders.currency` while any book order exists that you still need to refund.

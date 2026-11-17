@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useCartStore } from '@/store/cartStore'
 import { CheckCircle, X } from 'lucide-react'
+import { formatMoney } from '@/lib/books/currency'
 
 const SHOW_MS = 6000
 
@@ -48,7 +49,7 @@ export default function MiniCartNotice() {
             <div style={{ fontWeight: 700, fontSize: 14, fontFamily: 'Montserrat', color: 'var(--text-primary)' }}>Added to cart</div>
             <div style={{ fontSize: 13, color: 'var(--text-primary)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{shown.name}</div>
             {shown.summary && <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{shown.summary}</div>}
-            <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 16, color: 'var(--red)', marginTop: 4 }}>₦{Number(shown.price).toLocaleString()}</div>
+            <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 16, color: 'var(--red)', marginTop: 4 }}>{formatMoney(Number(shown.price), shown.currency || 'NGN')}</div>
           </div>
           <button type="button" aria-label="Close" onClick={() => setShown(null)}
             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--text-secondary)' }}><X size={16} /></button>
