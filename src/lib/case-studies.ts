@@ -53,7 +53,7 @@ export interface CaseStudy {
   noConsentReplacements: [string, string][]
 }
 
-// "No AI vendor names in user-facing copy" (CLAUDE.md). Applied to every case, consent or not.
+// Site rule: no AI vendor names in user-facing copy (from the project rules file). Applied to every case, consent or not.
 export const VENDOR_NEUTRAL: [string, string][] = [
   ['a ChatGPT search', 'an AI search'],
   ['through ChatGPT', 'through an AI assistant'],

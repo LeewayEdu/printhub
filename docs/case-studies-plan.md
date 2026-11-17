@@ -38,7 +38,7 @@ Page layouts (`book-publishing`, `election-campaign`, home), `Footer`, `HomeClie
 4. Fill in `date` (month and year) when you have it.
 
 ## Assumptions (please read)
-1. **AI vendor name.** `CLAUDE.md` says no AI vendor names in user-facing copy. The Ezra copy names "ChatGPT" in the title, the at-a-glance row and one story paragraph. I render "an AI search" and "an AI assistant" instead (rules in the data file). The original text stays in the data. Say if you want the vendor name shown after all.
+1. **AI vendor name.** The project rules file says no AI vendor names in user-facing copy. The Ezra copy names "ChatGPT" in the title, the at-a-glance row and one story paragraph. I render "an AI search" and "an AI assistant" instead (rules in the data file). The original text stays in the data. Say if you want the vendor name shown after all.
 2. **The slug and image file names contain "apc"** (`apc-grand-rally-branding`, `/images/case-studies/apc-grand-rally/...`). You asked to keep file names, so a no-consent publication still has "apc" in the web address. A neutral slug can be added later with a redirect.
 3. **"Nasarawa State"** stays in the APC body copy in neutral mode (it names a place, not the party). The Ezra copy shows "Jalingo, Taraba State" in neutral mode because the supplied `withoutConsent` line says so, although the handover README lists the location as needing consent.
 4. **Images** are served by `next/image` (WebP, resized). Gallery thumbnails use one consistent 4:3 crop; the lightbox shows the full image uncropped.
