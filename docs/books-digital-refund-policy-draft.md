@@ -1,22 +1,27 @@
 # Digital refund policy: DRAFT
 
-Status: draft for review by the owner (and a lawyer if wanted). Not live. Nothing on the website uses this text yet.
+Status: draft for review by the owner (and a lawyer if wanted). **Not live.** Nothing on the website uses this text, and the live Terms of Service have not been edited.
 
 ## Proposed wording (for the Terms or a Refunds page)
 
 **Refunds for ebooks and other digital downloads**
 
-1. An ebook is a digital product that is delivered to your account as soon as your payment is confirmed. Because you can download it immediately, **we do not refund an ebook after it has been downloaded**.
-2. **Exception, a defective file.** If the file you downloaded is damaged, will not open, or is not the book you bought, tell us within [7] days of the purchase at [support email / WhatsApp number]. We will first try to give you a working copy. If we cannot, we will refund the purchase.
-3. **Not yet downloaded.** If you have not downloaded the ebook, you may ask for a refund within [7] days of the purchase and we will refund it and withdraw your access.
-4. **Wrong purchase by mistake** (for example you bought the same ebook twice): contact us within [7] days and we will review it.
-5. When a refund is made, your access to that ebook is withdrawn and the download links stop working.
-6. Printed books follow our normal returns and reprint rules: free reprint if the error is ours.
-7. Refunds are paid back to the original payment method where possible. Payment processor fees may not be recoverable. [Confirm with Paystack how fees on refunds are treated before publishing this sentence.]
+1. **After you have downloaded an ebook, it cannot be refunded**, except when the file is defective (see item 3).
+2. **Within 7 days of purchase, if you have not downloaded the file.** You can ask for a refund within 7 days of buying an ebook, as long as you have not downloaded it. We will refund the purchase and withdraw your access.
+3. **A defective file.** If the file you downloaded is damaged, will not open, or is not the book you bought, tell us at [CONTACT EMAIL: TO BE ADDED] or on WhatsApp at [WHATSAPP NUMBER: TO BE ADDED]. We will first try to give you a working copy. If we cannot, we will refund the purchase. This applies even after a download.
+4. When a refund is made, your access to that ebook is withdrawn and the download links stop working.
+5. Printed books follow our normal returns rules: a free reprint if the error is ours.
+6. Refunds go back to the original payment method where possible. Payment processor fees may not be recoverable. [CONFIRM WITH PAYSTACK how fees on refunds are treated before publishing this sentence.]
+
+## How "downloaded" is decided
+A download is counted by the system each time a download link is issued for an ebook (`entitlements.download_count` and the `download_log`). "Not downloaded" means the count is 0. This is recorded by the server, so it does not depend on what either side remembers.
+
+## Placeholders to fill in before this goes live
+- `[CONTACT EMAIL: TO BE ADDED]`
+- `[WHATSAPP NUMBER: TO BE ADDED]`
+- The Paystack fee sentence in item 6.
 
 ## Notes for the owner
-
-- The bracketed numbers (the [7] days, the contact details) are placeholders; I have not decided them for you.
-- Item 1 matches the product behaviour: each ebook can be downloaded a limited number of times (5 at launch) and every file carries the buyer's name.
-- The system supports the refund flow: setting an order to "refunded" in the admin withdraws the ebook access and reverses the author royalty entries.
+- The 7 days are as you specified.
+- How it works in the system: setting an order to "refunded" in the admin withdraws the ebook access and reverses the author's royalty entries (negative entries). The admin does not yet show the download count next to the order, so check `entitlements` or the download log before deciding on a refund request. Adding it to the order screen is a small follow-up.
 - Consumer-protection rules may give some buyers extra rights depending on where they live (this matters once USD sales are switched on). Please have this checked before launch.
