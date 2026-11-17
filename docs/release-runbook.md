@@ -12,8 +12,15 @@ machine that prepared this branch. Do the steps in order. Nothing is pushed or d
 - Footer, home page and the leads route merged without conflicts.
 - Checks on the merged branch: typecheck clean; 150 tests (149 pass, 0 fail, 1 skipped by design); production build passes.
   `next lint` has no ESLint configuration in the repo, so lint is not available and the build's type check is the only static check.
-- The build needs these variables to exist (Vercel has them): `NEXT_PUBLIC_SUPABASE_URL`, `RESEND_API_KEY` (and the other keys below).
-  Without them the build stops while collecting pages. This is how the code was already written, it is not new.
+- **Clean-checkout check (done):** a fresh clone of the branch, `npm ci`, the build and the tests all pass. The lockfile was out of sync
+  (`pdf-lib` and `fflate`, added by books-store, were missing from `package-lock.json`, so `npm ci` failed). The commit "Sync lockfile"
+  fixes it and adds only those six packages. Vercel runs `npm ci` style installs, so this fix is required.
+- **Node version:** the project has no `engines` field and no `.nvmrc`, so it does not pin a version. Checked on Node 22 (v22.22.2).
+  Vercel uses the Node version set in Project Settings > General (its default today is 22.x); confirm it there.
+- **Build-required variables** (the build stops while collecting pages if any is missing, verified by building with none set):
+  `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`. Everything else is read only
+  at runtime. The build also succeeds with `BOOKS_NAV_ENABLED`, `BOOKS_USD_ENABLED` and `CASE_STUDY_PREVIEW_TOKEN` all unset, and then the
+  Books link is absent and the case studies are hidden (checked on the built app).
 
 ## 1. Migrations
 Run in the Supabase SQL editor, one file at a time. "Old code breaks" means: the code that is live today, if the file runs BEFORE the
@@ -118,17 +125,17 @@ delete from public.royalty_rules where book_id is null and option_key in ('distr
 ## 3. Environment variables (Vercel > Production)
 | Variable | Needed? | Notes |
 |---|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Required | Build fails without the URL |
-| `SUPABASE_SERVICE_ROLE_KEY` | Required | Server only. Used by every server route |
-| `PAYSTACK_SECRET_KEY`, `NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY` | Required | Live keys stay as they are. Do not change them in this release |
-| `RESEND_API_KEY` | Required | Build fails without it. Order, alert, design reminder and ebook emails |
-| `NEXT_PUBLIC_SITE_URL` | Required | Canonical links, email links, stamping trigger |
-| `CRON_SECRET` | Required | Closed by default: without it the reconcile job, the design reminders and background ebook stamping refuse to run |
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Required, **build and runtime** | The build fails without them |
+| `SUPABASE_SERVICE_ROLE_KEY` | Required, **build and runtime** | Server only. Used by every server route. The build fails without it |
+| `PAYSTACK_SECRET_KEY`, `NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY` | Required, runtime only | Live keys stay as they are. Do not change them in this release |
+| `RESEND_API_KEY` | Required, **build and runtime** | The build fails without it. Order, alert, design reminder and ebook emails |
+| `NEXT_PUBLIC_SITE_URL` | Required, runtime only | Canonical links fall back to the production address if it is unset, but the Paystack webhook's order notification and the stamping trigger build their address from it with no fallback. A value containing "localhost" is ignored for canonical links |
+| `CRON_SECRET` | Required, runtime only | Closed by default: without it the reconcile job, the design reminders and background ebook stamping refuse to run |
 | `BOOKS_USD_ENABLED` | Optional, leave unset or `false` | `true` shows USD ebook prices outside Nigeria. Needs USD enabled on Paystack first |
 | `BOOKS_NAV_ENABLED` | Optional, leave unset or `false` | `true` shows "Books" in the menu and footer. Read at build time, so it needs a redeploy |
 | `CASE_STUDY_PREVIEW_TOKEN` | Optional | 16+ characters. Only needed to preview an unpublished case study with `?preview=<token>`. Without it previews are impossible |
 | `DOWNLOAD_LOG_SALT` | Optional | Salt for the hashed network address in the download log. Falls back to the service key |
-| `GROQ_API_KEY` | Required for the chatbot | |
+| `GROQ_API_KEY` | Required for the chatbot, runtime only | |
 | `NEXT_PUBLIC_META_PIXEL_ID` | Optional | Ad tracking |
 | `NOTIFY_PHONE`, `ULTRAMSG_INSTANCE_ID`, `ULTRAMSG_TOKEN`, `CALLMEBOT_API_KEY` | Optional | WhatsApp alerts |
 | `PAYSTACK_API_BASE` | Optional | Leave unset |
@@ -219,6 +226,8 @@ route falls back to the chatbot lead path only for unknown values, but a databas
 - **Content CSP is report-only**, not enforcing.
 - **Open data items from earlier work:** the 900gsm business-card option is hidden but needs a percentage; area minimums still need numbers.
 - **Guest checkout is not built** (plan only).
+- **`.env.example` is out of date:** it lists variables the code does not read (NextAuth, Cloudinary, `EMAIL_FROM`) and omits `CRON_SECRET` and the Books and case-study variables. Use section 3, not that file.
+- **Dependency warning:** `npm ci` reports that `next@14.2.5` has a published security advisory (and some old `glob` versions). Not changed in this release; upgrading Next.js is a separate, tested step.
 - **Lint is not configured** (`next lint` has no ESLint config); build type checking is the only static check.
 - **Two older commits already on `main` (`e33e164`, `e606a86`) carry an automated co-author line at the end of their commit messages.** They are intentionally left as they are.
 - **Your uncommitted changes** (`package.json`, `package-lock.json`, `.gitignore`, the project rules file, plus the `android/`, `ios/`, `www/` folders and `capacitor.config.ts`) are not part of this release. See the notes with the report on how to commit them separately.
