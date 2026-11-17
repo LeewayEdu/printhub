@@ -46,6 +46,9 @@ export async function fulfilBooksForOrder(db: SupabaseClient, orderId: string, d
   const orderFee = Number(order.payment_fee) || 0
   const orderTotal = Number(order.total_amount) || 0
   const isTest = !!order.is_test
+  // Authors are paid in naira at the rate actually received. A naira sale has rate 1. A USD sale uses the naira Paystack
+  // settled for the order (recorded by an admin: see recordSettlement); until then it is flagged and not payable.
+  const rate: number | null = currency === 'NGN' ? 1 : (Number(order.settled_ngn) > 0 && orderTotal > 0 ? Number(order.settled_ngn) / orderTotal : null)
 
   let granted = 0
   let ledger = 0
@@ -84,7 +87,9 @@ export async function fulfilBooksForOrder(db: SupabaseClient, orderId: string, d
           order_id: orderId, order_item_id: item.id, book_id: book.id, author_id: book.author_id, book_format_id: fmt.id,
           part: p.part, currency, gross: p.gross, payment_fee: p.payment_fee, net: p.net,
           author_share: p.author_share, company_share: p.company_share, source: p.source,
-          status: 'pending', payable_at: payableAt, note: p.note, flag: p.flag,
+          status: 'pending', payable_at: payableAt, note: p.note, flag: p.flag || (rate == null ? 'awaiting_settlement' : null),
+          rate_to_ngn: rate, author_share_ngn: rate == null ? null : Math.round(p.author_share * rate * 100) / 100,
+          settled_note: rate == null ? 'USD sale: waiting for the naira amount Paystack settled' : (currency === 'NGN' ? null : 'rate = naira settled / USD total'),
         })
         if (!error) ledger++
         else if (!isDuplicate(error)) return { ...none('error', `ledger: ${error.message}`), granted, ledger }
@@ -120,7 +125,7 @@ export async function reverseBooksForOrder(db: SupabaseClient, orderId: string):
     const wasPaid = e.status === 'paid'
     const { id, created_at, ...rest } = e
     const { error } = await db.from('royalty_entries').insert({
-      ...rest, ...negate(e), refund_of: e.id, payout_id: null, status: wasPaid ? 'payable' : 'reversed',
+      ...rest, ...negate(e), author_share_ngn: e.author_share_ngn == null ? null : -Number(e.author_share_ngn), refund_of: e.id, payout_id: null, status: wasPaid ? 'payable' : 'reversed',
       payable_at: wasPaid ? now : e.payable_at, note: 'refund',
     })
     if (error) continue            // already reversed (unique refund_of) or failed: skip
@@ -154,4 +159,31 @@ export async function recalcFlaggedForBook(db: SupabaseClient, bookId: string): 
     if (!error) updated++
   }
   return { updated, stillMissing }
+}
+
+
+/**
+ * Records the naira Paystack actually settled for a USD order and converts that order's ledger entries at that rate
+ * (rate = settled naira / USD total). Entries that were waiting for it are released; flagged-for-other-reasons stay flagged.
+ */
+export async function recordSettlement(db: SupabaseClient, orderId: string, settledNgn: number): Promise<{ ok: boolean; error?: string; updated?: number }> {
+  if (!(settledNgn > 0)) return { ok: false, error: 'Enter the naira amount that was settled' }
+  const { data: order } = await db.from('orders').select('*').eq('id', orderId).maybeSingle()
+  if (!order) return { ok: false, error: 'Order not found' }
+  if ((order.currency || 'NGN') !== 'USD') return { ok: false, error: 'Only USD orders need a settlement amount' }
+  if (!PAID_OR_LATER.includes(order.status)) return { ok: false, error: 'The order is not paid' }
+  const rate = settledNgn / Number(order.total_amount)
+  const { error: oe } = await db.from('orders').update({ settled_ngn: settledNgn }).eq('id', orderId)
+  if (oe) return { ok: false, error: oe.message }
+  const { data: entries } = await db.from('royalty_entries').select('*').eq('order_id', orderId)
+  let updated = 0
+  for (const e of (entries || []) as any[]) {
+    if (e.status === 'paid') continue
+    const { error } = await db.from('royalty_entries').update({
+      rate_to_ngn: rate, author_share_ngn: Math.round(Number(e.author_share) * rate * 100) / 100,
+      flag: e.flag === 'awaiting_settlement' ? null : e.flag, settled_note: `rate = naira settled (${settledNgn}) / USD total (${order.total_amount})`,
+    }).eq('id', e.id)
+    if (!error) updated++
+  }
+  return { ok: true, updated }
 }

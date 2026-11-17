@@ -20,6 +20,7 @@ export default function RoyaltiesPage() {
   const [ok, setOk] = useState(false)
   const [month, setMonth] = useState('')
   const [data, setData] = useState<any>(null)
+  const [settle, setSettle] = useState({ orderId: '', naira: '' })
   const [refs, setRefs] = useState<Record<string, { reference: string; notes: string }>>({})
 
   const load = useCallback(async () => {
@@ -49,6 +50,11 @@ export default function RoyaltiesPage() {
     if (!res.ok) { toast.error(j.error || 'Could not create the payout'); return }
     toast.success(`Payout created: ${money(j.total, currency)}`); load()
   }
+  const recordSettlement = async () => {
+    const res = await call({ action: 'record_settlement', orderId: settle.orderId.trim(), settledNgn: Number(settle.naira) }); const j = await res.json().catch(() => ({}))
+    if (!res.ok) { toast.error(j.error || 'Could not record it'); return }
+    toast.success(`Recorded. ${j.updated} ledger entr${j.updated === 1 ? 'y' : 'ies'} converted to naira.`); setSettle({ orderId: '', naira: '' }); load()
+  }
   const markPaid = async (payoutId: string) => {
     const r = refs[payoutId] || { reference: '', notes: '' }
     const res = await call({ action: 'mark_paid', payoutId, reference: r.reference, notes: r.notes }); const j = await res.json().catch(() => ({}))
@@ -75,17 +81,27 @@ export default function RoyaltiesPage() {
         <h2 style={{ fontSize: 16, marginBottom: 10 }}>By author and month</h2>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead><tr style={{ textAlign: 'left', borderBottom: '2px solid var(--border)' }}>{['Author', 'Month', 'Entries', 'Gross', 'Fees', 'Net', 'Author share', 'Company share', 'Pending', 'Payable', 'Paid', 'Flagged'].map(h => <th key={h} style={{ padding: 8 }}>{h}</th>)}</tr></thead>
+            <thead><tr style={{ textAlign: 'left', borderBottom: '2px solid var(--border)' }}>{['Author', 'Month', 'Entries', 'Gross', 'Fees', 'Net', 'Author share', 'Author share (₦)', 'Company share', 'Pending', 'Payable', 'Paid', 'Flagged'].map(h => <th key={h} style={{ padding: 8 }}>{h}</th>)}</tr></thead>
             <tbody>{data.summary.map((s: any) => (
               <tr key={`${s.author_id}${s.month}${s.currency}`} style={{ borderBottom: '1px solid var(--border)' }}>
                 <td style={{ padding: 8, fontWeight: 600 }}>{s.author_name}</td><td>{s.month}</td><td>{s.entries}</td>
                 <td>{money(s.gross, s.currency)}</td><td>{money(s.payment_fee, s.currency)}</td><td>{money(s.net, s.currency)}</td>
-                <td>{money(s.author_share, s.currency)}</td><td>{money(s.company_share, s.currency)}</td>
+                <td>{money(s.author_share, s.currency)}</td><td>{money(s.author_share_ngn, 'NGN')}</td><td>{money(s.company_share, s.currency)}</td>
                 <td>{money(s.pending, s.currency)}</td><td>{money(s.payable, s.currency)}</td><td>{money(s.paid, s.currency)}</td>
                 <td>{s.flagged ? <span style={{ color: '#b91c1c', fontWeight: 700 }}>{s.flagged} need print cost</span> : '-'}</td>
               </tr>))}</tbody>
           </table>
           {data.summary.length === 0 && <p style={{ padding: 20, textAlign: 'center', color: 'var(--gray)' }}>No royalty entries yet.</p>}
+        </div>
+      </div>
+
+      <div style={card}>
+        <h2 style={{ fontSize: 16, marginBottom: 4 }}>USD sales: record the naira Paystack settled</h2>
+        <p style={{ fontSize: 12, color: 'var(--gray)', marginBottom: 10 }}>Authors are paid in naira at the rate actually received. Paste the full order id and the naira amount from your Paystack settlement. Until then USD entries are flagged "awaiting settlement" and are not payable.</p>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <input aria-label="Order id" className="form-input" style={{ maxWidth: 340 }} placeholder="Order id" value={settle.orderId} onChange={e => setSettle(x => ({ ...x, orderId: e.target.value }))} />
+          <input aria-label="Naira settled" className="form-input" style={{ maxWidth: 180 }} type="number" min={0} placeholder="Naira settled" value={settle.naira} onChange={e => setSettle(x => ({ ...x, naira: e.target.value }))} />
+          <button style={btn} onClick={recordSettlement}>Record</button>
         </div>
       </div>
 

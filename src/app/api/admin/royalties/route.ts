@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin, isResponse } from '@/lib/admin-auth'
 import { effectiveStatus, ledgerCsv, payoutDecision, summariseEntries, type LedgerRow } from '@/lib/books/royalty'
+import { recordSettlement } from '@/lib/books/fulfil'
 
 export const dynamic = 'force-dynamic'
 
@@ -45,10 +46,11 @@ export async function POST(req: NextRequest) {
     }
     case 'create_payout': {
       if (typeof b.authorId !== 'string') return fail('Choose an author')
-      const currency = b.currency === 'USD' ? 'USD' : 'NGN'
+      const currency = 'NGN'
       const { data: def } = await db.from('royalty_rules').select('minimum_payout').is('book_id', null).eq('option_key', 'distribution').maybeSingle()
       const minimum = Number(def?.minimum_payout ?? 5000)
-      const rows = (await loadEntries(undefined, b.authorId)).filter(r => r.currency === currency)
+      // authors are paid in naira: every currency's entries count, at the naira amount stored on each entry
+      const rows = await loadEntries(undefined, b.authorId)
       const d = payoutDecision(rows, minimum, now)
       if (!d.meetsMinimum) return fail(`Payable royalties are ${currency} ${d.total.toLocaleString()}, below the minimum payout of ${minimum.toLocaleString()}.`, 409)
       const { data: payout, error } = await db.from('royalty_payouts').insert({ author_id: b.authorId, period: now.toISOString().slice(0, 7), currency, total: d.total, status: 'pending' }).select('id').single()
@@ -56,6 +58,10 @@ export async function POST(req: NextRequest) {
       const ids = d.due.map(r => r.id)
       await db.from('royalty_entries').update({ payout_id: payout.id, status: 'payable' }).in('id', ids)
       return NextResponse.json({ ok: true, payoutId: payout.id, total: d.total, entries: ids.length })
+    }
+    case 'record_settlement': {
+      const r = await recordSettlement(db, String(b.orderId || ''), Number(b.settledNgn))
+      return r.ok ? NextResponse.json({ ok: true, updated: r.updated }) : fail(r.error || 'Could not record the settlement')
     }
     case 'mark_paid': {
       const reference = typeof b.reference === 'string' ? b.reference.trim().slice(0, 120) : ''

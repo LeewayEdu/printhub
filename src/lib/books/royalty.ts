@@ -104,6 +104,8 @@ export function negate(e: { gross: number; payment_fee: number; net: number; aut
 
 export interface LedgerRow {
   flag?: string | null
+  rate_to_ngn?: number | null
+  author_share_ngn?: number | null
   id: string; author_id: string; book_id: string; order_id: string; part: string; currency: string; source: string
   gross: number; payment_fee: number; net: number; author_share: number; company_share: number
   status: string; payable_at: string | null; created_at: string; payout_id?: string | null; note?: string | null
@@ -115,10 +117,11 @@ export function summariseEntries(rows: LedgerRow[], now: Date) {
   for (const r of rows) {
     const month = r.created_at.slice(0, 7)
     const key = `${r.author_id}|${month}|${r.currency}`
-    const s = map.get(key) || { author_id: r.author_id, month, currency: r.currency, entries: 0, gross: 0, payment_fee: 0, net: 0, author_share: 0, company_share: 0, pending: 0, payable: 0, paid: 0, flagged: 0 }
+    const s = map.get(key) || { author_id: r.author_id, month, currency: r.currency, entries: 0, gross: 0, payment_fee: 0, net: 0, author_share: 0, company_share: 0, pending: 0, payable: 0, paid: 0, flagged: 0, author_share_ngn: 0 }
     const st = effectiveStatus(r, now)
     if (st !== 'reversed') {
       if (r.flag) s.flagged++
+      s.author_share_ngn += nairaShare(r) ?? 0
       s.entries++; s.gross += Number(r.gross); s.payment_fee += Number(r.payment_fee); s.net += Number(r.net)
       s.author_share += Number(r.author_share); s.company_share += Number(r.company_share)
       if (st === 'pending') s.pending += Number(r.author_share)
@@ -132,15 +135,21 @@ export function summariseEntries(rows: LedgerRow[], now: Date) {
 
 const csvCell = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`
 export function ledgerCsv(rows: (LedgerRow & { author_name?: string; book_title?: string })[], now: Date): string {
-  const head = ['date', 'author', 'book', 'order', 'part', 'source', 'currency', 'gross', 'payment_fee', 'net', 'author_share', 'company_share', 'status', 'payable_at', 'flag', 'note']
-  const lines = rows.map(r => [r.created_at.slice(0, 10), r.author_name || r.author_id, r.book_title || r.book_id, r.order_id.slice(0, 8), r.part, r.source, r.currency, r.gross, r.payment_fee, r.net, r.author_share, r.company_share, effectiveStatus(r, now), r.payable_at?.slice(0, 10) || '', r.flag || '', r.note || ''].map(csvCell).join(','))
+  const head = ['date', 'author', 'book', 'order', 'part', 'source', 'currency', 'gross', 'payment_fee', 'net', 'author_share', 'rate_to_ngn', 'author_share_ngn', 'company_share', 'status', 'payable_at', 'flag', 'note']
+  const lines = rows.map(r => [r.created_at.slice(0, 10), r.author_name || r.author_id, r.book_title || r.book_id, r.order_id.slice(0, 8), r.part, r.source, r.currency, r.gross, r.payment_fee, r.net, r.author_share, r.rate_to_ngn ?? '', nairaShare(r) ?? '', r.company_share, effectiveStatus(r, now), r.payable_at?.slice(0, 10) || '', r.flag || '', r.note || ''].map(csvCell).join(','))
   return [head.join(','), ...lines].join('\n') + '\n'
 }
+
+/** The naira the author is owed for an entry: the stored naira amount (rate actually received), or the share itself for a naira sale. */
+export const nairaShare = (r: { currency?: string | null; author_share: number; author_share_ngn?: number | null }): number | null =>
+  r.author_share_ngn != null ? Number(r.author_share_ngn) : (r.currency == null || r.currency === 'NGN') ? Number(r.author_share) : null   // a row with no currency is naira (the column default)
 
 /** What an author may be paid now: due entries not already in a payout, and whether the minimum is met */
 export function payoutDecision(rows: LedgerRow[], minimum: number, now: Date) {
   // flagged entries (for example "needs print cost") are held back until the flag is cleared
   const due = rows.filter(r => !r.flag && !r.payout_id && r.status !== 'reversed' && r.status !== 'paid' && ['payable'].includes(effectiveStatus(r, now)))
-  const total = round2(due.reduce((s, r) => s + Number(r.author_share), 0))
-  return { due, total, meetsMinimum: total >= minimum && total > 0 }
+  // authors are paid in NAIRA, at the rate actually received: an entry with no naira amount yet is not payable
+  const payable = due.filter(r => nairaShare(r) != null)
+  const total = round2(payable.reduce((s, r) => s + (nairaShare(r) as number), 0))
+  return { due: payable, total, meetsMinimum: total >= minimum && total > 0 }
 }

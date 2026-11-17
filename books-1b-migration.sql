@@ -12,3 +12,9 @@ update public.royalty_rules set option_key = 'distribution' where book_id is nul
 drop index if exists public.royalty_rules_default_key;
 create unique index if not exists royalty_rules_option_key on public.royalty_rules (option_key) where book_id is null;
 create index if not exists royalty_entries_flag_idx on public.royalty_entries (flag) where flag is not null;
+
+-- Part B (currency: pay authors in naira at the rate actually received)
+alter table public.orders           add column if not exists settled_ngn numeric(14,2);          -- naira Paystack settled for the whole order (USD orders)
+alter table public.royalty_entries  add column if not exists rate_to_ngn numeric(14,6);          -- 1 for naira orders; settled_ngn / order total for USD orders
+alter table public.royalty_entries  add column if not exists author_share_ngn numeric(14,2);     -- the amount actually owed to the author, in naira
+alter table public.royalty_entries  add column if not exists settled_note text;
