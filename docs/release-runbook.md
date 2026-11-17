@@ -15,8 +15,9 @@ machine that prepared this branch. Do the steps in order. Nothing is pushed or d
 - **Clean-checkout check (done):** a fresh clone of the branch, `npm ci`, the build and the tests all pass. The lockfile was out of sync
   (`pdf-lib` and `fflate`, added by books-store, were missing from `package-lock.json`, so `npm ci` failed). The commit "Sync lockfile"
   fixes it and adds only those six packages. Vercel runs `npm ci` style installs, so this fix is required.
-- **Node version:** the project has no `engines` field and no `.nvmrc`, so it does not pin a version. Checked on Node 22 (v22.22.2).
-  Vercel uses the Node version set in Project Settings > General (its default today is 22.x); confirm it there.
+- **Node version:** `package.json` now has `"engines": { "node": ">=20 <23" }`. I chose a range, not a single major, because I could not see
+  which Node version the Vercel project uses (20 or 22 are both plausible); it was tested on Node 22 (v22.22.2) and the upper bound stops
+  an untested Node 23 or newer being picked up silently. Check Project Settings > General > Node.js Version shows 20.x or 22.x.
 - **Build-required variables** (the build stops while collecting pages if any is missing, verified by building with none set):
   `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`. Everything else is read only
   at runtime. The build also succeeds with `BOOKS_NAV_ENABLED`, `BOOKS_USD_ENABLED` and `CASE_STUDY_PREVIEW_TOKEN` all unset, and then the
@@ -226,8 +227,24 @@ route falls back to the chatbot lead path only for unknown values, but a databas
 - **Content CSP is report-only**, not enforcing.
 - **Open data items from earlier work:** the 900gsm business-card option is hidden but needs a percentage; area minimums still need numbers.
 - **Guest checkout is not built** (plan only).
-- **`.env.example` is out of date:** it lists variables the code does not read (NextAuth, Cloudinary, `EMAIL_FROM`) and omits `CRON_SECRET` and the Books and case-study variables. Use section 3, not that file.
-- **Dependency warning:** `npm ci` reports that `next@14.2.5` has a published security advisory (and some old `glob` versions). Not changed in this release; upgrading Next.js is a separate, tested step.
+- **`.env.example`** was rewritten to match what the code reads (required at build, required at runtime, optional). Placeholders only.
+- **Security advisories (`npm audit`, after upgrading `next` and `eslint-config-next` from 14.2.5 to 14.2.35, the latest 14.2.x patch):**
+  - *Fixed by the patch:* 12 of the 37 published `next` advisories, among them the middleware authorisation bypass (critical), the
+    authorisation bypass (high), cache poisoning, two Server Components denial-of-service issues, the Server Actions denial-of-service and
+    the image optimisation issues that had a 14.2 fix.
+  - *Remaining in `next` (25):* every one is fixed only in 15.x or later (the 14.x line has no further patches). Whether they affect this
+    app: the app uses no middleware, no Server Actions, no `beforeInteractive` scripts or CSP nonces, no Pages Router or i18n, no custom
+    server and no edge runtime, and `next.config.js` has redirects but no rewrites, so the middleware, Server Actions, rewrites, i18n,
+    WebSocket and nonce advisories do not apply. **Still relevant:** the image optimisation advisories (`next/image` is used, with
+    AVIF/WebP) and the Server Components denial-of-service advisories. The image ones are described for self-hosted Next.js; on Vercel
+    the platform serves the optimiser, but I could not confirm Vercel's own mitigation from here. Move to Next 15.5.x or later as a
+    separate, tested task.
+  - *Other direct dependencies still flagged (not changed in this release):* `next-auth` (critical), `zod` (high), `paystack` (the old
+    `request` library chain: critical `request` and `form-data`, no fix published) and `nanoid` (high) are listed in `package.json` but
+    **not imported anywhere in `src`**, so they never run; removing them is a safe follow-up. `xlsx` (high, no fix published) is used by
+    the admin bulk-upload page only. `resend` (moderate) is used for email; its fix is a major version. Totals: production 20 before and
+    after (the `next` package stays flagged), all dependencies 28 before and 26 after. Do not run `npm audit fix --force`: it would force
+    major upgrades.
 - **Lint is not configured** (`next lint` has no ESLint config); build type checking is the only static check.
 - **Two older commits already on `main` (`e33e164`, `e606a86`) carry an automated co-author line at the end of their commit messages.** They are intentionally left as they are.
 - **Your uncommitted changes** (`package.json`, `package-lock.json`, `.gitignore`, the project rules file, plus the `android/`, `ios/`, `www/` folders and `capacitor.config.ts`) are not part of this release. See the notes with the report on how to commit them separately.
