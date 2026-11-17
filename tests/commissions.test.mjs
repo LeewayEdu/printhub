@@ -78,3 +78,9 @@ test('bank-transfer orders earn the same way (no Paystack involved)', async () =
   const t = world({ orders: [{ id: 'o1', user_id: 'cust', status: 'delivered', total_amount: 10000, paystack_reference: null, receipt_url: 'x' }] })
   assert.equal((await awardCommissionForOrder(fakeDb(t), 'o1')).amount, 1000)
 })
+
+test('a test order earns no commission', async () => {
+  const w = world(); w.orders[0].is_test = true
+  const r = await awardCommissionForOrder(fakeDb(w), 'o1')
+  assert.equal(r.state, 'test_order'); assert.equal(w.commissions.length, 0)
+})

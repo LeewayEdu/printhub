@@ -36,6 +36,11 @@ export interface Order {
   created_at: string;
   items?: OrderItem[];
   // Extended fields
+  is_test?: boolean | null;
+  paid_amount?: number | null;
+  paystack_status?: string | null;
+  payment_method?: string | null;
+  payment_note?: string | null;
   job_number?: string | null;
   receipt_url?: string | null;
   production_notes?: string | null;

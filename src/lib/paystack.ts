@@ -4,6 +4,7 @@
 // second time. Browser code can never set an order to paid.
 
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { withOptionalColumns } from '@/lib/order-columns'
 
 // Overridable so tests can point at a local mock instead of Paystack
 const PAYSTACK_BASE = process.env.PAYSTACK_API_BASE || 'https://api.paystack.co'
@@ -11,7 +12,7 @@ const PAYSTACK_BASE = process.env.PAYSTACK_API_BASE || 'https://api.paystack.co'
 // Statuses that mean "already paid or beyond"
 export const PAID_OR_LATER = ['paid', 'processing', 'shipped', 'delivered']
 
-export interface PaystackTx { reference: string; status: string; amountKobo: number; currency: string }
+export interface PaystackTx { reference: string; status: string; amountKobo: number; currency: string; domain?: string }
 
 /** Asks Paystack itself whether the transaction really succeeded. Never trusts the browser. */
 export async function fetchPaystackTransaction(reference: string): Promise<{ tx?: PaystackTx; error?: string }> {
@@ -25,7 +26,7 @@ export async function fetchPaystackTransaction(reference: string): Promise<{ tx?
     const json: any = await res.json().catch(() => ({}))
     if (!res.ok || !json?.status || !json?.data) return { error: json?.message || `Paystack HTTP ${res.status}` }
     const d = json.data
-    return { tx: { reference: String(d.reference), status: String(d.status), amountKobo: Number(d.amount), currency: String(d.currency) } }
+    return { tx: { reference: String(d.reference), status: String(d.status), amountKobo: Number(d.amount), currency: String(d.currency), domain: d.domain ? String(d.domain) : undefined } }
   } catch (e: any) {
     return { error: e?.message || 'Paystack unreachable' }
   }
@@ -46,8 +47,20 @@ export interface ConfirmResult {
   review?: { expectedNaira: number; paidNaira: number; currency: string; firstTime: boolean }
 }
 
+/** What the verify response tells us, stored on the order. A test-mode transaction marks the order as a test. */
+function verifiedFields(tx: PaystackTx): Record<string, unknown> {
+  return { paystack_status: tx.status, ...(tx.domain === 'test' ? { is_test: true } : {}) }
+}
+
 export async function confirmOrderPayment(db: SupabaseClient, tx: PaystackTx): Promise<ConfirmResult> {
-  if (tx.status !== 'success') return { state: 'not_successful' }
+  if (tx.status !== 'success') {
+    // Remember what Paystack said (abandoned, failed, ...) on an order that is not paid yet. Best effort.
+    await withOptionalColumns(inc => {
+      if (!inc) return Promise.resolve({})
+      return db.from('orders').update({ paystack_status: tx.status }).eq('paystack_reference', tx.reference).in('status', ['pending', 'payment_review'])
+    })
+    return { state: 'not_successful' }
+  }
 
   const { data: orders, error } = await db
     .from('orders')
@@ -64,17 +77,19 @@ export async function confirmOrderPayment(db: SupabaseClient, tx: PaystackTx): P
   const paidNaira = tx.amountKobo / 100
   if (tx.currency !== 'NGN' || Math.abs(paidNaira - Number(order.total_amount)) > 1) {
     const firstTime = order.status !== 'payment_review'
-    await db.from('orders').update({ status: 'payment_review' }).eq('id', order.id).in('status', ['pending', 'payment_review'])
+    await withOptionalColumns(inc => db.from('orders')
+      .update({ status: 'payment_review', ...(inc ? { ...verifiedFields(tx), paid_amount: paidNaira } : {}) })
+      .eq('id', order.id).in('status', ['pending', 'payment_review']))
     return { state: 'amount_mismatch', order, review: { expectedNaira: Number(order.total_amount), paidNaira, currency: tx.currency, firstTime } }
   }
 
   // Compare-and-set: only a still-unpaid order can become paid, so two callers cannot both win
-  const { data: updated } = await db
+  const { data: updated } = await withOptionalColumns(inc => db
     .from('orders')
-    .update({ status: 'paid', updated_at: new Date().toISOString() })
+    .update({ status: 'paid', updated_at: new Date().toISOString(), ...(inc ? { ...verifiedFields(tx), paid_amount: paidNaira } : {}) })
     .eq('id', order.id)
     .in('status', ['pending', 'payment_review'])
-    .select('id')
+    .select('id'))
   if (!updated || updated.length === 0) return { state: 'already_paid', order }
   return { state: 'paid', order }
 }

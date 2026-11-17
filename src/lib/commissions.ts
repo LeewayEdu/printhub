@@ -15,14 +15,15 @@ export function commissionRate(earlierOrders: number): number {
 
 export type AwardState =
   | 'awarded' | 'already_awarded' | 'not_delivered' | 'no_order'
-  | 'guest_order' | 'no_referrer' | 'no_affiliate' | 'inactive_affiliate' | 'error'
+  | 'test_order' | 'guest_order' | 'no_referrer' | 'no_affiliate' | 'inactive_affiliate' | 'error'
 
 export interface AwardResult { state: AwardState; amount?: number; rate?: number; detail?: string }
 
 export async function awardCommissionForOrder(db: SupabaseClient, orderId: string): Promise<AwardResult> {
-  const { data: order } = await db.from('orders').select('id, user_id, status, total_amount').eq('id', orderId).maybeSingle()
+  const { data: order } = await db.from('orders').select('*').eq('id', orderId).maybeSingle()
   if (!order) return { state: 'no_order' }
   if (order.status !== 'delivered') return { state: 'not_delivered' }
+  if (order.is_test) return { state: 'test_order' }   // test orders never earn commission
   if (!order.user_id) return { state: 'guest_order' }
 
   // Already paid for this order? (the unique index on commissions.order_id enforces this in the database too)

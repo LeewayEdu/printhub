@@ -76,3 +76,26 @@ test('amount mismatch holds the order for review and reports expected vs paid (a
   const second = await confirmOrderPayment(fakeDb(rows), tx({ amountKobo: 100000 }))
   assert.equal(second.review.firstTime, false)
 })
+
+test('a verified payment stores the amount and Paystack status; a test-mode transaction marks the order as a test', async () => {
+  const rows = [order()]
+  const r = await confirmOrderPayment(fakeDb(rows), tx({ domain: 'test' }))
+  assert.equal(r.state, 'paid')
+  assert.equal(rows[0].paid_amount, 13975); assert.equal(rows[0].paystack_status, 'success'); assert.equal(rows[0].is_test, true)
+  const live = [order({ id: 'o2', paystack_reference: 'REFLIVE1' })]
+  await confirmOrderPayment(fakeDb(live), tx({ reference: 'REFLIVE1', domain: 'live' }))
+  assert.equal(live[0].is_test, undefined)   // never set for live payments
+})
+test('a payment_review order also records what was actually paid', async () => {
+  const rows = [order()]
+  await confirmOrderPayment(fakeDb(rows), tx({ amountKobo: 100000 }))
+  assert.equal(rows[0].status, 'payment_review'); assert.equal(rows[0].paid_amount, 1000)
+})
+test('before the payment fields migration the code still works (missing columns are skipped)', async () => {
+  const rows = [order()]
+  const db = fakeDb(rows)
+  const real = db.from
+  db.from = t => { const b = real(t); const upd = b.update; b.update = p => { if ('paid_amount' in p) { return { eq: () => ({ in: () => ({ select: async () => ({ data: null, error: { code: '42703', message: 'column orders.paid_amount does not exist' } }) }) }) } } return upd(p) }; return b }
+  const r = await confirmOrderPayment(db, tx())
+  assert.equal(r.state, 'paid'); assert.equal(rows[0].status, 'paid'); assert.equal(rows[0].paid_amount, undefined)
+})

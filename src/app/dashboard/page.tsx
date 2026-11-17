@@ -29,7 +29,7 @@ export default function DashboardPage() {
   total: ordersRes.data.length,
   pending: ordersRes.data.filter((o: any) => o.status === 'pending').length,
   delivered: ordersRes.data.filter((o: any) => o.status === 'delivered').length,
-  spent: ordersRes.data.reduce((sum: number, o: any) => sum + (o.total_amount || 0), 0),
+  spent: ordersRes.data.filter((o: any) => !o.is_test).reduce((sum: number, o: any) => sum + (o.total_amount || 0), 0),
   points: profileRes.data?.loyalty_points || 0,
 })
       }

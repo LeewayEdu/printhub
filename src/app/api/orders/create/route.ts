@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { rateLimit, clientIp } from '@/lib/rate-limit'
 import { priceOrder } from '@/lib/order-pricing'
+import { withOptionalColumns } from '@/lib/order-columns'
 
 // Creates an order on the server. The order is ALWAYS saved as 'pending': the only code that
 // can mark a Paystack order paid is lib/paystack.ts (after Paystack confirms the payment), and
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest) {
 
   const c = body.customer || {}
   const d = body.delivery || {}
-  const { data: order, error } = await db.from('orders').insert({
+  const { data: order, error } = await withOptionalColumns(inc => db.from('orders').insert({
     user_id: user.id,                       // taken from the verified session, never from the request
     first_name: str(c.firstName, 80), last_name: str(c.lastName, 80), email: str(c.email, 160), phone: str(c.phone, 40),
     shipping_method: d.type === 'pickup' ? 'pickup' : 'home',
@@ -63,7 +64,8 @@ export async function POST(req: NextRequest) {
     status: 'pending',
     paystack_reference: reference || null,
     receipt_url: method === 'bank' ? str(body.receiptUrl, 500) || null : null,
-  }).select().single()
+    ...(inc ? { payment_method: method } : {}),   // column added by payment-fields-migration.sql
+  }).select().single())
   if (error || !order) return NextResponse.json({ error: error?.message || 'Could not create order' }, { status: 500 })
 
   const rows = body.items.map((i: any, idx: number) => ({
