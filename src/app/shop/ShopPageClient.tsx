@@ -9,7 +9,8 @@ import { ProductCard as SharedProductCard, ShopSidebar, ProductCardData } from '
 import LiveCalculatorV2 from '@/components/shop/LiveCalculatorV2'
 import { getCategories } from '@/lib/categories'
 import { useCartStore } from '@/store/cartStore'
-import { ShoppingCart, Search, ChevronLeft, ChevronRight, Minus, Plus, Upload, Link as LinkIcon, Pen, X } from 'lucide-react'
+import Link from 'next/link'
+import { ShoppingCart, Search, ChevronLeft, ChevronRight, Minus, Plus, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import SiteImage from '@/components/ui/SiteImage'
 
@@ -136,10 +137,6 @@ export default function ShopPageClient({
   const [imgIdx, setImgIdx] = useState(0)
 
   // Design state
-  const [designType, setDesignType] = useState<'upload' | 'link' | 'request' | null>(null)
-  const [designFile, setDesignFile] = useState<File | null>(null)
-  const [designLink, setDesignLink] = useState('')
-  const [designBrief, setDesignBrief] = useState<Record<string, string>>({})
   const [wishlistIds, setWishlistIds] = useState<string[]>([])
   const [heroIdx, setHeroIdx] = useState(0)
   const [calcPrice, setCalcPrice] = useState<number | null>(null)
@@ -205,10 +202,6 @@ export default function ShopPageClient({
     setW(p.min_width || 1)
     setH(p.min_height || 1)
     setImgIdx(0)
-    setDesignType(null)
-    setDesignFile(null)
-    setDesignLink('')
-    setDesignBrief({})
     setAppliedPreset(null)
     setActivePresetLabel(null)
     setCalcPrice(null)
@@ -224,11 +217,6 @@ export default function ShopPageClient({
 
   const addCart = () => {
     if (!selected) return
-    if (!designType) { toast.error('Please select a design option before adding to cart'); return }
-    if (designType === 'upload' && !designFile) { toast.error('Please upload your design file'); return }
-    if (designType === 'link' && !designLink.trim()) { toast.error('Please enter your design link'); return }
-    if (designType === 'request' && !designBrief.businessName) { toast.error('Please enter at least your business name for the design brief'); return }
-
     const price = calculatePrice(selected, qty, specs, w, h)
     const sl: Record<string, string> = {}
     Object.entries(specs).forEach(([k, v]) => { sl[k] = v.label })
@@ -245,20 +233,9 @@ export default function ShopPageClient({
 
     const finalPrice = calcPrice || price
     const finalSpecs = calcSpecs && Object.keys(calcSpecs).length > 0 ? { ...sl, ...calcSpecs } : sl
-    addToCart(selected.id, selected.name, finalPrice, displayQty, finalSpecs)
+    // Quick add: the customer has their own file (to be uploaded after payment); design service is on the full page
+    addToCart(selected.id, selected.name, finalPrice, displayQty, finalSpecs, { hasOwnDesign: true, designCostTotal: 0, designAddons: [] })
 
-    if (designType) {
-      const state = useCartStore.getState()
-      const latest = state.items[state.items.length - 1]
-      if (latest) {
-        state.updateDesign(latest.cartItemId, {
-          type: designType,
-          fileUrl: null,
-          link: designType === 'link' ? designLink : null,
-          brief: designType === 'request' ? designBrief : null,
-        })
-      }
-    }
     setSelected(null)
   }
 
@@ -539,52 +516,10 @@ export default function ShopPageClient({
                       </div>
                     </div>
 
-                    {/* Design section */}
-                    <div>
-                      <div style={{ fontFamily: 'Montserrat', fontWeight: 600, fontSize: 13, marginBottom: 6, color: 'var(--text-primary)' }}>
-                        Your Design
-                        <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 400, marginLeft: 6 }}>(optional — can send via WhatsApp later)</span>
-                      </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 10 }}>
-                        {[
-                          { type: 'upload', icon: <Upload size={13} />, label: 'Upload' },
-                          { type: 'link', icon: <LinkIcon size={13} />, label: 'Share link' },
-                          { type: 'request', icon: <Pen size={13} />, label: 'Request' },
-                        ].map(opt => (
-                          <button key={opt.type}
-                            onClick={() => setDesignType(designType === opt.type as any ? null : opt.type as any)}
-                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '8px 6px', borderRadius: 8, border: `2px solid ${designType === opt.type ? 'var(--red)' : 'var(--border-color)'}`, background: designType === opt.type ? '#FDEDEC' : '#f7f7f5', color: designType === opt.type ? 'var(--red)' : 'var(--text-secondary)', fontSize: 12, fontFamily: 'Montserrat', fontWeight: 600, cursor: 'pointer' }}>
-                            {opt.icon} {opt.label}
-                          </button>
-                        ))}
-                      </div>
-                      {designType === 'upload' && (
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', border: '2px dashed #e8e8e5', borderRadius: 9, cursor: 'pointer', background: '#f7f7f5', fontSize: 12, color: '#6B6B6B' }}>
-                          <Upload size={14} />
-                          <input type="file" accept=".png,.jpg,.jpeg,.pdf,.ai,.psd,.cdr" style={{ display: 'none' }}
-                            onChange={e => setDesignFile(e.target.files?.[0] || null)} />
-                          {designFile ? <span style={{ color: '#10b981', fontWeight: 600 }}>✓ {designFile.name}</span> : 'Click to upload (PNG, PDF, AI, PSD, CDR)'}
-                        </label>
-                      )}
-                      {designType === 'link' && (
-                        <input value={designLink} onChange={e => setDesignLink(e.target.value)}
-                          placeholder="Paste Google Drive, Dropbox or WeTransfer link..."
-                          className="form-input" style={{ fontSize: 12 }} />
-                      )}
-                      {designType === 'request' && (
-                        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 7 }}>
-                          {[
-                            { field: 'businessName', placeholder: 'Business name' },
-                            { field: 'colors', placeholder: 'Preferred colours (e.g. red, black, gold)' },
-                            { field: 'slogan', placeholder: 'Slogan or tagline (optional)' },
-                            { field: 'notes', placeholder: 'Notes for designer (optional)' },
-                          ].map(({ field, placeholder }) => (
-                            <input key={field} value={designBrief[field] || ''}
-                              onChange={e => setDesignBrief(p => ({ ...p, [field]: e.target.value }))}
-                              placeholder={placeholder} className="form-input" style={{ fontSize: 12 }} />
-                          ))}
-                        </div>
-                      )}
+                    {/* Design: one simple path. The file is uploaded after payment. */}
+                    <div role="note" style={{ fontSize: 12, lineHeight: 1.6, color: 'var(--text-secondary)', background: '#f7f7f5', border: '1px solid #e8e8e5', borderRadius: 9, padding: '10px 12px' }}>
+                      <strong style={{ color: 'var(--text-primary)' }}>Your design:</strong> you can upload your file after payment; we won&apos;t start printing until we have it.
+                      {' '}Need us to design it? <Link href={selected.slug ? `/products/${selected.slug}` : '/shop'} style={{ color: 'var(--red)', fontWeight: 600 }}>Open the full product page</Link> and choose &quot;No, I need design&quot;.
                     </div>
 
                     {/* Live Calculator V2

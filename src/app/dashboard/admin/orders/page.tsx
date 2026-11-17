@@ -5,6 +5,8 @@ import { useAdminOrdersStore } from '@/store/adminOrdersStore'
 import { supabase } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { OrderStatus } from '@/store/ordersStore'
+import DesignUploadStep from '@/components/orders/DesignUploadStep'
+import { orderAwaitingDesign, PRODUCTION_STATUSES } from '@/lib/design-status'
 import { RefreshCw, FileText, MessageSquare, CheckCircle, Image, ExternalLink, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react'
 
 const STATUSES: (OrderStatus | 'all')[] = ['all', 'pending', 'payment_review', 'paid', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded']
@@ -79,6 +81,7 @@ export default function AdminOrdersPage() {
   const [noteInput, setNoteInput] = useState<Record<string, string>>({})
   const [savingNote, setSavingNote] = useState<string | null>(null)
   const [filterDesign, setFilterDesign] = useState(false)
+  const [filterAwaitingFile, setFilterAwaitingFile] = useState(false)
   const [paidDialog, setPaidDialog] = useState<{ orderId: string; label: string; total: number } | null>(null)
   const [paidNote, setPaidNote] = useState('')
   const [paidSaving, setPaidSaving] = useState(false)
@@ -194,6 +197,12 @@ export default function AdminOrdersPage() {
           style={{ padding: '6px 16px', borderRadius: 20, border: `1px solid ${filterDesign ? '#7c3aed' : 'var(--border)'}`, background: filterDesign ? '#ede9fe' : 'white', color: filterDesign ? '#7c3aed' : 'var(--gray)', fontSize: 13, fontWeight: filterDesign ? 700 : 400, fontFamily: 'Montserrat', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
           🎨 Needs Design Work
         </button>
+        <button
+          onClick={() => setFilterAwaitingFile(f => !f)}
+          aria-pressed={filterAwaitingFile}
+          style={{ marginLeft: 8, padding: '6px 16px', borderRadius: 20, border: `1px solid ${filterAwaitingFile ? '#d97706' : 'var(--border)'}`, background: filterAwaitingFile ? '#fef3c7' : 'white', color: filterAwaitingFile ? '#92400e' : 'var(--gray)', fontSize: 13, fontWeight: filterAwaitingFile ? 700 : 400, fontFamily: 'Montserrat', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          📎 Awaiting design file ({realOrders.filter(o => !['cancelled', 'refunded'].includes(o.status) && orderAwaitingDesign((o as any).items)).length})
+        </button>
         {filterDesign && (
           <span style={{ fontSize: 12, color: 'var(--gray)', marginLeft: 10 }}>
             Showing orders where customer requested design service
@@ -212,8 +221,10 @@ export default function AdminOrdersPage() {
         <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
           {filteredOrders
             .filter(order => !filterDesign || (order.items || []).some((i: any) => itemNeedsDesign(i)))
+            .filter(order => !filterAwaitingFile || (!['cancelled', 'refunded'].includes(order.status) && orderAwaitingDesign((order as any).items)))
             .map(order => {
             const isExpanded = expanded === order.id
+            const awaitingFile = !['cancelled', 'refunded'].includes(order.status) && orderAwaitingDesign((order as any).items)
             const isBankPending = order.status === 'pending' && !(order as any).paystack_reference && !(order as any).receipt_verified
             const designItems = (order.items || []).filter((i: any) => i.design_file_url || i.design_link || i.design_brief)
             const needsDesignCount = (order.items || []).filter((i: any) => itemNeedsDesign(i)).length
@@ -249,6 +260,11 @@ export default function AdminOrdersPage() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: '#ede9fe', borderRadius: 20, padding: '3px 10px' }}>
                         <Image size={12} color="#7c3aed" />
                         <span style={{ fontSize: 11, fontWeight: 700, color: '#7c3aed' }}>{designItems.length} design file{designItems.length > 1 ? 's' : ''}</span>
+                      </div>
+                    )}
+                    {awaitingFile && (
+                      <div style={{ background: '#fef3c7', borderRadius: 20, padding: '3px 10px', border: '1px solid #f59e0b' }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: '#92400e' }}>📎 Awaiting design file</span>
                       </div>
                     )}
                     {(order as any).is_test && (
@@ -296,7 +312,7 @@ export default function AdminOrdersPage() {
                       onChange={e => { e.stopPropagation(); if (e.target.value === 'paid') askMarkPaid(order); else updateOrderStatus(order.id, e.target.value as OrderStatus) }}
                       style={{ padding: '6px 12px', borderRadius: 8, border: `1px solid ${statusColor[order.status]}`, background: `${statusColor[order.status]}15`, color: statusColor[order.status], fontSize: 13, fontWeight: 600, fontFamily: 'Montserrat', cursor: 'pointer', outline: 'none' }}>
                       {STATUSES.filter(s => s !== 'all').map(s => (
-                        <option key={s} value={s} style={{ background: 'white', color: '#1A1A1A' }}>{statusLabel(s)}</option>
+                        <option key={s} value={s} disabled={awaitingFile && PRODUCTION_STATUSES.includes(s)} style={{ background: 'white', color: '#1A1A1A' }}>{statusLabel(s)}{awaitingFile && PRODUCTION_STATUSES.includes(s) ? ' (needs design file)' : ''}</option>
                       ))}
                     </select>
                     <span style={{ color: 'var(--gray)', fontSize: 18, transition: 'transform 0.2s', transform: isExpanded ? 'rotate(180deg)' : 'none', display: 'inline-block' }}>⌄</span>
@@ -306,6 +322,14 @@ export default function AdminOrdersPage() {
                 {/* Expanded detail */}
                 {isExpanded && (
                   <div style={{ borderTop: '1px solid var(--border)', background: 'var(--light)' }}>
+
+                    {awaitingFile && (
+                      <div style={{ padding: '16px 24px 0' }}>
+                        <DesignUploadStep adminMode orderId={order.id} orderRef={order.job_number || order.id.slice(0, 8).toUpperCase()}
+                          items={(order.items || []).map((i: any) => ({ id: i.id, name: i.name, has_own_design: i.has_own_design, design_file_url: i.design_file_url, design_link: i.design_link }))}
+                          onChanged={fetchAllOrders} />
+                      </div>
+                    )}
 
                     {/* Customer + order info grid */}
                     <div style={{ padding: '20px 24px', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, borderBottom: '1px solid var(--border)' }} className="order-expand-grid">

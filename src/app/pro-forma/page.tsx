@@ -112,7 +112,7 @@ export default function ProformaPage() {
         </section>
 
         <section style={{ marginTop: 20, fontSize: 12, lineHeight: 1.6 }}>
-          This is a pro-forma invoice (a price quotation), not a receipt. It is valid for {PROFORMA_VALIDITY_DAYS} days from the date above. Production begins once full payment is received; see our Terms of Service at printhub.cchumedia.com/terms.
+          This is a pro-forma invoice (a price quotation), not a receipt. It is valid for {PROFORMA_VALIDITY_DAYS} days from the date above. Production begins once full payment is received and your design file has been sent to us (you can upload it after paying); see our Terms of Service at printhub.cchumedia.com/terms.
         </section>
       </article>
 

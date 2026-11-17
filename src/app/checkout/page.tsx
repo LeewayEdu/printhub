@@ -319,6 +319,11 @@ export default function CheckoutPage() {
                         {item.specs && Object.entries(item.specs).map(([k, v]) => (
                           <span key={k} style={{ fontSize: 12, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 6, padding: '2px 8px', color: 'var(--text-secondary)', marginRight: 4, display: 'inline-block', marginBottom: 2 }}>{k}: {String(v)}</span>
                         ))}
+                        {item.designPricing?.hasOwnDesign === true && !item.design?.fileUrl && !item.design?.link && (
+                          <div style={{ fontSize: 12, color: '#1e3a8a', marginTop: 4, fontWeight: 600 }}>
+                            📎 Design file: you will upload it after payment
+                          </div>
+                        )}
                         {item.design?.type && (
                           <div style={{ fontSize: 12, color: '#10b981', marginTop: 4, fontWeight: 600 }}>
                             {item.design.type === 'upload' ? '✓ Design uploaded' : item.design.type === 'link' ? '✓ Design link provided' : '✓ Design brief submitted'}

@@ -6,15 +6,17 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
 import { useCartStore } from '@/store/cartStore'
 import { RefreshCw, ShoppingCart } from 'lucide-react'
+import DesignUploadStep from '@/components/orders/DesignUploadStep'
+import { orderAwaitingDesign } from '@/lib/design-status'
 import toast from 'react-hot-toast'
 
 const statusColor: Record<string, string> = {
-  pending: '#f59e0b', paid: '#3b82f6', processing: '#8b5cf6',
+  pending: '#f59e0b', payment_review: '#dc2626', paid: '#3b82f6', processing: '#8b5cf6',
   shipped: '#06b6d4', delivered: '#10b981', cancelled: '#ef4444', refunded: '#6b7280',
 }
 
 const statusLabel: Record<string, string> = {
-  pending: '⏳ Pending', paid: '💳 Paid', processing: '🏭 In Production',
+  pending: '⏳ Pending', payment_review: '⚠️ Payment under review', paid: '💳 Paid', processing: '🏭 In Production',
   shipped: '🚚 Shipped', delivered: '✅ Delivered', cancelled: '❌ Cancelled', refunded: '↩️ Refunded',
 }
 
@@ -55,6 +57,9 @@ export default function OrdersPage() {
     )
 
     setOrders(withItems)
+    // Reminder emails link here with ?order=<id>: open that order straight away
+    const wanted = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('order') : null
+    if (wanted && withItems.some(o => o.id === wanted)) setExpanded(wanted)
     setLoading(false)
   }
 
@@ -70,6 +75,8 @@ export default function OrdersPage() {
           item.price,
           item.displayQty || `${item.quantity || 1} pcs`,
           item.specs || {},
+          null,
+          true,   // silent: the reorder shows its own message
         )
         added++
       } catch (e) {
@@ -138,6 +145,11 @@ export default function OrdersPage() {
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {orderAwaitingDesign(order.items) && !['cancelled', 'refunded'].includes(order.status) && (
+                  <span style={{ display: 'inline-flex', padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 700, fontFamily: 'Montserrat', background: '#fef3c7', color: '#92400e', border: '1px solid #f59e0b' }}>
+                    📎 Awaiting your design file
+                  </span>
+                )}
                 <span style={{ display: 'inline-flex', padding: '5px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600, fontFamily: 'Montserrat', background: `${statusColor[order.status] || '#999'}20`, color: statusColor[order.status] || '#999' }}>
                   {statusLabel[order.status] || order.status}
                 </span>
@@ -148,6 +160,14 @@ export default function OrdersPage() {
             {/* Expanded detail */}
             {expanded === order.id && (
               <div style={{ borderTop: '1px solid var(--border)', background: 'var(--light)' }}>
+
+                {orderAwaitingDesign(order.items) && !['cancelled', 'refunded'].includes(order.status) && (
+                  <div style={{ padding: '16px 24px 0' }}>
+                    <DesignUploadStep orderId={order.id} orderRef={order.job_number || order.id.slice(0, 8).toUpperCase()}
+                      items={order.items.map((i: any) => ({ id: i.id, name: i.name, has_own_design: i.has_own_design, design_file_url: i.design_file_url, design_link: i.design_link }))}
+                      onChanged={load} />
+                  </div>
+                )}
 
                 {/* Items list */}
                 <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)' }}>

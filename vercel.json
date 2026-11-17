@@ -1,5 +1,6 @@
 {
   "crons": [
-    { "path": "/api/cron/reconcile", "schedule": "0 7 * * *" }
+    { "path": "/api/cron/reconcile", "schedule": "0 7 * * *" },
+    { "path": "/api/cron/design-reminders", "schedule": "0 8 * * *" }
   ]
 }

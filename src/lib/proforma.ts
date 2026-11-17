@@ -63,7 +63,7 @@ export function buildProforma(items: ProformaCartItem[], delivery: ProformaDeliv
       qtyLabel: i.displayQty,
       unitPrice: qty ? Math.round(printPart / qty) : null,
       designFee,
-      designNote: i.designPricing ? (i.designPricing.hasOwnDesign ? "Customer's own design file" : designFee > 0 ? 'Design by PrintHub' : 'Design included') : '',
+      designNote: i.designPricing ? (i.designPricing.hasOwnDesign ? "Customer's own design file (can be sent after payment)" : designFee > 0 ? 'Design by PrintHub' : 'Design included') : '',
       total: i.price,
     }
   })

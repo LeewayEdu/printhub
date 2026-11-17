@@ -2,6 +2,7 @@
 
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase/client';
+import { productionBlocked } from '@/lib/design-status';
 import toast from 'react-hot-toast';
 import { Order, OrderStatus } from './ordersStore';
 
@@ -57,6 +58,13 @@ export const useAdminOrdersStore = create<AdminOrdersState>((set, get) => ({
   updateOrderStatus: async (orderId, status) => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
+
+    // Production cannot start while the customer's design file or link is still missing
+    const current = get().orders.find(o => o.id === orderId) as any;
+    if (current && productionBlocked(current.items, status)) {
+      toast.error('This order is still waiting for the customer\'s design file. Attach a file or link first.');
+      return;
+    }
 
     const { error } = await supabase
       .from('orders')

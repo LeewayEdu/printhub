@@ -16,8 +16,8 @@ const STEPS = [
     desc: 'Visit the Shop page and browse our full catalogue of print products. Click any product to open the order modal. Select your specs — paper weight, lamination, size, finishing — and watch the price update live. For banner printing, enter your width and height in feet and the system calculates the total automatically.',
   },
   {
-    num: '03', icon: '🎨', title: 'Submit your design',
-    desc: 'At checkout, for each item you can upload your design file (PNG, PDF, AI, PSD), share a Google Drive or Dropbox link, or request our design team to create one for you by filling a simple brief with your business name, colours, and notes.',
+    num: '03', icon: '🎨', title: 'Tell us about your design',
+    desc: 'On the product page, choose "Yes, I have my file" or "No, I need design". If you have a file you do not need it yet: you can upload it after you pay. If you need design, pick the design option and its fee is added before you pay.',
   },
   {
     num: '04', icon: '🚚', title: 'Choose your delivery method',
@@ -25,11 +25,11 @@ const STEPS = [
   },
   {
     num: '05', icon: '💳', title: 'Pay securely via Paystack',
-    desc: 'Pay online using your debit card, bank transfer, or USSD via Paystack — Nigeria\'s most trusted payment gateway. Your order is confirmed immediately after payment.',
+    desc: 'Pay online using your debit card, bank transfer, or USSD via Paystack — Nigeria\'s most trusted payment gateway. Your order is confirmed as soon as we have verified your payment.',
   },
   {
-    num: '06', icon: '🏭', title: 'We print and produce',
-    desc: 'Our team reviews your order and design, confirms details via WhatsApp if needed, and goes into production. You can track your order status in real time from your dashboard.',
+    num: '06', icon: '🏭', title: 'Upload your design, approve the proof, we print',
+    desc: 'After paying, upload your design file from the order confirmation page or from My Orders (PDF, PNG, JPG, AI, PSD, EPS, TIFF or CDR, or a Google Drive or Dropbox link). We will not start printing until we have it. Our team then reviews it, sends a proof, confirms details via WhatsApp if needed, and goes into production. You can track your order status in real time from your dashboard.',
   },
   {
     num: '07', icon: '📦', title: 'Receive your order',

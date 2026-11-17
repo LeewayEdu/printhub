@@ -11,8 +11,12 @@ export const FAQS = [
     a: 'We accept PDF, PNG, JPG, AI (Adobe Illustrator), PSD (Photoshop), and CorelDRAW files. For best print quality, files should be at 300 DPI or higher. PDF is preferred.',
   },
   {
+    q: 'Do I need my design file before I pay?',
+    a: 'No. If you have your own file you can check out first and upload it afterwards, from the order confirmation page or from My Orders. We will not start printing until we have it, and we will send you a reminder by email if it has not arrived. After you upload, we send a proof, and printing starts once you approve it.',
+  },
+  {
     q: 'What if I don\'t have a design?',
-    a: 'No problem. At checkout you can request our design team to create one for you. Fill in a brief with your business name, preferred colours, slogan, and any notes or reference images. Design fees vary by product and are included in some packages.',
+    a: 'No problem. On the product page choose "No, I need design" and our design team will create one for you. Fill in a brief with your business name, preferred colours, slogan, and any notes or reference images. Design fees vary by product and are included in some packages.',
   },
   {
     q: 'Can I order from outside Abuja?',

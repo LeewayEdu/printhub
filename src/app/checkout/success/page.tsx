@@ -7,11 +7,19 @@ import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import { supabase } from '@/lib/supabase/client'
 import { CheckCircle, Package, MessageCircle } from 'lucide-react'
+import DesignUploadStep, { DesignReceivedNote } from '@/components/orders/DesignUploadStep'
+import { orderAwaitingDesign } from '@/lib/design-status'
 
 function OrderSuccessContent() {
   const searchParams = useSearchParams()
   const orderId = searchParams.get('order')
   const [order, setOrder] = useState<any>(null)
+  const [items, setItems] = useState<any[]>([])
+  const loadItems = async () => {
+    if (!orderId) return
+    const { data } = await supabase.from('order_items').select('id, name, has_own_design, design_file_url, design_link').eq('order_id', orderId)
+    setItems(data || [])
+  }
 
   // A Paystack order stays 'pending' until the SERVER has verified the payment with Paystack.
   // Until then this page says "verifying" and re-checks (asking the server to verify again).
@@ -23,6 +31,7 @@ function OrderSuccessContent() {
       const { data } = await supabase.from('orders').select('*').eq('id', orderId).single()
       if (cancelled || !data) return
       setOrder(data)
+      loadItems()
       const waiting = data.paystack_reference && ['pending', 'payment_review'].includes(data.status)
       if (waiting && tries < 15) {
         tries++
@@ -41,6 +50,8 @@ function OrderSuccessContent() {
 
   const verifying = !!order && !!order.paystack_reference && order.status === 'pending'
   const inReview = !!order && order.status === 'payment_review'
+  const awaitingDesign = orderAwaitingDesign(items)
+  const hadOwnDesign = items.some(i => i.has_own_design === true)
 
   return (
     <>
@@ -58,7 +69,9 @@ function OrderSuccessContent() {
               ? 'We have received your order and are confirming your payment with Paystack. This usually takes a few seconds. Please keep this page open.'
               : inReview
                 ? 'Your payment amount did not match your order total, so our team is checking it. We will contact you shortly.'
-                : 'Thank you for your order. We have received it and will begin processing shortly.'}
+                : awaitingDesign
+                  ? 'Thank you for your order. The last step is to send us your design file below. We will not start printing until we have it.'
+                  : 'Thank you for your order. We have received it and will begin processing shortly.'}
           </p>
           {order && (
             <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 12, padding: '20px 24px', marginBottom: 28, textAlign: 'left' as const }}>
@@ -81,6 +94,12 @@ function OrderSuccessContent() {
               )}
             </div>
           )}
+          {order && awaitingDesign && !['cancelled', 'refunded'].includes(order.status) && (
+            <div style={{ marginBottom: 28 }}>
+              <DesignUploadStep orderId={order.id} orderRef={order.job_number || order.id.slice(0, 8).toUpperCase()} items={items} onChanged={loadItems} />
+            </div>
+          )}
+          {order && !awaitingDesign && hadOwnDesign && <div style={{ marginBottom: 28 }}><DesignReceivedNote /></div>}
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' as const }}>
             <Link href="/dashboard/orders"
               style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 24px', background: 'var(--red)', color: 'white', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>
