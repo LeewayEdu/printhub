@@ -30,6 +30,7 @@ export async function GET(req: NextRequest) {
         grantedAt: e.granted_at, revoked: !!e.revoked_at,
         downloadsLeft: Math.max(0, Number(e.max_downloads) - Number(e.download_count)), maxDownloads: e.max_downloads,
         pdf: files.some((f: any) => f.ebook_pdf_path), epub: files.some((f: any) => f.ebook_epub_path),
+        preparing: e.stamp_status !== 'ready' && !e.revoked_at,
       }
     }),
   })

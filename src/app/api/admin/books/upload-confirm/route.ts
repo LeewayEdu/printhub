@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin, isResponse } from '@/lib/admin-auth'
-import { isUploadKind, pathBelongsToBook, sniffMatches, UPLOAD_RULES } from '@/lib/books/uploads'
+import { isUploadKind, limitFor, pathBelongsToBook, sniffMatches, UPLOAD_RULES } from '@/lib/books/uploads'
+import { maxEbookBytes } from '@/lib/books/stamp-queue'
 
 // Step 2 of an admin upload: look at the file that was actually stored (first bytes and size), and only
 // then record it on the book. A file that fails is deleted. Private files are never given a public URL.
@@ -23,7 +24,8 @@ export async function POST(req: NextRequest) {
   const bytes = new Uint8Array(await head.arrayBuffer())
   const total = Number((head.headers.get('content-range') || '').split('/')[1] || head.headers.get('content-length') || 0)
   if (!sniffMatches(b.kind, bytes)) return discard('The file content does not match its type, so it was rejected.')
-  if (total > rule.maxBytes) return discard('The file is larger than the limit, so it was rejected.')
+  const { data: settings } = await auth.db.from('books_settings').select('*').maybeSingle()
+  if (total > limitFor(b.kind, maxEbookBytes(settings))) return discard('The file is larger than the limit, so it was rejected.')
 
   if (b.kind === 'cover' || b.kind === 'preview') {
     const url = auth.db.storage.from('book-public').getPublicUrl(b.path).data.publicUrl

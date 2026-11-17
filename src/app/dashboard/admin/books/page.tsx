@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { supabase } from '@/lib/supabase/client'
-import { UPLOAD_RULES, validateDeclared, type UploadKind } from '@/lib/books/uploads'
+import { UPLOAD_RULES, validateDeclared, mb, type UploadKind } from '@/lib/books/uploads'
 
 type Tab = 'books' | 'authors' | 'settings'
 const card: React.CSSProperties = { background: 'white', border: '1px solid var(--border)', borderRadius: 12, padding: 16 }
@@ -85,7 +85,7 @@ export default function AdminBooksPage() {
   const upload = async (kind: UploadKind, file: File) => {
     let id = editing.id
     if (!id) { id = await saveBook(); if (!id) return }
-    const problem = validateDeclared(kind, file.name, file.size, file.type)
+    const problem = validateDeclared(kind, file.name, file.size, file.type, maxBytes)
     if (problem) { toast.error(problem); return }
     setUploading(kind)
     try {
@@ -133,6 +133,8 @@ export default function AdminBooksPage() {
   }
 
   if (!ok || !data) return <div role="status" style={{ padding: 40, textAlign: 'center' }}>Loading…</div>
+  const maxBytes = (Number(data.settings?.max_ebook_mb) || 30) * 1024 * 1024      // configured ebook size limit (default 30 MB)
+  const uploadLabel = (k: UploadKind) => (k === 'ebook_pdf' || k === 'ebook_epub') ? `${UPLOAD_RULES[k].label} (up to ${mb(maxBytes)})` : UPLOAD_RULES[k].label
   const set = (k: string, v: any) => setEditing((x: any) => ({ ...x, [k]: v }))
   const setRule = (k: string, v: any) => setEditing((x: any) => ({ ...x, hasRule: true, rule: { ...x.rule, [k]: v } }))
   const setFormat = (type: string, k: string, v: any) => setEditing((x: any) => ({ ...x, formats: x.formats.map((f: any) => f.type === type ? { ...f, [k]: v } : f) }))
@@ -218,7 +220,7 @@ export default function AdminBooksPage() {
               const have = k === 'cover' ? !!editing.cover_url : k === 'preview' ? !!editing.preview_url : k === 'ebook_pdf' ? editing.formats.find((f: any) => f.type === 'ebook')?.has_pdf : editing.formats.find((f: any) => f.type === 'ebook')?.has_epub
               return (
                 <div key={k} style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 10, flexWrap: 'wrap' }}>
-                  <div style={{ flex: '1 1 260px' }}><label style={lab} htmlFor={`up-${k}`}>{UPLOAD_RULES[k].label}</label>
+                  <div style={{ flex: '1 1 260px' }}><label style={lab} htmlFor={`up-${k}`}>{uploadLabel(k)}</label>
                     <input id={`up-${k}`} type="file" disabled={uploading === k} accept={UPLOAD_RULES[k].exts.map(e => `.${e}`).join(',')} onChange={e => { const f = e.target.files?.[0]; if (f) upload(k, f); e.target.value = '' }} /></div>
                   <span style={{ fontSize: 12, fontWeight: 700, color: have ? '#166534' : '#b45309' }}>{uploading === k ? 'Uploading…' : have ? 'Uploaded' : 'Not uploaded'}</span>
                 </div>
@@ -312,6 +314,11 @@ export default function AdminBooksPage() {
             <p style={{ fontSize: 12, color: 'var(--gray)', marginBottom: 12 }}>Separate from the 10% / 5% / 3% product tiers, which do not apply to book lines. Default 0%.</p>
             <SettingsRate initial={data.settings?.book_affiliate_rate ?? 0} onSave={async v => { const r = await api({ action: 'save_settings', book_affiliate_rate: v }); r.ok ? toast.success('Saved') : toast.error(r.error) }} />
           </div>
+          <div style={card}>
+            <h2 style={{ fontSize: 16, marginBottom: 4 }}>Maximum ebook file size</h2>
+            <p style={{ fontSize: 12, color: 'var(--gray)', marginBottom: 12 }}>Applies to ebook PDF and EPUB uploads. Large files take longer to stamp with the buyer\'s name. Default 30 MB.</p>
+            <SettingsRate label="Maximum size (MB)" max={500} initial={data.settings?.max_ebook_mb ?? 30} onSave={async v => { const r = await api({ action: 'save_settings', max_ebook_mb: v }); r.ok ? toast.success('Saved') : toast.error(r.error) }} />
+          </div>
         </div>
       )}
     </div>
@@ -325,7 +332,7 @@ function DefaultRule({ initial, onSave }: { initial: any; onSave: (r: any) => vo
     {f('option_name', 'Option name')}{f('ebook_author_share_pct', 'Ebook author share %')}{f('print_author_share_pct', 'Print author share %')}{f('referral_share_pct', 'Referral share %')}{f('hold_days', 'Hold days')}{f('minimum_payout', 'Minimum payout')}</div>
     <button style={{ ...btn, marginTop: 12 }} onClick={() => onSave(r)}>Save default rule</button></div>)
 }
-function SettingsRate({ initial, onSave }: { initial: number; onSave: (v: number) => void }) {
+function SettingsRate({ initial, onSave, label = 'Book affiliate rate %', max = 100 }: { initial: number; onSave: (v: number) => void; label?: string; max?: number }) {
   const [v, setV] = useState(String(initial))
-  return (<div style={{ display: 'flex', gap: 10, alignItems: 'end' }}><div><label style={lab}>Book affiliate rate %</label><input className="form-input" type="number" min={0} max={100} value={v} onChange={e => setV(e.target.value)} /></div><button style={btn} onClick={() => onSave(Number(v))}>Save</button></div>)
+  return (<div style={{ display: 'flex', gap: 10, alignItems: 'end' }}><div><label style={lab}>{label}</label><input className="form-input" type="number" min={0} max={max} value={v} onChange={e => setV(e.target.value)} /></div><button style={btn} onClick={() => onSave(Number(v))}>Save</button></div>)
 }

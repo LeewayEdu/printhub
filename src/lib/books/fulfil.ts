@@ -8,6 +8,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { SITE_URL } from '@/lib/site-url'
 import { resendMailer, type Mailer } from '@/lib/design-reminders'
 import { DEFAULT_MAX_DOWNLOADS } from './download'
+import { triggerStampJob } from './stamp-queue'
 import { computeRoyalty, negate, pickRule, printAuthorShare, type RoyaltyRule } from './royalty'
 
 export const PAID_OR_LATER = ['paid', 'processing', 'shipped', 'delivered']
@@ -16,7 +17,7 @@ const isDuplicate = (e: any) => e?.code === '23505'
 
 export interface FulfilResult { state: 'not_paid' | 'no_books' | 'done' | 'error'; granted: number; ledger: number; emailed: boolean; detail?: string }
 
-export async function fulfilBooksForOrder(db: SupabaseClient, orderId: string, deps: { mailer?: Mailer; now?: Date } = {}): Promise<FulfilResult> {
+export async function fulfilBooksForOrder(db: SupabaseClient, orderId: string, deps: { mailer?: Mailer; now?: Date; trigger?: () => Promise<unknown> } = {}): Promise<FulfilResult> {
   const now = deps.now || new Date()
   const mailer = deps.mailer || resendMailer
   const none = (state: FulfilResult['state'], detail?: string): FulfilResult => ({ state, granted: 0, ledger: 0, emailed: false, detail })
@@ -97,7 +98,10 @@ export async function fulfilBooksForOrder(db: SupabaseClient, orderId: string, d
     }
   }
 
-  // 3. one confirmation email, only when something was newly granted
+  // 3. queue the buyer-stamped copies: the job route makes them in the background, nothing here waits for it
+  if (granted > 0) { try { await (deps.trigger || (() => triggerStampJob()))() } catch { /* the daily sweep and the first download request retry it */ } }
+
+  // 4. one confirmation email, only when something was newly granted
   let emailed = false
   if (granted > 0 && order.email) {
     const list = grantedTitles.map(t => `<li>${esc(t)}</li>`).join('')
@@ -106,7 +110,7 @@ export async function fulfilBooksForOrder(db: SupabaseClient, orderId: string, d
 <div style="padding:22px 24px;font-size:14px;line-height:1.7;color:#222">
 <p>Hi ${esc(order.first_name || 'there')}, thank you for your purchase.</p><ul>${list}</ul>
 <p><a href="${SITE_URL}/dashboard/my-books" style="display:inline-block;background:#C0392B;color:#fff;text-decoration:none;font-weight:700;padding:11px 22px;border-radius:8px">Go to My books</a></p>
-<p style="font-size:12px;color:#888">Your downloads are personal to your account and each book can be downloaded a limited number of times.</p>
+<p style="font-size:13px;color:#555">Your personal copy is prepared for you after payment, so it can take a few minutes to appear in My books.</p><p style="font-size:12px;color:#888">Your downloads are personal to your account and each book can be downloaded a limited number of times.</p>
 </div></div>`
     emailed = await mailer(order.email, 'Your C-Chu Books purchase is ready to download', html)
   }

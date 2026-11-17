@@ -9,21 +9,28 @@ export type UploadKind = 'cover' | 'preview' | 'ebook_pdf' | 'ebook_epub'
 export const UPLOAD_RULES: Record<UploadKind, { bucket: 'book-public' | 'book-files'; exts: string[]; mimes: string[]; maxBytes: number; label: string }> = {
   cover:      { bucket: 'book-public', exts: ['jpg', 'jpeg', 'png', 'webp'], mimes: ['image/jpeg', 'image/png', 'image/webp'], maxBytes: 5 * 1024 * 1024, label: 'Cover image (JPG, PNG or WebP, up to 5 MB)' },
   preview:    { bucket: 'book-public', exts: ['pdf'], mimes: ['application/pdf'], maxBytes: 15 * 1024 * 1024, label: 'Preview sample (PDF, up to 15 MB)' },
-  ebook_pdf:  { bucket: 'book-files', exts: ['pdf'], mimes: ['application/pdf'], maxBytes: 100 * 1024 * 1024, label: 'Ebook PDF (up to 100 MB)' },
-  ebook_epub: { bucket: 'book-files', exts: ['epub'], mimes: ['application/epub+zip'], maxBytes: 50 * 1024 * 1024, label: 'Ebook EPUB (up to 50 MB)' },
+  // ebook size limit: maxBytes here is only the fallback; the real limit is books_settings.max_ebook_mb (see maxEbookBytes)
+  ebook_pdf:  { bucket: 'book-files', exts: ['pdf'], mimes: ['application/pdf'], maxBytes: 30 * 1024 * 1024, label: 'Ebook PDF' },
+  ebook_epub: { bucket: 'book-files', exts: ['epub'], mimes: ['application/epub+zip'], maxBytes: 30 * 1024 * 1024, label: 'Ebook EPUB' },
 }
+
+/** The size limit that applies to this kind: the configured ebook limit for ebook files, the fixed one for images and the sample. */
+export const limitFor = (kind: UploadKind, ebookMaxBytes?: number) =>
+  (kind === 'ebook_pdf' || kind === 'ebook_epub') && ebookMaxBytes ? ebookMaxBytes : UPLOAD_RULES[kind].maxBytes
+
+export const mb = (bytes: number) => `${Math.round(bytes / 1024 / 1024)} MB`
 
 export const isUploadKind = (k: unknown): k is UploadKind => typeof k === 'string' && k in UPLOAD_RULES
 
 export const extOf = (filename: string) => (filename.split('.').pop() || '').toLowerCase().replace(/[^a-z0-9]/g, '')
 
 /** Checks what the browser says about the file. Returns an error message, or null when acceptable. */
-export function validateDeclared(kind: UploadKind, filename: string, size: number, contentType: string): string | null {
+export function validateDeclared(kind: UploadKind, filename: string, size: number, contentType: string, ebookMaxBytes?: number): string | null {
   const r = UPLOAD_RULES[kind]
   if (!r.exts.includes(extOf(filename))) return `Not an accepted file type. Expected: ${r.label}.`
   if (contentType && !r.mimes.includes(contentType.toLowerCase())) return `The file type looks wrong. Expected: ${r.label}.`
   if (!Number.isFinite(size) || size <= 0) return 'The file is empty.'
-  if (size > r.maxBytes) return `The file is too large. Limit: ${r.label}.`
+  if (size > limitFor(kind, ebookMaxBytes)) return `The file is too large (${mb(size)}). The limit for this file is ${mb(limitFor(kind, ebookMaxBytes))}.`
   return null
 }
 

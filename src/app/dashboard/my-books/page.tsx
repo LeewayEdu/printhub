@@ -9,7 +9,7 @@ import { supabase } from '@/lib/supabase/client'
 
 interface MyBook {
   entitlementId: string; title: string; slug: string | null; cover: string | null; grantedAt: string
-  revoked: boolean; downloadsLeft: number; maxDownloads: number; pdf: boolean; epub: boolean
+  revoked: boolean; downloadsLeft: number; maxDownloads: number; pdf: boolean; epub: boolean; preparing?: boolean
 }
 
 export default function MyBooksPage() {
@@ -36,6 +36,7 @@ export default function MyBooksPage() {
         body: JSON.stringify({ entitlementId: b.entitlementId, type }),
       })
       const json = await res.json().catch(() => ({}))
+      if (res.status === 202) { toast(json.message || 'Preparing your copy, check back in a few minutes.', { icon: '⏳' }); load(); return }
       if (!res.ok) { toast.error(json.error || 'Download failed'); return }
       window.location.href = json.url          // short-lived signed link (about 10 minutes)
       load()
@@ -64,7 +65,7 @@ export default function MyBooksPage() {
               <div style={{ flex: 1, minWidth: 180 }}>
                 <div style={{ fontFamily: 'Montserrat', fontWeight: 700 }}>{b.slug ? <Link href={`/books/${b.slug}`} style={{ color: 'inherit' }}>{b.title}</Link> : b.title}</div>
                 <div style={{ fontSize: 12, color: 'var(--gray)', marginTop: 2 }}>
-                  {b.revoked ? 'Access withdrawn' : `${b.downloadsLeft} of ${b.maxDownloads} downloads left`}
+                  {b.revoked ? 'Access withdrawn' : b.preparing ? 'Preparing your copy, check back in a few minutes' : `${b.downloadsLeft} of ${b.maxDownloads} downloads left`}
                 </div>
               </div>
               {!b.revoked && (

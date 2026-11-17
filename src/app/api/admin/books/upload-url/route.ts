@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin, isResponse } from '@/lib/admin-auth'
 import { isUploadKind, objectPath, UPLOAD_RULES, validateDeclared } from '@/lib/books/uploads'
+import { maxEbookBytes } from '@/lib/books/stamp-queue'
 
 // Step 1 of an admin upload: validate what the browser says it will upload, then hand back a signed
 // upload URL for a random path. The browser uploads directly to storage (no size limit from the function).
@@ -9,7 +10,8 @@ export async function POST(req: NextRequest) {
   if (isResponse(auth)) return auth
   const b = await req.json().catch(() => ({}))
   if (!isUploadKind(b.kind) || typeof b.bookId !== 'string' || !/^[0-9a-f-]{36}$/i.test(b.bookId)) return NextResponse.json({ error: 'Bad request' }, { status: 400 })
-  const problem = validateDeclared(b.kind, String(b.filename || ''), Number(b.size), String(b.contentType || ''))
+  const { data: settings } = await auth.db.from('books_settings').select('*').maybeSingle()     // the configured ebook size limit
+  const problem = validateDeclared(b.kind, String(b.filename || ''), Number(b.size), String(b.contentType || ''), maxEbookBytes(settings))
   if (problem) return NextResponse.json({ error: problem }, { status: 400 })
 
   const { data: book } = await auth.db.from('books').select('id').eq('id', b.bookId).maybeSingle()

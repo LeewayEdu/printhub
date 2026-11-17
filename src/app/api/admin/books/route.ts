@@ -158,9 +158,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, ...(await recalcFlaggedForBook(db, txt(body.bookId, 40))) })
     }
     case 'save_settings': {
-      const rate = pct(body.book_affiliate_rate)
-      if (rate == null) return fail('The book affiliate rate must be between 0 and 100')
-      const { error } = await db.from('books_settings').update({ book_affiliate_rate: rate, updated_at: new Date().toISOString() }).eq('id', true)
+      const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
+      if (body.book_affiliate_rate !== undefined) {
+        const rate = pct(body.book_affiliate_rate)
+        if (rate == null) return fail('The book affiliate rate must be between 0 and 100')
+        patch.book_affiliate_rate = rate
+      }
+      if (body.max_ebook_mb !== undefined) {
+        const m = Math.floor(Number(body.max_ebook_mb))
+        if (!(m >= 1 && m <= 500)) return fail('The ebook size limit must be between 1 and 500 MB')
+        patch.max_ebook_mb = m
+      }
+      const { error } = await db.from('books_settings').update(patch).eq('id', true)
       return error ? fail(error.message) : NextResponse.json({ ok: true })
     }
     default: return fail('Unknown action')
