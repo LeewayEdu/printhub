@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { BRAND } from '@/lib/constants'
 import SiteImage from '@/components/ui/SiteImage'
+import { OurWorkFooterLink } from '@/components/case-studies/CaseStudyLinks'
 
 export default function Footer() {
   return (
@@ -75,6 +76,7 @@ export default function Footer() {
                   {item.label}
                 </Link>
               ))}
+              <OurWorkFooterLink style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', textDecoration: 'none' }} />
             </div>
           </div>
 

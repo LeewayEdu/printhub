@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
+import { RelatedCaseLink } from '@/components/case-studies/CaseStudyLinks'
 import { supabase } from '@/lib/supabase/client'
 import { ShoppingCart, CheckCircle } from 'lucide-react'
 import SiteImage from '@/components/ui/SiteImage'
@@ -241,6 +242,7 @@ export default function ElectionCampaignPage() {
             </a>
           </div>
         </section>
+        <RelatedCaseLink serviceHref="/election-campaign" />
       </main>
       <Footer />
       <style>{`

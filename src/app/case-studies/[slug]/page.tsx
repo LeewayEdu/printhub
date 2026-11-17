@@ -6,23 +6,16 @@ import Footer from '@/components/layout/Footer'
 import { Breadcrumbs, BreadcrumbSchema, JsonLd } from '@/components/seo'
 import CaseGallery from '@/components/case-studies/CaseGallery'
 import CaseCta from '@/components/case-studies/CaseCta'
-import { findCaseView } from '@/lib/case-studies'
+import { resolveCase } from '@/lib/case-study-access'
 import { articleJsonLd, caseMetadata } from '@/lib/case-studies-seo'
-import { isValidPreview } from '@/lib/case-study-preview'
 
 // Rendered per request: the preview token is read from the address, and a preview must never be cached.
 export const dynamic = 'force-dynamic'
 
 type Props = { params: { slug: string }; searchParams: { preview?: string | string[] } }
 
-/** A case is visible to the public only when published. The owner can see an unpublished one with a valid preview token. */
-function resolve({ params, searchParams }: Props) {
-  const v = findCaseView(params.slug)
-  if (!v) return null
-  const preview = !v.published && isValidPreview(searchParams.preview)
-  if (!v.published && !preview) return null
-  return { v, preview }
-}
+/** Published cases are public; an unpublished one is a 404 unless a valid preview token is given (see lib/case-study-access.ts). */
+const resolve = ({ params, searchParams }: Props) => resolveCase(params.slug, searchParams.preview)
 
 export function generateMetadata(props: Props): Metadata {
   const r = resolve(props)
