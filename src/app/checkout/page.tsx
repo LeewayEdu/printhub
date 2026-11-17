@@ -22,6 +22,9 @@ export default function CheckoutPage() {
 
   // ── ALL HOOKS AT THE TOP ─────────────────────────────────────
   const [step, setStep] = useState(0)
+  // The saved cart is only known in the browser, so wait for it before drawing the page (avoids a hydration mismatch)
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
   const [session, setSession] = useState<any>(null)
   const [deliveryOptions, setDeliveryOptions] = useState<any[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
@@ -281,6 +284,18 @@ export default function CheckoutPage() {
   if (items.length === 0) return null
 
   // ── RENDER ───────────────────────────────────────────────────
+  if (!mounted) {
+    return (
+      <>
+        <Navbar />
+        <main id="main-content" aria-busy="true" style={{ minHeight: '70vh', background: 'var(--bg-secondary)' }}>
+          <span className="sr-only" role="status">Loading checkout</span>
+        </main>
+        <Footer />
+      </>
+    )
+  }
+
   return (
     <>
       <Navbar />

@@ -18,7 +18,12 @@ export default function Navbar() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchText, setSearchText] = useState('')
   const router = useRouter()
-  const cartCount = useCartStore(state => state.totalItems())
+  const storedCount = useCartStore(state => state.totalItems())
+  // The saved cart is only known in the browser; show 0 for the server render and first paint so the
+  // markup matches (no hydration warning), then the real count.
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
+  const cartCount = mounted ? storedCount : 0
   const { theme, toggleTheme } = useThemeStore()
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   // False until the saved session has been read, so the account icon does not flash the logged-out look
