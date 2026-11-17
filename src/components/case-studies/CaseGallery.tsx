@@ -66,12 +66,11 @@ export default function CaseGallery({ images, title }: { images: GalleryImage[];
             <button type="button" data-autofocus onClick={close} aria-label="Close gallery"
               style={{ background: '#fff', color: '#111', border: 'none', borderRadius: 8, padding: '8px 14px', fontWeight: 700, cursor: 'pointer', minHeight: 40 }}>Close</button>
           </div>
-          <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', gap: 8 }} onClick={e => { if (e.target === e.currentTarget) close() }}>
-            {images.length > 1 && <button type="button" aria-label="Previous photo" onClick={() => setOpen(i => stepIndex(i ?? 0, images.length, -1))} style={navBtn}>‹</button>}
-            <div style={{ position: 'relative', flex: 1, height: '100%' }}>
-              <Image key={current.src} src={current.src} alt={current.alt} fill sizes="100vw" style={{ objectFit: 'contain' }} priority />
-            </div>
-            {images.length > 1 && <button type="button" aria-label="Next photo" onClick={() => setOpen(i => stepIndex(i ?? 0, images.length, 1))} style={navBtn}>›</button>}
+          {/* The picture takes the full width; the arrows sit on top of it so they never squeeze it on a phone */}
+          <div style={{ flex: 1, minHeight: 0, position: 'relative' }} onClick={e => { if (e.target === e.currentTarget) close() }}>
+            <Image key={current.src} src={current.src} alt={current.alt} fill sizes="100vw" style={{ objectFit: 'contain' }} priority />
+            {images.length > 1 && <button type="button" aria-label="Previous photo" onClick={() => setOpen(i => stepIndex(i ?? 0, images.length, -1))} style={{ ...navBtn, left: 4 }}>‹</button>}
+            {images.length > 1 && <button type="button" aria-label="Next photo" onClick={() => setOpen(i => stepIndex(i ?? 0, images.length, 1))} style={{ ...navBtn, right: 4 }}>›</button>}
           </div>
           <p style={{ color: '#fff', textAlign: 'center', fontSize: 14, margin: '10px 0 0' }}>{current.caption}</p>
         </div>
@@ -80,4 +79,4 @@ export default function CaseGallery({ images, title }: { images: GalleryImage[];
   )
 }
 
-const navBtn: React.CSSProperties = { flexShrink: 0, width: 44, height: 44, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,0.9)', color: '#111', fontSize: 26, lineHeight: 1, cursor: 'pointer' }
+const navBtn: React.CSSProperties = { position: 'absolute', top: '50%', transform: 'translateY(-50%)', zIndex: 1, width: 44, height: 44, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,0.9)', color: '#111', fontSize: 26, lineHeight: 1, cursor: 'pointer' }
