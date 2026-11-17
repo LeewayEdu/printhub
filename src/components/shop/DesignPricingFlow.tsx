@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { DesignPricingResolved } from '@/store/cartStore'
 
 interface LinkedAddon {
@@ -27,7 +27,7 @@ interface Props {
 }
 
 export default function DesignPricingFlow({ product, linkedAddons, onResolved, onReset, resolved }: Props) {
-  const [hasOwnDesign, setHasOwnDesign] = useState<boolean | null>(null)
+  const [hasOwnDesign, setHasOwnDesign] = useState<boolean>(true)
   const [designUnits, setDesignUnits] = useState<number>(product.design_min_units || 1)
   const [addonAnswers, setAddonAnswers] = useState<Record<string, 'yes' | 'no'>>({})
   const [requestNotes, setRequestNotes] = useState('')
@@ -55,22 +55,13 @@ export default function DesignPricingFlow({ product, linkedAddons, onResolved, o
 
   const allAddonAnswered = linkedAddons.every(la => addonAnswers[la.id] !== undefined)
 
-  const isFlowComplete = (): boolean => {
-    if (hasOwnDesign === null) return false
-    if (hasOwnDesign) return true
-    switch (product.design_pricing_type) {
-      case 'flat': return true
-      case 'unit_based': return designUnits >= minUnits
-      case 'dependent': return allAddonAnswered
-    }
-  }
-
-  const handleConfirm = () => {
-    if (!isFlowComplete()) return
-    const designCostTotal = computeDesignCost()
+  // The answer is reported to the page immediately and on every change, so the
+  // price and the "Add to cart" button never wait for a confirm step.
+  const designCostNow = computeDesignCost()
+  useEffect(() => {
     onResolved({
-      hasOwnDesign: hasOwnDesign!,
-      designCostTotal,
+      hasOwnDesign,
+      designCostTotal: designCostNow,
       designAddons: hasOwnDesign ? [] : selectedAddons.map(la => ({
         name: la.design_addons.name,
         price: la.design_addons.price,
@@ -78,15 +69,8 @@ export default function DesignPricingFlow({ product, linkedAddons, onResolved, o
       designUnits: product.design_pricing_type === 'unit_based' ? designUnits : undefined,
       designRequestNotes: requestNotes.trim() || undefined,
     })
-  }
-
-  const handleReset = () => {
-    setHasOwnDesign(null)
-    setDesignUnits(minUnits)
-    setAddonAnswers({})
-    setRequestNotes('')
-    onReset()
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasOwnDesign, designCostNow, designUnits, requestNotes, linkedAddons.length, JSON.stringify(addonAnswers)])
 
   const btnBase: React.CSSProperties = {
     padding: '9px 18px', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13,
@@ -95,39 +79,10 @@ export default function DesignPricingFlow({ product, linkedAddons, onResolved, o
   const btnSelected: React.CSSProperties = { ...btnBase, background: 'var(--red)', color: 'white', borderColor: 'var(--red)' }
   const btnUnselected: React.CSSProperties = { ...btnBase, background: 'white', color: 'var(--text-primary)', borderColor: 'var(--border-color)' }
 
-  // Already resolved — show compact summary
-  if (resolved) {
-    const designCost = resolved.designCostTotal
-    return (
-      <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 12, padding: '14px 18px', marginBottom: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-          <div>
-            <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13, color: '#166534', marginBottom: 4 }}>
-              ✓ Design: {resolved.hasOwnDesign ? 'Using your own file' : designCost === 0 ? 'Included' : `₦${designCost.toLocaleString()}`}
-            </div>
-            {!resolved.hasOwnDesign && resolved.designAddons?.length > 0 && (
-              <div style={{ fontSize: 11, color: '#166534' }}>
-                {resolved.designAddons.map(a => `${a.name} (₦${Number(a.price).toLocaleString()})`).join(' · ')}
-              </div>
-            )}
-            {!resolved.hasOwnDesign && product.design_pricing_type === 'unit_based' && resolved.designUnits && (
-              <div style={{ fontSize: 11, color: '#166534' }}>
-                {resolved.designUnits} {unitLabel} × ₦{unitRate.toLocaleString()}
-              </div>
-            )}
-          </div>
-          <button onClick={handleReset} style={{ fontSize: 11, color: '#166534', background: 'none', border: '1px solid #86efac', borderRadius: 7, padding: '4px 10px', cursor: 'pointer', fontFamily: 'Montserrat', fontWeight: 600, flexShrink: 0 }}>
-            Change
-          </button>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div style={{ border: '1px solid var(--border-color)', borderRadius: 14, padding: '18px 20px', marginBottom: 20, background: 'var(--bg-card)' }}>
       <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, color: 'var(--text-primary)', marginBottom: 16 }}>
-        Design Options
+        Design
       </div>
 
       {/* Step 1: Do you have a print-ready design file? */}
@@ -178,16 +133,16 @@ export default function DesignPricingFlow({ product, linkedAddons, onResolved, o
                 {unitLabel} <span style={{ fontWeight: 400, textTransform: 'none' as const }}>(minimum {minUnits})</span>
               </label>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <button
+                <button aria-label="Decrease design quantity"
                   onClick={() => setDesignUnits(u => Math.max(minUnits, u - 1))}
                   disabled={designUnits <= minUnits}
                   style={{ width: 32, height: 32, borderRadius: 7, border: '1px solid var(--border-color)', background: '#f7f7f5', cursor: designUnits <= minUnits ? 'not-allowed' : 'pointer', fontSize: 16, opacity: designUnits <= minUnits ? 0.4 : 1 }}>
                   −
                 </button>
-                <input type="number" value={designUnits} min={minUnits}
+                <input aria-label="Design quantity" type="number" value={designUnits} min={minUnits}
                   onChange={e => setDesignUnits(Math.max(minUnits, Number(e.target.value)))}
                   style={{ width: 64, textAlign: 'center' as const, padding: '6px', border: '1px solid var(--border-color)', borderRadius: 7, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 15 }} />
-                <button onClick={() => setDesignUnits(u => u + 1)}
+                <button aria-label="Increase design quantity" onClick={() => setDesignUnits(u => u + 1)}
                   style={{ width: 32, height: 32, borderRadius: 7, border: '1px solid var(--border-color)', background: '#f7f7f5', cursor: 'pointer', fontSize: 16 }}>
                   +
                 </button>
@@ -228,7 +183,7 @@ export default function DesignPricingFlow({ product, linkedAddons, onResolved, o
                   )}
                 </div>
                 {la.design_addons.description && (
-                  <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>
                     {la.design_addons.description}
                   </div>
                 )}
@@ -252,8 +207,11 @@ export default function DesignPricingFlow({ product, linkedAddons, onResolved, o
             </div>
           )}
 
+          {product.design_pricing_type === 'dependent' && linkedAddons.length > 0 && !allAddonAnswered && (
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 10 }}>Answer the questions above to include any add-on design fees in the total.</div>
+          )}
           {/* Running total for this flow */}
-          {isFlowComplete() && (
+          {(
             <div style={{ background: '#fafafa', border: '1px solid var(--border-color)', borderRadius: 9, padding: '12px 14px', marginBottom: 14 }}>
               {product.design_pricing_type === 'unit_based' && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4 }}>
@@ -276,21 +234,6 @@ export default function DesignPricingFlow({ product, linkedAddons, onResolved, o
         </div>
       )}
 
-      {/* Confirm button */}
-      {hasOwnDesign !== null && (
-        <button
-          disabled={!isFlowComplete()}
-          onClick={handleConfirm}
-          style={{
-            width: '100%', padding: '11px', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14,
-            cursor: isFlowComplete() ? 'pointer' : 'not-allowed',
-            background: isFlowComplete() ? '#1A1A1A' : '#e5e7eb',
-            color: isFlowComplete() ? 'white' : '#9ca3af',
-            border: 'none',
-          }}>
-          {hasOwnDesign ? 'Continue — upload file after adding to cart' : 'Confirm Design Options'}
-        </button>
-      )}
     </div>
   )
 }

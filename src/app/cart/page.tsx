@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import { useCartStore, type DesignDetails } from '@/store/cartStore'
 import { supabase } from '@/lib/supabase/client'
+import ProformaRequest from '@/components/shop/ProformaRequest'
 import { Trash2, ShoppingBag, ArrowRight, Upload, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -25,6 +26,34 @@ export default function CartPage() {
   const router = useRouter()
   const { items, removeFromCart, totalPrice, clearCart, updateDesign } = useCartStore()
   const [panels, setPanels] = useState<Record<string, PanelState>>({})
+  // The saved cart is read from a cookie after the page loads. Until then show a placeholder, so a
+  // customer with items never sees "Your cart is empty" for a moment.
+  const [ready, setReady] = useState(false)
+  useEffect(() => { setReady(true) }, [])
+  // Product photos for the cart lines (looked up by product id; not stored in the cart cookie)
+  const [thumbs, setThumbs] = useState<Record<string, string>>({})
+  const productKey = Array.from(new Set(items.map(i => i.productId))).sort().join(',')
+  useEffect(() => {
+    const ids = productKey ? productKey.split(',') : []
+    if (!ids.length) return
+    supabase.from('products').select('id, images, image_url').in('id', ids).then(({ data }) => {
+      const m: Record<string, string> = {}
+      for (const p of data || []) {
+        const first = (Array.isArray(p.images) && p.images.find((x: any) => typeof x === 'string' && x)) || p.image_url
+        if (first) m[p.id] = first
+      }
+      setThumbs(m)
+    })
+  }, [productKey])
+  // Cheapest paid delivery option, read from the delivery_settings table
+  const [minDelivery, setMinDelivery] = useState<number | null>(null)
+  useEffect(() => {
+    supabase.from('delivery_settings').select('price').eq('is_active', true).neq('type', 'pickup')
+      .then(({ data }) => {
+        const fees = (data || []).map((r: any) => Number(r.price)).filter((n: number) => n > 0)
+        if (fees.length) setMinDelivery(Math.min(...fees))
+      })
+  }, [])
 
   const panel = (id: string): PanelState => panels[id] ?? defaultPanel()
 
@@ -73,26 +102,43 @@ export default function CartPage() {
     patchPanel(cartItemId, { linkValue: '', notesValue: '' })
   }
 
-  // Items where customer said they have a file, but haven't provided it yet
+  // Items where the customer has their own file but has not uploaded it yet. This no longer blocks
+  // checkout: the file can be uploaded after payment, and printing waits for it.
   const awaitingDesign = items.filter(
     i => i.designPricing?.hasOwnDesign === true && !i.design?.fileUrl && !i.design?.link
   )
-  const canCheckout = awaitingDesign.length === 0
 
-  const handleCheckout = () => {
-    if (!canCheckout) {
-      toast.error(
-        `Please upload your design or paste a link for: ${awaitingDesign.map(i => i.name).join(', ')}`
-      )
-      return
-    }
-    router.push('/checkout')
-  }
+  const handleCheckout = () => router.push('/checkout')
+
+  if (!ready) return (
+    <>
+      <Navbar />
+      <main id="main-content" aria-busy="true" style={{ background: 'var(--bg-secondary)', padding: '40px', minHeight: '70vh' }} className="cart-skeleton-main">
+        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+          <div className="sk" style={{ width: 160, height: 30, marginBottom: 28 }} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 24 }} className="cart-layout">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {[0, 1].map(i => <div key={i} className="sk" style={{ height: 112, borderRadius: 14 }} />)}
+            </div>
+            <div className="sk" style={{ height: 280, borderRadius: 14 }} />
+          </div>
+        </div>
+        <span className="sr-only" role="status">Loading your cart</span>
+      </main>
+      <Footer />
+      <style>{`
+        .sk { background: linear-gradient(90deg, #ececea 25%, #f5f5f3 37%, #ececea 63%); background-size: 400% 100%; animation: skShimmer 1.4s ease infinite; border-radius: 8px; }
+        @keyframes skShimmer { 0% { background-position: 100% 0 } 100% { background-position: 0 0 } }
+        @media (prefers-reduced-motion: reduce) { .sk { animation: none } }
+        @media (max-width: 900px) { .cart-layout { grid-template-columns: 1fr !important; } .cart-skeleton-main { padding: 24px 16px !important; } }
+      `}</style>
+    </>
+  )
 
   if (items.length === 0) return (
     <>
       <Navbar />
-      <main style={{ minHeight: '70vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-secondary)' }}>
+      <main id="main-content" style={{ minHeight: '70vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-secondary)' }}>
         <div style={{ textAlign: 'center' as const, padding: 40 }}>
           <div style={{ fontSize: 64, marginBottom: 20 }}>🛒</div>
           <h1 style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 28, marginBottom: 12, color: 'var(--text-primary)' }}>Your cart is empty</h1>
@@ -111,7 +157,7 @@ export default function CartPage() {
   return (
     <>
       <Navbar />
-      <main style={{ background: 'var(--bg-secondary)', padding: '40px', minHeight: '70vh' }}>
+      <main id="main-content" style={{ background: 'var(--bg-secondary)', padding: '40px', minHeight: '70vh' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <div style={{ marginBottom: 28 }}>
             <h1 style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 28, marginBottom: 4, color: 'var(--text-primary)' }}>Your Cart</h1>
@@ -137,8 +183,11 @@ export default function CartPage() {
                   }}>
                     {/* Item header row */}
                     <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-                      <div style={{ width: 64, height: 64, borderRadius: 10, background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, flexShrink: 0 }}>
-                        🖨️
+                      <div style={{ width: 64, height: 64, borderRadius: 10, background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, flexShrink: 0, overflow: 'hidden' }}>
+                        {thumbs[item.productId]
+                          // eslint-disable-next-line @next/next/no-img-element
+                          ? <img src={thumbs[item.productId]} alt={item.name} width={64} height={64} loading="lazy" style={{ width: 64, height: 64, objectFit: 'cover' }} />
+                          : <span aria-hidden="true">🖨️</span>}
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 15, marginBottom: 4, color: 'var(--text-primary)' }}>{item.name}</div>
@@ -146,7 +195,7 @@ export default function CartPage() {
                         {item.specs && Object.keys(item.specs).length > 0 && (
                           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, marginBottom: 4 }}>
                             {Object.entries(item.specs).map(([k, v]) => (
-                              <span key={k} style={{ fontSize: 11, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 6, padding: '2px 8px', color: 'var(--text-secondary)' }}>
+                              <span key={k} style={{ fontSize: 12, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 6, padding: '2px 8px', color: 'var(--text-secondary)' }}>
                                 {k}: {v}
                               </span>
                             ))}
@@ -162,7 +211,7 @@ export default function CartPage() {
                         )}
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: 12, flexShrink: 0 }}>
-                        <button onClick={() => removeFromCart(item.cartItemId)}
+                        <button aria-label="Remove item from cart" onClick={() => removeFromCart(item.cartItemId)}
                           style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: 4 }}>
                           <Trash2 size={16} />
                         </button>
@@ -184,7 +233,7 @@ export default function CartPage() {
                             </span>
                             {item.design?.link && (
                               <a href={item.design.link} target="_blank" rel="noopener noreferrer"
-                                style={{ fontSize: 11, color: '#166534', textDecoration: 'underline', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, display: 'inline-block' }}>
+                                style={{ fontSize: 12, color: '#166534', textDecoration: 'underline', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, display: 'inline-block' }}>
                                 {item.design.link}
                               </a>
                             )}
@@ -199,7 +248,7 @@ export default function CartPage() {
                         <div style={{ marginTop: 14, padding: '14px 16px', background: '#fffbeb', border: '1px solid #fbbf24', borderRadius: 10 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 14 }}>
                             <AlertCircle size={14} color="#d97706" />
-                            <span style={{ fontSize: 13, fontWeight: 700, color: '#92400e' }}>Upload your design file to proceed</span>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: '#92400e' }}>Have your file ready? Upload it now (optional)</span>
                           </div>
 
                           {/* Upload / Link toggle */}
@@ -295,7 +344,7 @@ export default function CartPage() {
                   <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Subtotal</span>
                   <span style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 16, color: 'var(--text-primary)' }}>₦{totalPrice().toLocaleString()}</span>
                 </div>
-                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 6 }}>Delivery fee calculated at checkout</div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 6 }}>Pickup free{minDelivery ? ` · Delivery from ₦${minDelivery.toLocaleString()}` : ''}. The exact fee is shown before you pay.</div>
               </div>
 
               <div style={{ borderTop: '2px solid var(--text-primary)', paddingTop: 16, marginBottom: 20 }}>
@@ -305,15 +354,10 @@ export default function CartPage() {
                 </div>
               </div>
 
-              {/* Design required warning */}
+              {/* Friendly notice: the file can follow payment */}
               {awaitingDesign.length > 0 && (
-                <div style={{ marginBottom: 14, padding: '10px 14px', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 9 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: 12, color: '#92400e', marginBottom: 4 }}>
-                    <AlertCircle size={13} color="#d97706" /> Design file required
-                  </div>
-                  {awaitingDesign.map(i => (
-                    <div key={i.cartItemId} style={{ fontSize: 12, color: '#92400e' }}>• {i.name}</div>
-                  ))}
+                <div role="note" style={{ marginBottom: 14, padding: '10px 14px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 9, fontSize: 12, lineHeight: 1.6, color: '#1e3a8a' }}>
+                  <strong>You can upload your design after payment</strong>. We won&apos;t start printing until we have it.
                 </div>
               )}
 
@@ -322,13 +366,14 @@ export default function CartPage() {
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                   width: '100%', padding: '14px',
-                  background: canCheckout ? 'var(--red)' : '#d1d5db',
-                  color: canCheckout ? 'white' : '#6b7280',
+                  background: 'var(--red)', color: 'white',
                   borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 15,
-                  border: 'none', cursor: canCheckout ? 'pointer' : 'not-allowed',
+                  border: 'none', cursor: 'pointer',
                 }}>
                 Proceed to Checkout <ArrowRight size={18} />
               </button>
+
+              <ProformaRequest items={items} />
 
               <Link href="/shop" style={{ display: 'block', textAlign: 'center' as const, marginTop: 12, fontSize: 13, color: 'var(--text-secondary)', textDecoration: 'none' }}>
                 Continue shopping

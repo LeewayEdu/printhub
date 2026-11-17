@@ -1,28 +1,54 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { NAV_LINKS } from '@/lib/constants'
-import { ShoppingCart, User, Menu, X } from 'lucide-react'
+import { ShoppingCart, User, Menu, X, Search } from 'lucide-react'
 import { useCartStore } from '@/store/cartStore'
 import { useThemeStore } from '@/store/themeStore'
 import { Sun, Moon } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import NotificationBar from './NotificationBar'
+import SiteImage from '@/components/ui/SiteImage'
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
-  const cartCount = useCartStore(state => state.totalItems())
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchText, setSearchText] = useState('')
+  const router = useRouter()
+  const storedCount = useCartStore(state => state.totalItems())
+  // The saved cart is only known in the browser; show 0 for the server render and first paint so the
+  // markup matches (no hydration warning), then the real count.
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
+  const cartCount = mounted ? storedCount : 0
   const { theme, toggleTheme } = useThemeStore()
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  // False until the saved session has been read, so the account icon does not flash the logged-out look
+  const [authReady, setAuthReady] = useState(false)
+  // Pulses the cart badge once when an item is added
+  const [pulse, setPulse] = useState(false)
+  const prevCount = useRef(cartCount)
+  useEffect(() => {
+    if (cartCount > prevCount.current) {
+      setPulse(true)
+      const t = setTimeout(() => setPulse(false), 700)
+      prevCount.current = cartCount
+      return () => clearTimeout(t)
+    }
+    prevCount.current = cartCount
+  }, [cartCount])
 
 useEffect(() => {
   supabase.auth.getSession().then(({ data: { session } }) => {
     setIsLoggedIn(!!session)
+    setAuthReady(true)
   })
   const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
     setIsLoggedIn(!!session)
+    setAuthReady(true)
   })
   return () => subscription.unsubscribe()
 }, [])
@@ -34,7 +60,7 @@ useEffect(() => {
   }, [])
 
   return (
-    <>
+    <header style={{ display: 'contents' }}>
       <NotificationBar />
       <nav
         style={{
@@ -55,16 +81,19 @@ useEffect(() => {
       >
         {/* LOGO */}
         <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
-          <img
-  src="/C-Chu_media_Logo_.png"
-  alt="C-Chu Media"
-  style={{ width: 40, height: 40, objectFit: 'contain' }}
-/>
+          <SiteImage
+            src="/C-Chu_media_Logo_.png"
+            alt="C-Chu Media"
+            width={40}
+            height={40}
+            priority
+            style={{ width: 40, height: 40, objectFit: 'contain' }}
+          />
           <div>
             <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 16, color: 'var(--black)', lineHeight: 1.2 }}>
               PrintHub
             </div>
-            <div style={{ fontSize: 11, color: 'var(--gray)', fontWeight: 400 }}>
+            <div style={{ fontSize: 12, color: 'var(--gray)', fontWeight: 400 }}>
               by C-Chu Media Ltd
             </div>
           </div>
@@ -111,6 +140,7 @@ useEffect(() => {
           {/* Cart */}        
           <Link
             href="/cart"
+            aria-label={cartCount > 0 ? `Cart, ${cartCount} item${cartCount === 1 ? '' : 's'}` : 'Cart'}
             style={{
               position: 'relative', display: 'flex', alignItems: 'center',
               justifyContent: 'center', width: 38, height: 38,
@@ -129,10 +159,10 @@ useEffect(() => {
           >
             <ShoppingCart size={17} />
             {cartCount > 0 && (
-              <span style={{
+              <span className={pulse ? 'cart-badge-pulse' : undefined} style={{
                 position: 'absolute', top: -4, right: -4,
                 background: 'var(--red)', color: 'white',
-                fontSize: 10, fontWeight: 700, width: 16, height: 16,
+                fontSize: 12, fontWeight: 700, width: 16, height: 16,
                 borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
                 {cartCount}
@@ -140,10 +170,14 @@ useEffect(() => {
             )}
           </Link>
 
-          {/* Dashboard / Login — always visible as icon */}
+          {/* Dashboard / Login — always visible as icon. Neutral same-size placeholder until the session is known. */}
+          {!authReady ? (
+            <span aria-hidden="true" style={{ display: 'block', width: 38, height: 38, borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }} />
+          ) : (
           <Link
             href={isLoggedIn ? '/dashboard' : '/auth'}
             title={isLoggedIn ? 'Dashboard' : 'Login'}
+            aria-label={isLoggedIn ? 'Dashboard' : 'Login'}
             style={{
               position: 'relative', display: 'flex', alignItems: 'center',
               justifyContent: 'center', width: 38, height: 38,
@@ -163,6 +197,7 @@ useEffect(() => {
           >
             <User size={17} color={isLoggedIn ? 'white' : 'currentColor'} />
           </Link>
+          )}
 
           {/* Order Now */}
           <Link
@@ -186,6 +221,17 @@ useEffect(() => {
             Order Now →
           </Link>
 
+          {/* Search (mobile) */}
+          <button
+            onClick={() => setSearchOpen(o => !o)}
+            style={{ display: 'none', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--dark)', padding: 4 }}
+            className="mobile-search-btn"
+            aria-label={searchOpen ? 'Close search' : 'Search products'}
+            aria-expanded={searchOpen}
+          >
+            {searchOpen ? <X size={20} /> : <Search size={20} />}
+          </button>
+
           {/* Hamburger (mobile) */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
@@ -200,6 +246,33 @@ useEffect(() => {
           </button>
         </div>
       </nav>
+
+      {/* MOBILE SEARCH FIELD */}
+      {searchOpen && (
+        <form
+          className="mobile-search-panel"
+          onSubmit={e => {
+            e.preventDefault()
+            const q = searchText.trim()
+            if (!q) return
+            setSearchOpen(false)
+            router.push(`/shop?search=${encodeURIComponent(q)}`)
+          }}
+          style={{ position: 'sticky', top: 68, zIndex: 99, background: 'white', padding: '8px 16px', borderBottom: '1px solid var(--border)', gap: 8, display: 'none' }}
+        >
+          <input
+            autoFocus
+            type="search"
+            aria-label="Search products"
+            value={searchText}
+            onChange={e => setSearchText(e.target.value)}
+            placeholder="Search products…"
+            className="form-input"
+            style={{ flex: 1, minWidth: 0 }}
+          />
+          <button type="submit" className="btn btn-primary" style={{ padding: '0 16px' }}>Search</button>
+        </form>
+      )}
 
       {/* MOBILE MENU OVERLAY */}
       {menuOpen && (
@@ -236,7 +309,7 @@ useEffect(() => {
               className="btn btn-ghost"
               style={{ flex: 1, justifyContent: 'center' }}
             >
-              {isLoggedIn ? 'Dashboard' : 'Login'}
+              {authReady && isLoggedIn ? 'Dashboard' : 'Login'}
             </Link>
             <Link
               href="/auth?tab=register"
@@ -265,11 +338,16 @@ useEffect(() => {
         @media (max-width: 940px) {
           .desktop-nav { display: none !important; }
           .mobile-menu-btn { display: flex !important; }
+          .mobile-search-btn { display: flex !important; }
+          .mobile-search-panel { display: flex !important; }
           nav { padding: 0 16px !important; }
           .nav-order-btn { display: none !important; }
         }
         @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes cartBadgePulse { 0% { transform: scale(1) } 40% { transform: scale(1.5) } 100% { transform: scale(1) } }
+        .cart-badge-pulse { animation: cartBadgePulse 0.6s ease; }
+        @media (prefers-reduced-motion: reduce) { .cart-badge-pulse { animation: none; } }
       `}</style>
-    </>
+    </header>
   )
 }

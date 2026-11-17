@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import Script from 'next/script'
 import { META_PIXEL_ID, fbPageview } from '@/lib/meta-pixel'
+import { CONSENT_EVENT, readConsent, type Consent } from './consent'
 
 // Fires PageView on every client-side route change. App Router navigations
 // don't reload the page, so the base pixel script's own automatic PageView
@@ -30,7 +31,16 @@ function RouteChangePageview() {
 }
 
 export default function MetaPixel() {
-  if (!META_PIXEL_ID) return null
+  // The pixel only loads after the visitor accepts (see ConsentBanner).
+  const [consent, setConsent] = useState<Consent>(null)
+  useEffect(() => {
+    setConsent(readConsent())
+    const sync = () => setConsent(readConsent())
+    window.addEventListener(CONSENT_EVENT, sync)
+    return () => window.removeEventListener(CONSENT_EVENT, sync)
+  }, [])
+
+  if (!META_PIXEL_ID || consent !== 'granted') return null
 
   return (
     <>
@@ -48,21 +58,7 @@ export default function MetaPixel() {
           fbq('track', 'PageView');
         `}
       </Script>
-      {/*
-        Rendered as a raw HTML string (not a JSX <img>) on purpose: a JSX
-        <img> here gets picked up by React/Next's automatic image preload
-        heuristic, which emits a <link rel="preload"> in <head> that the
-        browser fetches unconditionally — firing this fallback pixel on
-        every visit even with JS enabled, double-counting every real
-        fbq-driven PageView. A noscript block's content is only parsed by
-        the browser when scripting is disabled, so this string form loads
-        exactly when it's supposed to and never otherwise.
-      */}
-      <noscript
-        dangerouslySetInnerHTML={{
-          __html: `<img height="1" width="1" alt="" style="display:none" src="https://www.facebook.com/tr?id=${META_PIXEL_ID}&ev=PageView&noscript=1" />`,
-        }}
-      />
+      {/* No <noscript> fallback pixel: it would load without the visitor's consent. */}
       <RouteChangePageview />
     </>
   )

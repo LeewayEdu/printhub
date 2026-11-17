@@ -1,11 +1,13 @@
 'use client'
 
+import { useFromPrices } from '@/lib/use-from-prices'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import { supabase } from '@/lib/supabase/client'
 import { ShoppingCart, CheckCircle } from 'lucide-react'
+import SiteImage from '@/components/ui/SiteImage'
 
 const CAMPAIGN_PACKAGES = [
   {
@@ -56,6 +58,7 @@ interface Product {
 
 export default function ElectionCampaignPage() {
   const [products, setProducts] = useState<Product[]>([])
+  const fromPrices = useFromPrices()   // shared "from" price, same as the shop
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -94,7 +97,7 @@ export default function ElectionCampaignPage() {
   }, [])
 
   const priceLabel = (p: Product) => {
-    const base = Number(p.display_price || p.price || 0)
+    const base = Number(fromPrices[p.id] || p.display_price || p.price || 0)
     if (!base) return 'Get a quote'
     return p.is_fixed_price ? `₦${base.toLocaleString()}` : `From ₦${base.toLocaleString()}`
   }
@@ -102,7 +105,7 @@ export default function ElectionCampaignPage() {
   return (
     <>
       <Navbar />
-      <main>
+      <main id="main-content">
         {/* Hero */}
         <section style={{ background: 'var(--black)', padding: '80px 40px', position: 'relative', overflow: 'hidden' }}>
           <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(192,57,43,0.2) 0%, transparent 55%), radial-gradient(circle at 80% 80%, rgba(192,57,43,0.08) 0%, transparent 40%)' }} />
@@ -129,10 +132,10 @@ export default function ElectionCampaignPage() {
         <section style={{ background: 'var(--bg-secondary)', padding: '60px 40px' }}>
           <div style={{ maxWidth: 1100, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20 }} className="why-grid">
             {[
-              { icon: '⚡', title: 'Fast turnaround', desc: 'Most orders ready in 3–5 working days' },
+              { icon: '⚡', title: 'Rush service available', desc: 'Message us on WhatsApp for turnaround on your job' },
               { icon: '🇳🇬', title: 'Nationwide delivery', desc: 'We ship to all 36 states' },
               { icon: '💰', title: 'Bulk discounts', desc: 'Better prices on larger quantities' },
-              { icon: '✅', title: 'Trusted by parties', desc: 'APC, LP, ADC and more have used us' },
+              { icon: '✅', title: 'Worked with several parties', desc: 'We have printed for APC, LP, ADC and others. Not an endorsement of any party.' },
             ].map((item, i) => (
               <div key={i} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 12, padding: 20, textAlign: 'center' as const }}>
                 <div style={{ fontSize: 32, marginBottom: 10 }}>{item.icon}</div>
@@ -155,14 +158,14 @@ export default function ElectionCampaignPage() {
               {CAMPAIGN_PACKAGES.map((pkg, i) => (
                 <div key={i} style={{ background: 'var(--bg-card)', border: `2px solid ${pkg.badge ? 'var(--red)' : 'var(--border-color)'}`, borderRadius: 16, padding: 28, position: 'relative' as const, boxShadow: pkg.badge ? '0 12px 40px rgba(192,57,43,0.12)' : 'none' }}>
                   {pkg.badge && (
-                    <div style={{ position: 'absolute' as const, top: -14, left: '50%', transform: 'translateX(-50%)', background: 'var(--red)', color: 'white', fontFamily: 'Montserrat', fontWeight: 700, fontSize: 11, padding: '5px 18px', borderRadius: 20, whiteSpace: 'nowrap' as const }}>
+                    <div style={{ position: 'absolute' as const, top: -14, left: '50%', transform: 'translateX(-50%)', background: 'var(--red)', color: 'white', fontFamily: 'Montserrat', fontWeight: 700, fontSize: 12, padding: '5px 18px', borderRadius: 20, whiteSpace: 'nowrap' as const }}>
                       ⭐ {pkg.badge}
                     </div>
                   )}
                   <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 20, color: 'var(--text-primary)', marginBottom: 6 }}>{pkg.name}</div>
                   <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 32, color: 'var(--red)', marginBottom: 4 }}>₦{pkg.price.toLocaleString()}</div>
                   {pkg.hasEstimate && (
-                    <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 12, lineHeight: 1.5 }}>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12, lineHeight: 1.5 }}>
                       Estimated price — based on current material costs, confirmed exactly when you request a quote.
                     </div>
                   )}
@@ -205,7 +208,7 @@ export default function ElectionCampaignPage() {
                     <Link key={product.id} href="/shop" className="card-hover"
                       style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, overflow: 'hidden', textDecoration: 'none', display: 'block' }}>
                       <div style={{ height: 160, background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, overflow: 'hidden' }}>
-                        {img ? <img src={img} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '🗳️'}
+                        {img ? <SiteImage src={img} alt={product.name} width={400} height={400} sizes="(max-width: 768px) 50vw, 25vw" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '🗳️'}
                       </div>
                       <div style={{ padding: 16 }}>
                         <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, marginBottom: 8, color: 'var(--text-primary)' }}>{product.name}</div>

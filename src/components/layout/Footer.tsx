@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { BRAND } from '@/lib/constants'
+import SiteImage from '@/components/ui/SiteImage'
 
 export default function Footer() {
   return (
@@ -13,23 +14,23 @@ export default function Footer() {
           {/* Brand */}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-              <img src="/C-Chu_media_Logo_.png" alt="C-Chu Media" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+              <SiteImage src="/C-Chu_media_Logo_.png" alt="C-Chu Media" width={36} height={36} style={{ width: 36, height: 36, objectFit: 'contain' }} />
               <div>
                 <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 18, color: 'white' }}>PrintHub</div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', fontStyle: 'italic' }}>by C-Chu Media Limited</div>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', fontStyle: 'italic' }}>by C-Chu Media Limited</div>
               </div>
             </div>
-            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', lineHeight: 1.7, maxWidth: 280, marginBottom: 16 }}>
+            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', lineHeight: 1.7, maxWidth: 280, marginBottom: 16 }}>
               Professional printing and branding solutions for businesses, organisations, and individuals across Nigeria. Established 2011.
             </p>
-            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.25)', fontStyle: 'italic', marginBottom: 16 }}>
+            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', fontStyle: 'italic', marginBottom: 16 }}>
               {BRAND.tagline}
             </p>
             <div style={{ display: 'flex', gap: 10 }}>
               {[
-                { label: 'f', href: 'https://www.facebook.com/cchumedia', title: 'Facebook' },
-                { label: 'in', href: 'https://www.instagram.com/cchumedia', title: 'Instagram' },
-                { label: 'x', href: 'https://www.twitter.com/cchumedia', title: 'Twitter' },
+                { label: 'f', href: BRAND.social.facebook, title: 'Facebook' },
+                { label: 'in', href: BRAND.social.instagram, title: 'Instagram' },
+                { label: 'x', href: BRAND.social.x, title: 'X (Twitter)' },
               ].map(({ label, href, title }) => (
                 <a key={title} href={href} target="_blank" rel="noopener noreferrer" aria-label={title}
                   style={{ width: 34, height: 34, borderRadius: 8, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', color: 'rgba(255,255,255,0.55)', fontSize: 12, fontWeight: 700, fontFamily: 'Montserrat' }}>
@@ -41,7 +42,7 @@ export default function Footer() {
 
           {/* Services */}
           <div>
-            <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: 'rgba(255,255,255,0.35)', marginBottom: 16 }}>Services</div>
+            <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: 'rgba(255,255,255,0.55)', marginBottom: 16 }}>Services</div>
             <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
               {[
                 { label: 'All Services', href: '/shop' },
@@ -60,7 +61,7 @@ export default function Footer() {
 
           {/* Company */}
           <div>
-            <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: 'rgba(255,255,255,0.35)', marginBottom: 16 }}>Company</div>
+            <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: 'rgba(255,255,255,0.55)', marginBottom: 16 }}>Company</div>
             <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
               {[
                 { label: 'About Us', href: '/about' },
@@ -79,17 +80,17 @@ export default function Footer() {
 
           {/* Contact */}
           <div>
-            <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: 'rgba(255,255,255,0.35)', marginBottom: 16 }}>Contact</div>
+            <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: 'rgba(255,255,255,0.55)', marginBottom: 16 }}>Contact</div>
             <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
               <a href="tel:+2348063753209" style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', textDecoration: 'none' }}>+234 806 375 3209</a>
               <a href="tel:+2348052929523" style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', textDecoration: 'none' }}>+234 805 292 9523</a>
               <a href="mailto:info@cchumedia.com" style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', textDecoration: 'none' }}>info@cchumedia.com</a>
               <a href="https://wa.me/2348052929523" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', textDecoration: 'none' }}>WhatsApp us</a>
-              <a href="https://maps.google.com/?q=C-Chu+Media+Ltd+Karu+Abuja" target="_blank" rel="noopener noreferrer"
-                style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)', lineHeight: 1.5, textDecoration: 'none' }}>
-                Suite 38, Mazfallah Plaza, Karu, Abuja
+              <a href={BRAND.mapsUrl} target="_blank" rel="noopener noreferrer"
+                style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5, textDecoration: 'none' }}>
+                {BRAND.addressStreet}, Karu, Abuja
               </a>
-              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)' }}>Mon - Sat: 8am - 7pm</span>
+              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>Mon - Sat: 8am - 7pm</span>
             </div>
           </div>
         </div>
@@ -97,10 +98,10 @@ export default function Footer() {
 
         {/* Bottom bar */}
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 12 }}>
-          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.25)' }}>
+          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>
             2026 C-Chu Media Limited. All rights reserved.
           </span>
-          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.2)' }}>printhub.cchumedia.com</span>
+          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>printhub.cchumedia.com</span>
         </div>
       </div>
 

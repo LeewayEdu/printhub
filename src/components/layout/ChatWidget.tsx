@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { MessageCircle, X, Send, Loader } from 'lucide-react'
+import { MessageCircle, X, Send, Loader, Phone } from 'lucide-react'
 import { BRAND } from '@/lib/constants'
+import SiteImage from '@/components/ui/SiteImage'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -11,6 +12,7 @@ interface Message {
 
 export default function ChatWidget() {
   const [open, setOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([
     { role: 'assistant', content: 'Hi! I am the PrintHub Assistant. How can I help you today? I can answer questions about our products, pricing, and services.' }
   ])
@@ -21,6 +23,8 @@ export default function ChatWidget() {
   const [leadCaptured, setLeadCaptured] = useState(false)
   const [leadName, setLeadName] = useState('')
   const [leadPhone, setLeadPhone] = useState('')
+  const [leadHp, setLeadHp] = useState('')        // honeypot: stays empty for real visitors
+  const [leadError, setLeadError] = useState('')
   const [showLeadForm, setShowLeadForm] = useState(false)
   const [leadSaving, setLeadSaving] = useState(false)
 
@@ -63,17 +67,29 @@ export default function ChatWidget() {
     setLeadSaving(true)
     try {
       // Save to Supabase leads table
-      await fetch('/api/leads', {
+      const res = await fetch('/api/leads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: leadName.trim(),
           phone: leadPhone.trim(),
+          website: leadHp,
           source: 'chatbot',
           conversation: messages.map(m => `${m.role}: ${m.content}`).join('\n'),
         })
       })
+      if (res.status === 400) {
+        setLeadError('Please enter a valid phone number, for example 0803 123 4567.')
+        setLeadSaving(false)
+        return
+      }
+      if (res.status === 429) {
+        setLeadError('Too many submissions from this device. Please message us on WhatsApp instead.')
+        setLeadSaving(false)
+        return
+      }
     } catch (e) { /* non-critical */ }
+    setLeadError('')
     setLeadSaving(false)
     setLeadCaptured(true)
     setShowLeadForm(false)
@@ -83,32 +99,59 @@ export default function ChatWidget() {
     }])
   }
 
+  // A page can take over the WhatsApp action (the product page sends its own
+  // pre-filled message). If no page handles the event, open a plain greeting.
+  const openWhatsApp = () => {
+    setMenuOpen(false)
+    const handled = !window.dispatchEvent(new CustomEvent('printhub:whatsapp', { cancelable: true }))
+    if (!handled) {
+      const text = encodeURIComponent("Hello, I'd like to ask about printing with PrintHub.")
+      window.open(`https://wa.me/${BRAND.whatsapp}?text=${text}`, '_blank', 'noopener')
+    }
+  }
+
   return (
     <>
-      {/* Chat button */}
+      {/* One launcher: opens a small menu with the assistant and WhatsApp */}
       {!open && (
-        <button
-          onClick={() => setOpen(true)}
-          style={{
-            position: 'fixed', bottom: 28, right: 28, zIndex: 998,
-            width: 52, height: 52, background: 'var(--red)',
-            borderRadius: '50%', border: 'none', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
-            transition: 'transform 0.2s',
-          }}
-          onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.1)')}
-          onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
-          aria-label="Open chat"
-        >
-         <MessageCircle size={22} color="white" />
-        </button>
+        <div className="no-print chat-launcher" style={{ position: 'fixed', bottom: 'calc(28px + var(--launcher-lift, 0px))', right: 28, zIndex: 998, display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: 10 }}>
+          {menuOpen && (
+            <div role="menu" aria-label="Chat options"
+              style={{ background: 'white', border: '1px solid var(--border-color)', borderRadius: 12, boxShadow: '0 8px 30px rgba(0,0,0,0.2)', overflow: 'hidden', minWidth: 210 }}>
+              <button role="menuitem" onClick={() => { setMenuOpen(false); setOpen(true) }}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '13px 16px', background: 'white', border: 'none', borderBottom: '1px solid var(--border-color)', cursor: 'pointer', fontFamily: 'Montserrat', fontWeight: 600, fontSize: 14, color: 'var(--text-primary)', textAlign: 'left' as const }}>
+                <MessageCircle size={18} color="#C0392B" /> Ask our assistant
+              </button>
+              <button role="menuitem" onClick={openWhatsApp}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '13px 16px', background: 'white', border: 'none', cursor: 'pointer', fontFamily: 'Montserrat', fontWeight: 600, fontSize: 14, color: 'var(--text-primary)', textAlign: 'left' as const }}>
+                <Phone size={18} color="#25D366" /> Chat on WhatsApp
+              </button>
+            </div>
+          )}
+          <button
+            onClick={() => setMenuOpen(o => !o)}
+            style={{
+              width: 52, height: 52, background: 'var(--red)',
+              borderRadius: '50%', border: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+              transition: 'transform 0.2s',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.1)')}
+            onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
+            aria-label={menuOpen ? 'Close chat options' : 'Chat with us'}
+            aria-expanded={menuOpen}
+            aria-haspopup="menu"
+          >
+            {menuOpen ? <X size={22} color="white" /> : <MessageCircle size={22} color="white" />}
+          </button>
+        </div>
       )}
 
       {/* Chat panel */}
       {open && (
         <div style={{
-          position: 'fixed', bottom: 28, right: 28, zIndex: 998,
+          position: 'fixed', bottom: 'calc(28px + var(--launcher-lift, 0px))', right: 28, zIndex: 998,
           width: 340, height: 480,
           background: '#ffffff',
           borderRadius: 16, boxShadow: '0 8px 40px rgba(0,0,0,0.2)',
@@ -121,14 +164,14 @@ export default function ChatWidget() {
           <div style={{ padding: '14px 16px', background: 'var(--black)', borderRadius: '16px 16px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ width: 36, height: 36, borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}>
-                <img src="/C-Chu_media_Logo_.png" alt="PrintHub" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+                <SiteImage src="/C-Chu_media_Logo_.png" alt="PrintHub" width={36} height={36} style={{ width: 36, height: 36, objectFit: 'contain' }} />
                 </div>
               <div>
                 <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13, color: 'white' }}>PrintHub Assistant</div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Powered by AI</div>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Powered by AI</div>
               </div>
             </div>
-            <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.6)', padding: 4 }}>
+            <button aria-label="Close chat" onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.6)', padding: 4 }}>
               <X size={18} />
             </button>
           </div>
@@ -178,6 +221,9 @@ export default function ChatWidget() {
                 <input value={leadName} onChange={e => setLeadName(e.target.value)}
                   placeholder="Your name"
                   style={{ padding: '7px 10px', border: '1px solid #e8e8e5', borderRadius: 7, fontSize: 12, outline: 'none', fontFamily: 'Open Sans' }} />
+                <input name="website" value={leadHp} onChange={e => setLeadHp(e.target.value)} tabIndex={-1} autoComplete="off" aria-hidden="true"
+                  style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, opacity: 0 }} />
+                {leadError && <div role="alert" style={{ fontSize: 12, color: '#b91c1c' }}>{leadError}</div>}
                 <input value={leadPhone} onChange={e => setLeadPhone(e.target.value)}
                   placeholder="WhatsApp / phone number"
                   style={{ padding: '7px 10px', border: '1px solid #e8e8e5', borderRadius: 7, fontSize: 12, outline: 'none', fontFamily: 'Open Sans' }} />
@@ -187,7 +233,7 @@ export default function ChatWidget() {
                     {leadSaving ? 'Saving...' : 'Submit'}
                   </button>
                   <button onClick={() => { setShowLeadForm(false); setLeadCaptured(true) }}
-                    style={{ padding: '7px 12px', background: 'white', border: '1px solid #e8e8e5', borderRadius: 7, fontSize: 11, cursor: 'pointer', color: '#888' }}>
+                    style={{ padding: '7px 12px', background: 'white', border: '1px solid #e8e8e5', borderRadius: 7, fontSize: 12, cursor: 'pointer', color: '#6B6B6B' }}>
                     Skip
                   </button>
                 </div>
@@ -204,7 +250,7 @@ export default function ChatWidget() {
               placeholder="Ask me anything..."
               style={{ flex: 1, padding: '10px 14px', border: '1px solid #e8e8e5', borderRadius: 9, fontSize: 13, fontFamily: 'Open Sans', background: '#ffffff', color: '#1A1A1A', outline: 'none' }}
             />
-            <button onClick={send} disabled={loading || !input.trim()}
+            <button aria-label="Send message" onClick={send} disabled={loading || !input.trim()}
               style={{ width: 38, height: 38, background: input.trim() ? 'var(--red)' : '#f7f7f5', border: '1px solid var(--border-color)', borderRadius: 9, cursor: input.trim() ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <Send size={15} color={input.trim() ? 'white' : 'var(--text-secondary)'} />
             </button>

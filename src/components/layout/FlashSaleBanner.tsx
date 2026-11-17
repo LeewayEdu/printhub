@@ -76,7 +76,7 @@ export default function FlashSaleBanner() {
       {/* Label */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
         <Zap size={13} color="#f59e0b" fill="#f59e0b" />
-        <span style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 11, color: '#f59e0b', textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>
+        <span style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 12, color: '#f59e0b', textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>
           {sale.label}
         </span>
       </div>
@@ -86,31 +86,31 @@ export default function FlashSaleBanner() {
 
       {/* Promo code */}
       {sale.promo_code && (
-        <span style={{ background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.4)', color: '#f59e0b', fontSize: 11, fontWeight: 700, padding: '2px 10px', borderRadius: 20, fontFamily: 'Montserrat', letterSpacing: '0.06em', flexShrink: 0 }}>
+        <span style={{ background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.4)', color: '#f59e0b', fontSize: 12, fontWeight: 700, padding: '2px 10px', borderRadius: 20, fontFamily: 'Montserrat', letterSpacing: '0.06em', flexShrink: 0 }}>
           {sale.promo_code}
         </span>
       )}
 
       {/* Countdown */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-        <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Ends in</span>
+        <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Ends in</span>
         {[{ v: countdown.h, l: 'h' }, { v: countdown.m, l: 'm' }, { v: countdown.s, l: 's' }].map(({ v, l }, i) => (
           <span key={l} style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {i > 0 && <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 14, fontWeight: 700, margin: '0 1px' }}>:</span>}
+            {i > 0 && <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: 14, fontWeight: 700, margin: '0 1px' }}>:</span>}
             <span style={{ fontFamily: 'Montserrat', fontWeight: 900, fontSize: 15, color: 'white', minWidth: 22, textAlign: 'center' as const }}>{pad(v)}</span>
-            <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.04em' }}>{l}</span>
+            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.04em' }}>{l}</span>
           </span>
         ))}
       </div>
 
       {/* Shop now link */}
-      <Link href="/shop" style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 11, color: '#f59e0b', textDecoration: 'none', letterSpacing: '0.04em', borderBottom: '1px solid rgba(245,158,11,0.5)', flexShrink: 0 }}>
+      <Link href="/shop" style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 12, color: '#f59e0b', textDecoration: 'none', letterSpacing: '0.04em', borderBottom: '1px solid rgba(245,158,11,0.5)', flexShrink: 0 }}>
         Shop Now →
       </Link>
 
       {/* Dismiss */}
-      <button onClick={() => { setDismissed(true); useFlashSaleStore.getState().setIsActive(false) }}
-        style={{ position: 'absolute' as const, right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.4)', padding: 4, display: 'flex', alignItems: 'center' }}>
+      <button aria-label="Dismiss banner" onClick={() => { setDismissed(true); useFlashSaleStore.getState().setIsActive(false) }}
+        style={{ position: 'absolute' as const, right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.55)', padding: 4, display: 'flex', alignItems: 'center' }}>
         <X size={14} />
       </button>
     </div>

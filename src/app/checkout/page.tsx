@@ -10,14 +10,11 @@ import toast from 'react-hot-toast'
 import { ShoppingBag, MapPin, CreditCard, Check, Upload } from 'lucide-react'
 import Script from 'next/script'
 import { fbTrack } from '@/lib/meta-pixel'
+import { BANK_DETAILS } from '@/lib/constants'
+import ProformaRequest from '@/components/shop/ProformaRequest'
 
 const STEPS = ['Review', 'Delivery', 'Payment']
 
-const BANK_DETAILS = {
-  bankName: 'MoniePoint',
-  accountNumber: '6727587825',
-  accountName: 'C-Chu Media Limited',
-}
 
 export default function CheckoutPage() {
   const router = useRouter()
@@ -25,6 +22,9 @@ export default function CheckoutPage() {
 
   // ── ALL HOOKS AT THE TOP ─────────────────────────────────────
   const [step, setStep] = useState(0)
+  // The saved cart is only known in the browser, so wait for it before drawing the page (avoids a hydration mismatch)
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
   const [session, setSession] = useState<any>(null)
   const [deliveryOptions, setDeliveryOptions] = useState<any[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
@@ -117,7 +117,7 @@ export default function CheckoutPage() {
     setPromoLoading(false)
   }
 
-  const saveOrder = async (paystackRef?: string, status = 'pending') => {
+  const saveOrder = async (paystackRef?: string) => {
     let receiptUrl = null
     if (receiptFile) {
       const path = `receipts/${crypto.randomUUID()}-${receiptFile.name}`
@@ -128,48 +128,35 @@ export default function CheckoutPage() {
       }
     }
 
-    const { data: order, error } = await supabase.from('orders').insert({
-      user_id: session.user.id,
-      first_name: firstName,
-      last_name: lastName,
-      email,
-      phone,
-      shipping_method: deliveryType === 'pickup' ? 'pickup' : 'home',
-      address_line1: address || selectedDelivery?.address || '',
-      state: deliveryType === 'interstate' ? selectedDelivery?.state : 'FCT',
-      delivery_area: selectedDelivery?.name || '',
-      subtotal,
-      delivery_fee: deliveryFee,
-      total_amount: total,
-      status,
-      paystack_reference: paystackRef || null,
-      receipt_url: receiptUrl,
-    }).select().single()
-
-    if (error) throw error
-
-    await supabase.from('order_items').insert(
-      items.map(item => ({
-        order_id: order.id,
-        product_id: item.productId,
-        name: item.name,
-        price: item.price,
-        quantity: 1,
-        specs: item.specs || {},
-        design_type: item.design?.type || null,
-        design_file_url: item.design?.fileUrl || null,
-        design_link: item.design?.link || null,
-        design_brief: item.design?.brief || null,
-        // Design pricing fields — resolved pre-cart via DesignPricingFlow
-        has_own_design: item.designPricing?.hasOwnDesign ?? null,
-        design_addons_selected: item.designPricing?.designAddons?.length
-          ? item.designPricing.designAddons
-          : null,
-        design_units: item.designPricing?.designUnits ?? null,
-        design_cost_total: item.designPricing?.designCostTotal ?? 0,
-        design_request_notes: item.designPricing?.designRequestNotes ?? null,
-      }))
-    )
+    // The server creates the order (always 'pending') and its items; the browser never writes
+    // payment status. Paystack orders become paid only after the server verifies the payment.
+    const { data: { session: current } } = await supabase.auth.getSession()
+    const res = await fetch('/api/orders/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${current?.access_token ?? ''}` },
+      body: JSON.stringify({
+        paymentMethod: paystackRef ? 'paystack' : 'bank',
+        paystackReference: paystackRef || undefined,
+        receiptUrl,
+        customer: { firstName, lastName, email, phone },
+        delivery: {
+          type: deliveryType === 'pickup' ? 'pickup' : 'home',
+          address: address || selectedDelivery?.address || '',
+          state: deliveryType === 'interstate' ? selectedDelivery?.state : 'FCT',
+          area: selectedDelivery?.name || '',
+        },
+        deliveryId: selectedDelivery?.id,
+        promoCode: promoApplied?.code,
+        subtotal, deliveryFee, total,
+        items: items.map(item => ({
+          productId: item.productId, name: item.name, price: item.price, specs: item.specs,
+          design: item.design, designPricing: item.designPricing,
+        })),
+      }),
+    })
+    const created = await res.json().catch(() => ({}))
+    if (!res.ok || !created.order) throw new Error(created.error || 'Could not create your order')
+    const order = created.order
 
     // Send email + WhatsApp via server-side API route (fire-and-forget)
     const shortId = order.id.slice(0, 8).toUpperCase()
@@ -200,8 +187,16 @@ export default function CheckoutPage() {
   const handlePaystackSuccess = async (ref: any) => {
     setIsProcessing(true)
     try {
-      const order = await saveOrder(ref.reference, 'paid')
+      // Save the order as pending, then ask the server to verify the payment with Paystack.
+      // The success page shows "verifying" until the server marks it paid.
+      const order = await saveOrder(ref.reference)
       clearCart()
+      const { data: { session: s2 } } = await supabase.auth.getSession()
+      fetch('/api/payments/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${s2?.access_token ?? ''}` },
+        body: JSON.stringify({ reference: ref.reference }),
+      }).catch(() => { /* the webhook and the success page retry */ })
       if (promoApplied) {
         await supabase.from('promo_codes').update({ uses: promoApplied.uses + 1 }).eq('id', promoApplied.id)
       }
@@ -217,7 +212,7 @@ export default function CheckoutPage() {
     if (!receiptFile) { toast.error('Please upload your payment receipt'); return }
     setIsProcessing(true)
     try {
-      const order = await saveOrder(undefined, 'pending')
+      const order = await saveOrder(undefined)
       clearCart()
       if (promoApplied) {
         await supabase.from('promo_codes').update({ uses: promoApplied.uses + 1 }).eq('id', promoApplied.id)
@@ -289,10 +284,22 @@ export default function CheckoutPage() {
   if (items.length === 0) return null
 
   // ── RENDER ───────────────────────────────────────────────────
+  if (!mounted) {
+    return (
+      <>
+        <Navbar />
+        <main id="main-content" aria-busy="true" style={{ minHeight: '70vh', background: 'var(--bg-secondary)' }}>
+          <span className="sr-only" role="status">Loading checkout</span>
+        </main>
+        <Footer />
+      </>
+    )
+  }
+
   return (
     <>
       <Navbar />
-      <main style={{ background: 'var(--bg-secondary)', padding: '40px', minHeight: '70vh' }}>
+      <main id="main-content" style={{ background: 'var(--bg-secondary)', padding: '40px', minHeight: '70vh' }}>
         <div style={{ maxWidth: 860, margin: '0 auto' }}>
 
           {/* Steps */}
@@ -303,7 +310,7 @@ export default function CheckoutPage() {
                   <div style={{ width: 34, height: 34, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: i < step ? '#10b981' : i === step ? 'var(--red)' : 'var(--border-color)', color: i <= step ? 'white' : 'var(--text-secondary)', fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13 }}>
                     {i < step ? <Check size={14} /> : i + 1}
                   </div>
-                  <span style={{ fontSize: 11, fontWeight: i === step ? 700 : 400, color: i === step ? 'var(--text-primary)' : 'var(--text-secondary)', fontFamily: 'Montserrat' }}>{s}</span>
+                  <span style={{ fontSize: 12, fontWeight: i === step ? 700 : 400, color: i === step ? 'var(--text-primary)' : 'var(--text-secondary)', fontFamily: 'Montserrat' }}>{s}</span>
                 </div>
                 {i < STEPS.length - 1 && <div style={{ width: 60, height: 2, background: i < step ? '#10b981' : 'var(--border-color)', margin: '0 8px', marginBottom: 22 }} />}
               </div>
@@ -325,10 +332,15 @@ export default function CheckoutPage() {
                         <div style={{ fontFamily: 'Montserrat', fontWeight: 600, fontSize: 14, color: 'var(--text-primary)', marginBottom: 4 }}>{item.name}</div>
                         <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4 }}>Qty: {item.displayQty}</div>
                         {item.specs && Object.entries(item.specs).map(([k, v]) => (
-                          <span key={k} style={{ fontSize: 11, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 6, padding: '2px 8px', color: 'var(--text-secondary)', marginRight: 4, display: 'inline-block', marginBottom: 2 }}>{k}: {String(v)}</span>
+                          <span key={k} style={{ fontSize: 12, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 6, padding: '2px 8px', color: 'var(--text-secondary)', marginRight: 4, display: 'inline-block', marginBottom: 2 }}>{k}: {String(v)}</span>
                         ))}
+                        {item.designPricing?.hasOwnDesign === true && !item.design?.fileUrl && !item.design?.link && (
+                          <div style={{ fontSize: 12, color: '#1e3a8a', marginTop: 4, fontWeight: 600 }}>
+                            📎 Design file: you will upload it after payment
+                          </div>
+                        )}
                         {item.design?.type && (
-                          <div style={{ fontSize: 11, color: '#10b981', marginTop: 4, fontWeight: 600 }}>
+                          <div style={{ fontSize: 12, color: '#10b981', marginTop: 4, fontWeight: 600 }}>
                             {item.design.type === 'upload' ? '✓ Design uploaded' : item.design.type === 'link' ? '✓ Design link provided' : '✓ Design brief submitted'}
                           </div>
                         )}
@@ -357,7 +369,7 @@ export default function CheckoutPage() {
                       <div key={opt.type} onClick={() => { setDeliveryType(opt.type as any); setSelectedDelivery(null) }}
                         style={{ padding: '12px', borderRadius: 10, border: `2px solid ${deliveryType === opt.type ? 'var(--red)' : 'var(--border-color)'}`, background: deliveryType === opt.type ? 'var(--red-pale)' : 'var(--bg-secondary)', cursor: 'pointer', textAlign: 'center' as const }}>
                         <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13, color: deliveryType === opt.type ? 'var(--red)' : 'var(--text-primary)', marginBottom: 2 }}>{opt.label}</div>
-                        <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{opt.sub}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{opt.sub}</div>
                       </div>
                     ))}
                   </div>
@@ -365,7 +377,7 @@ export default function CheckoutPage() {
                     <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 8, color: 'var(--text-primary)' }}>
                       {deliveryType === 'pickup' ? 'Select pickup location' : deliveryType === 'local' ? 'Select your area' : 'Select your state'}
                     </label>
-                    <select value={selectedDelivery?.id || ''} onChange={e => { const opt = filteredDelivery.find(d => d.id === e.target.value); setSelectedDelivery(opt || null) }} className="form-input" style={{ cursor: 'pointer' }}>
+                    <select aria-label="Delivery location" value={selectedDelivery?.id || ''} onChange={e => { const opt = filteredDelivery.find(d => d.id === e.target.value); setSelectedDelivery(opt || null) }} className="form-input" style={{ cursor: 'pointer' }}>
                       <option value="">-- Select --</option>
                       {filteredDelivery.map(opt => (
                         <option key={opt.id} value={opt.id}>{opt.name}{opt.price > 0 ? ` — ₦${Number(opt.price).toLocaleString()}` : ' — FREE'}</option>
@@ -383,16 +395,16 @@ export default function CheckoutPage() {
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                         <div>
                           <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 5, color: 'var(--text-primary)' }}>First name</label>
-                          <input value={firstName} onChange={e => setFirstName(e.target.value)} className="form-input" />
+                          <input aria-label="First name" value={firstName} onChange={e => setFirstName(e.target.value)} className="form-input" />
                         </div>
                         <div>
                           <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 5, color: 'var(--text-primary)' }}>Last name</label>
-                          <input value={lastName} onChange={e => setLastName(e.target.value)} className="form-input" />
+                          <input aria-label="Last name" value={lastName} onChange={e => setLastName(e.target.value)} className="form-input" />
                         </div>
                       </div>
                       <div>
-                        <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 5, color: 'var(--text-primary)' }}>Phone</label>
-                        <input value={phone} onChange={e => setPhone(e.target.value)} className="form-input" />
+                        <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 5, color: 'var(--text-primary)' }}>Phone *</label>
+                        <input aria-label="Phone number" value={phone} onChange={e => setPhone(e.target.value)} className="form-input" />
                       </div>
                       <div>
                         <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 5, color: 'var(--text-primary)' }}>Delivery address</label>
@@ -402,7 +414,12 @@ export default function CheckoutPage() {
                   )}
                   <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
                     <button onClick={() => setStep(0)} style={{ flex: 1, padding: '12px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 600, fontSize: 14, cursor: 'pointer', color: 'var(--text-primary)' }}>Back</button>
-                    <button onClick={() => { if (!selectedDelivery) { toast.error('Please select a delivery option'); return } setStep(2) }}
+                    <button onClick={() => {
+                        if (!selectedDelivery) { toast.error('Please select a delivery option'); return }
+                        // a phone number is needed before payment so we can reach the customer about the order
+                        if (phone.replace(/\D/g, '').length < 10) { toast.error('Please enter a phone number we can reach you on'); return }
+                        setStep(2)
+                      }}
                       style={{ flex: 2, padding: '12px', background: 'var(--red)', color: 'white', border: 'none', borderRadius: 9, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
                       Continue to Payment
                     </button>
@@ -469,7 +486,7 @@ export default function CheckoutPage() {
                     {promoApplied && (
                       <div style={{ fontSize: 12, color: '#10b981', marginTop: 6, fontWeight: 600 }}>
                         {promoApplied.type === 'percentage' ? `${promoApplied.value}% discount` : `₦${Number(promoApplied.value).toLocaleString()} discount`} applied
-                        <button onClick={() => { setPromoApplied(null); setPromoCode('') }} style={{ marginLeft: 8, fontSize: 11, color: 'var(--red)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Remove</button>
+                        <button onClick={() => { setPromoApplied(null); setPromoCode('') }} style={{ marginLeft: 8, fontSize: 12, color: 'var(--red)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Remove</button>
                       </div>
                     )}
                   </div>
@@ -529,6 +546,11 @@ export default function CheckoutPage() {
                   <span style={{ color: 'var(--red)' }}>₦{total.toLocaleString()}</span>
                 </div>
               </div>
+              <ProformaRequest
+                items={items}
+                delivery={selectedDelivery ? { label: selectedDelivery.name || 'Delivery', fee: deliveryFee } : null}
+                prefill={{ name: `${firstName} ${lastName}`.trim(), phone, email }}
+              />
             </div>
           </div>
         </div>

@@ -73,7 +73,7 @@ export default function LiveCalculator({ category, qty, w = 1, h = 1, onPriceUpd
   const btnStyle = (active: boolean) => ({
     padding: '5px 10px', borderRadius: 7, border: `1px solid ${active ? 'var(--red)' : '#e8e8e5'}`,
     background: active ? 'rgba(192,57,43,0.08)' : 'white', color: active ? 'var(--red)' : '#666',
-    fontSize: 11, fontWeight: active ? 700 : 400, cursor: 'pointer', fontFamily: 'Montserrat',
+    fontSize: 12, fontWeight: active ? 700 : 400, cursor: 'pointer', fontFamily: 'Montserrat',
     transition: 'all 0.15s'
   })
 
@@ -104,7 +104,7 @@ export default function LiveCalculator({ category, qty, w = 1, h = 1, onPriceUpd
           {engine === 'flex' && (
             <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#888', marginBottom: 5, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Material</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#6B6B6B', marginBottom: 5, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Material</div>
                 <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' as const }}>
                   {[['flex_440gsm', '440gsm'], ['flex_backlit', 'Backlit'], ['flex_canvas', 'Canvas']].map(([val, label]) => (
                     <button key={val} onClick={() => setMaterial(val as any)} style={btnStyle(material === val)}>{label}</button>
@@ -128,7 +128,7 @@ export default function LiveCalculator({ category, qty, w = 1, h = 1, onPriceUpd
           {engine === 'businesscard' && (
             <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#888', marginBottom: 5, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Paper Weight</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#6B6B6B', marginBottom: 5, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Paper Weight</div>
                 <div style={{ display: 'flex', gap: 5 }}>
                   {[['300gsm', '300gsm'], ['350gsm', '350gsm +extra'], ['400gsm', '400gsm +extra']].map(([val, label]) => (
                     <button key={val} onClick={() => setPaperWeight(val as any)} style={btnStyle(paperWeight === val)}>{label}</button>
@@ -136,7 +136,7 @@ export default function LiveCalculator({ category, qty, w = 1, h = 1, onPriceUpd
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#888', marginBottom: 5, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Lamination</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#6B6B6B', marginBottom: 5, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Lamination</div>
                 <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' as const }}>
                   {[['none', 'None'], ['gloss', 'Gloss'], ['matt', 'Matt'], ['spot_uv', 'Spot UV'], ['aqueous', 'Aqueous']].map(([val, label]) => (
                     <button key={val} onClick={() => setLamination(val as any)} style={btnStyle(lamination === val)}>{label}</button>
@@ -151,7 +151,7 @@ export default function LiveCalculator({ category, qty, w = 1, h = 1, onPriceUpd
             <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: '#888', marginBottom: 5 }}>Size</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: '#6B6B6B', marginBottom: 5 }}>Size</div>
                   <div style={{ display: 'flex', gap: 4 }}>
                     {(['A4', 'A5', 'A6'] as const).map(s => (
                       <button key={s} onClick={() => setFlyerSize(s)} style={btnStyle(flyerSize === s)}>{s}</button>
@@ -159,7 +159,7 @@ export default function LiveCalculator({ category, qty, w = 1, h = 1, onPriceUpd
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: '#888', marginBottom: 5 }}>Sides</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: '#6B6B6B', marginBottom: 5 }}>Sides</div>
                   <div style={{ display: 'flex', gap: 4 }}>
                     {[['single', 'Single'], ['double', 'Double']].map(([val, label]) => (
                       <button key={val} onClick={() => setFlyerSides(val as any)} style={btnStyle(flyerSides === val)}>{label}</button>
@@ -169,7 +169,7 @@ export default function LiveCalculator({ category, qty, w = 1, h = 1, onPriceUpd
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: '#888', marginBottom: 5 }}>Print Type</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: '#6B6B6B', marginBottom: 5 }}>Print Type</div>
                   <div style={{ display: 'flex', gap: 4 }}>
                     {[['DI', 'DI (Digital)'], ['offset', 'Offset']].map(([val, label]) => (
                       <button key={val} onClick={() => setFlyerPrint(val as any)} style={btnStyle(flyerPrint === val)}>{label}</button>
@@ -177,7 +177,7 @@ export default function LiveCalculator({ category, qty, w = 1, h = 1, onPriceUpd
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: '#888', marginBottom: 5 }}>Paper</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: '#6B6B6B', marginBottom: 5 }}>Paper</div>
                   <div style={{ display: 'flex', gap: 4 }}>
                     {[['bond', 'Bond'], ['art', 'Art']].map(([val, label]) => (
                       <button key={val} onClick={() => setFlyerPaper(val as any)} style={btnStyle(flyerPaper === val)}>{label}</button>
@@ -186,7 +186,7 @@ export default function LiveCalculator({ category, qty, w = 1, h = 1, onPriceUpd
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#888', marginBottom: 5 }}>Lamination</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#6B6B6B', marginBottom: 5 }}>Lamination</div>
                 <div style={{ display: 'flex', gap: 4 }}>
                   {[['none', 'None'], ['gloss', 'Gloss'], ['matt', 'Matt']].map(([val, label]) => (
                     <button key={val} onClick={() => setFlyerLam(val as any)} style={btnStyle(flyerLam === val)}>{label}</button>
@@ -199,7 +199,7 @@ export default function LiveCalculator({ category, qty, w = 1, h = 1, onPriceUpd
           {/* ── STICKER PARAMS ── */}
           {engine === 'sticker' && (
             <div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: '#888', marginBottom: 5, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Material</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#6B6B6B', marginBottom: 5, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Material</div>
               <div style={{ display: 'flex', gap: 5 }}>
                 {[['vinyl', 'Vinyl'], ['clear', 'Clear'], ['paper', 'Paper Label']].map(([val, label]) => (
                   <button key={val} onClick={() => setStickerMat(val as any)} style={btnStyle(stickerMat === val)}>{label}</button>
@@ -212,7 +212,7 @@ export default function LiveCalculator({ category, qty, w = 1, h = 1, onPriceUpd
           {engine === 'apparel' && (
             <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#888', marginBottom: 5, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Item Type</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#6B6B6B', marginBottom: 5, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Item Type</div>
                 <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' as const }}>
                   {[['tshirt', 'T-Shirt'], ['polo', 'Polo'], ['hoodie', 'Hoodie'], ['cap', 'Cap']].map(([val, label]) => (
                     <button key={val} onClick={() => setApparelItem(val as any)} style={btnStyle(apparelItem === val)}>{label}</button>
@@ -220,7 +220,7 @@ export default function LiveCalculator({ category, qty, w = 1, h = 1, onPriceUpd
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#888', marginBottom: 5, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Print Method</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#6B6B6B', marginBottom: 5, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Print Method</div>
                 <div style={{ display: 'flex', gap: 5 }}>
                   {[['dtf', 'DTF Print'], ['embroidery', 'Embroidery']].map(([val, label]) => (
                     <button key={val} onClick={() => setApparelPrint(val as any)} style={btnStyle(apparelPrint === val)}>{label}</button>
@@ -240,15 +240,15 @@ export default function LiveCalculator({ category, qty, w = 1, h = 1, onPriceUpd
                 </div>
               ))}
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 12px', borderBottom: '1px solid #f5f5f3', fontSize: 12 }}>
-                <span style={{ color: '#888' }}>VAT (7.5%)</span>
-                <span style={{ color: '#888' }}>₦{breakdown.vat.toLocaleString()}</span>
+                <span style={{ color: '#6B6B6B' }}>VAT (7.5%)</span>
+                <span style={{ color: '#6B6B6B' }}>₦{breakdown.vat.toLocaleString()}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 12px', background: '#fef5f5' }}>
                 <span style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13, color: '#1A1A1A' }}>Total</span>
                 <div style={{ textAlign: 'right' as const }}>
                   <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 16, color: 'var(--red)' }}>₦{breakdown.total.toLocaleString()}</div>
                   {breakdown.perUnit > 0 && (
-                    <div style={{ fontSize: 10, color: '#888' }}>₦{breakdown.perUnit.toLocaleString()} per piece</div>
+                    <div style={{ fontSize: 12, color: '#6B6B6B' }}>₦{breakdown.perUnit.toLocaleString()} per piece</div>
                   )}
                 </div>
               </div>

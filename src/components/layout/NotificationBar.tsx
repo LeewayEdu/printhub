@@ -10,7 +10,7 @@ export default function NotificationBar() {
 
   useEffect(() => {
     supabase.from('notifications').select('*').eq('is_active', true)
-      .order('created_at', { ascending: false }).limit(1).single()
+      .order('created_at', { ascending: false }).limit(1).maybeSingle()
       .then(({ data }) => { if (data) setNotification(data) })
   }, [])
 
@@ -20,7 +20,7 @@ export default function NotificationBar() {
     <div style={{ background: notification.bg_color || '#C0392B', color: 'white', padding: '9px 40px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, position: 'relative' as const, zIndex: 101, overflow: 'hidden' }}>
       <div style={{ flex: 1, overflow: 'hidden', textAlign: 'center' as const }}>
         {notification.type === 'rolling' ? (
-          <div style={{ display: 'inline-block', animation: 'notifScroll 20s linear infinite', whiteSpace: 'nowrap' as const, fontSize: 13, fontFamily: 'Open Sans' }}>
+          <div className="notif-marquee" style={{ display: 'inline-block', animation: 'notifScroll 20s linear infinite', whiteSpace: 'nowrap' as const, fontSize: 13, fontFamily: 'Open Sans' }}>
             {notification.message}
             {notification.link_text && notification.link_url && (
               <> &nbsp;·&nbsp; <a href={notification.link_url} style={{ color: 'white', fontWeight: 700, textDecoration: 'underline' }}>{notification.link_text}</a></>
@@ -40,11 +40,12 @@ export default function NotificationBar() {
           </span>
         )}
       </div>
-      <button onClick={() => setDismissed(true)}
+      <button aria-label="Dismiss notification" onClick={() => setDismissed(true)}
         style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.7)', flexShrink: 0, padding: 4 }}>
         <X size={15} />
       </button>
       <style>{`
+        @media (prefers-reduced-motion: reduce) { .notif-marquee { animation: none !important; } }
         @keyframes notifScroll {
           0% { transform: translateX(100%); }
           100% { transform: translateX(-100%); }

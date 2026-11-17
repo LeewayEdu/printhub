@@ -48,7 +48,7 @@ export default function ProfilePage() {
             <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 18 }}>{profile?.first_name} {profile?.last_name}</div>
             <div style={{ fontSize: 13, color: 'var(--gray)' }}>{profile?.email}</div>
             {profile?.role === 'admin' && (
-              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--red)', fontFamily: 'Montserrat', background: 'var(--red-pale)', padding: '2px 10px', borderRadius: 12, display: 'inline-block', marginTop: 4 }}>ADMIN</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--red)', fontFamily: 'Montserrat', background: 'var(--red-pale)', padding: '2px 10px', borderRadius: 12, display: 'inline-block', marginTop: 4 }}>ADMIN</span>
             )}
           </div>
         </div>

@@ -2,6 +2,7 @@
 
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase/client';
+import { productionBlocked } from '@/lib/design-status';
 import toast from 'react-hot-toast';
 import { Order, OrderStatus } from './ordersStore';
 
@@ -15,6 +16,7 @@ interface AdminOrdersState {
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
   addProductionNote: (orderId: string, note: string) => Promise<void>;
   approveReceipt: (orderId: string) => Promise<void>;
+  markPaidManually: (orderId: string, note: string) => Promise<boolean>;
   setFilter: (filter: OrderStatus | 'all') => void;
 }
 
@@ -57,6 +59,13 @@ export const useAdminOrdersStore = create<AdminOrdersState>((set, get) => ({
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
 
+    // Production cannot start while the customer's design file or link is still missing
+    const current = get().orders.find(o => o.id === orderId) as any;
+    if (current && productionBlocked(current.items, status)) {
+      toast.error('This order is still waiting for the customer\'s design file. Attach a file or link first.');
+      return;
+    }
+
     const { error } = await supabase
       .from('orders')
       .update({ status })
@@ -66,18 +75,26 @@ export const useAdminOrdersStore = create<AdminOrdersState>((set, get) => ({
 
     // ── On delivery: award loyalty points + affiliate commission ──
     if (status === 'delivered') {
-      // Loyalty points
-      const { error: loyaltyErr } = await supabase.rpc('award_loyalty_on_delivery', {
-        p_order_id: orderId,
-        p_admin_id: session.user.id,
-      });
-      if (loyaltyErr) console.error('Loyalty award failed:', loyaltyErr.message);
+      // Loyalty points (test orders never earn points)
+      const isTest = !!(get().orders.find(o => o.id === orderId) as any)?.is_test;
+      if (!isTest) {
+        const { error: loyaltyErr } = await supabase.rpc('award_loyalty_on_delivery', {
+          p_order_id: orderId,
+          p_admin_id: session.user.id,
+        });
+        if (loyaltyErr) console.error('Loyalty award failed:', loyaltyErr.message);
+      }
 
-      // Affiliate commission
-      const { error: commErr } = await supabase.rpc('award_affiliate_commission', {
-        p_order_id: orderId,
-      });
-      if (commErr) console.error('Commission award failed:', commErr.message);
+      // Affiliate commission: awarded on the server, once per order (see lib/commissions.ts)
+      try {
+        const res = await fetch('/api/admin/orders/award', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ orderId }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || json?.commission?.state === 'error') console.error('Commission award failed:', json);
+      } catch (e) { console.error('Commission award failed:', e); }
     }
 
     // ── On paid: verify bank transfer receipt ──
@@ -96,7 +113,7 @@ export const useAdminOrdersStore = create<AdminOrdersState>((set, get) => ({
     });
 
     const messages: Record<string, string> = {
-      delivered: 'Order marked delivered. Loyalty points + commissions awarded ✅',
+      delivered: ((get().orders.find(o => o.id === orderId) as any)?.is_test) ? 'Test order marked delivered. No points or commission awarded.' : 'Order marked delivered. Loyalty points + commissions awarded ✅',
       paid: 'Payment confirmed. Receipt verified ✅',
       processing: 'Order moved to production',
       shipped: 'Order marked as shipped',
@@ -148,6 +165,26 @@ export const useAdminOrdersStore = create<AdminOrdersState>((set, get) => ({
       filteredOrders: get().filteredOrders.map(o => o.id === orderId ? { ...o, status: 'paid', receipt_verified: true } as any : o),
     });
     toast.success('Receipt approved. Order marked as paid ✅');
+  },
+
+  // Marks an order paid by hand through the server, which requires a note and records who and when.
+  markPaidManually: async (orderId, note) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return false;
+    const res = await fetch('/api/admin/orders/mark-paid', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ orderId, note }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) { toast.error(json?.error || 'Could not mark the order paid'); return false; }
+    const patch = { status: 'paid', receipt_verified: true } as any;
+    set({
+      orders: get().orders.map(o => o.id === orderId ? { ...o, ...patch } : o),
+      filteredOrders: get().filteredOrders.map(o => o.id === orderId ? { ...o, ...patch } : o),
+    });
+    toast.success(json?.audited === false ? 'Marked paid. The audit log entry could not be saved, but the note is on the order.' : 'Order marked paid by hand and recorded ✅');
+    return true;
   },
 
   setFilter: (filter) => {

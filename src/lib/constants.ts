@@ -11,13 +11,25 @@ export const BRAND = {
   phone1: '+234 805 292 9523',
   phone2: '+234 806 375 3209',
   email: 'info@cchumedia.com',
+  // Street line used everywhere the address appears (footer, schema, contact metadata)
+  addressStreet: 'Suite 38, Mazfallah Shopping Complex',
   address: 'Suite 38, Mazfallah Shopping Complex, Karu, AMAC 900110, Abuja FCT, Nigeria',
   hours: 'Monday – Saturday: 8:00AM – 7:00PM',
-  stats: {
-    years: '13+',
-    jobs: '3,000+',
-    startingPrice: '₦3,000',
+  // Machine-readable form of `hours` above (used for structured data). Keep in sync.
+  hoursSpec: { days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'], opens: '08:00', closes: '19:00' },
+  social: {
+    facebook: 'https://www.facebook.com/cchumedia',
+    instagram: 'https://www.instagram.com/cchumedia',
+    x: 'https://x.com/cchumedia',
   },
+  // Years in business and starting prices are computed (see lib/company.ts and
+  // lib/home-data.ts) so they can never go stale.
+  stats: {
+    jobs: '3,000+',
+  },
+  // Stable Google Maps link for the Karu office (Maps URL API, address query).
+  // Replace with the business's own "Share" link from Google Maps if you have one.
+  mapsUrl: 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('Mazfallah Shopping Complex, Karu, Abuja'),
 }
 
 export const NAV_LINKS = [
@@ -49,15 +61,18 @@ export const CATEGORIES = [
 ]
 
 // ── HOMEPAGE SERVICE CARDS ───────────────────
+// `priceFrom` is the marketing category whose cheapest active product sets the
+// "From ₦…" price on each card (computed in lib/home-data.ts). No category, or no
+// priced product in it, means the card shows "Get a quote".
 export const HOME_SERVICES = [
-  { icon: '🎌', name: 'Banners & Large Format', desc: 'Pull-up banners, flex banners, outdoor displays', price: 'From ₦5,000', slug: 'banners' },
-  { icon: '🎁', name: 'Branded Souvenirs',      desc: 'Custom pens, mugs, bags, shirts and more', price: 'Get a quote', slug: 'souvenirs' },
-  { icon: '📄', name: 'Papers & Stationery',    desc: 'Letterheads, compliment slips, notepads', price: 'From ₦3,000', slug: 'stationery' },
-  { icon: '🏷️', name: 'Stickers & Labels',      desc: 'Product labels, SAV stickers, seals', price: 'From ₦4,000', slug: 'stickers' },
-  { icon: '🪧', name: 'Signage & Installation', desc: '3D letters, lightboxes, office signs — FCT only', price: 'From ₦80,000', slug: 'signage' },
-  { icon: '📚', name: 'Book Publishing',         desc: 'Self-publish your book with ISBN and distribution', price: 'From ₦80,000', slug: 'publishing' },
-  { icon: '🗳️', name: 'Campaign Materials',     desc: 'Posters, flex, vests, calendars for elections', price: 'From ₦50,000', slug: 'campaign' },
-  { icon: '🎨', name: 'Graphic Design',          desc: 'Logo, flyers, social media, branding kits', price: 'Get a quote', slug: 'design' },
+  { icon: '🎌', name: 'Banners & Large Format', desc: 'Pull-up banners, flex banners, outdoor displays', priceFrom: 'Banners & Large Format', slug: 'banners' },
+  { icon: '🎁', name: 'Branded Souvenirs',      desc: 'Custom pens, mugs, bags, shirts and more', priceFrom: 'Promotional Items & Gifts', slug: 'souvenirs' },
+  { icon: '📄', name: 'Papers & Stationery',    desc: 'Letterheads, compliment slips, notepads', priceFrom: 'Office & Business Stationery', slug: 'stationery' },
+  { icon: '🏷️', name: 'Stickers & Labels',      desc: 'Product labels, SAV stickers, seals', priceFrom: 'Stickers & Labels', slug: 'stickers' },
+  { icon: '🪧', name: 'Signage & Installation', desc: '3D letters, lightboxes, office signs — FCT only', priceFrom: 'Signage & Installation', slug: 'signage' },
+  { icon: '📚', name: 'Book Publishing',         desc: 'Self-publish your book with ISBN and distribution', priceFrom: 'Book Publishing', slug: 'publishing' },
+  { icon: '🗳️', name: 'Campaign Materials',     desc: 'Posters, flex, vests, calendars for elections', priceFrom: 'Campaign Materials', slug: 'campaign' },
+  { icon: '🎨', name: 'Graphic Design',          desc: 'Logo, flyers, social media, branding kits', priceFrom: 'Graphic Design', slug: 'design' },
 ]
 
 // ── STARTER KITS ────────────────────────────
@@ -119,7 +134,7 @@ export const STARTER_KITS = [
       '30 Branded Pens',
       '1 Car Sticker (vinyl, 12×12in)',
       '1 Office Door Sign',
-      'Turnaround: 10–14 working days',
+      'Turnaround: message us for timing',
     ],
     cta: 'Get Premium Kit',
     color: 'dark',
@@ -142,12 +157,22 @@ export const CLIENTS = [
   'Nigerian Bulk SMS', "Anaconda's Place", 'Nigerian-Canadian Association',
 ]
 
-// ── DELIVERY OPTIONS ─────────────────────────
-export const DELIVERY_OPTIONS = [
-  { id: 'pickup',   label: 'Free Pickup',        desc: 'Collect at our Karu, Abuja Office',   price: 0 },
-  { id: 'abuja',    label: 'Abuja Delivery',      desc: 'Delivered anywhere in FCT',           price: 2000 },
-  { id: 'national', label: 'Nationwide Delivery', desc: 'Shipped anywhere in Nigeria',         price: 5000 },
-]
+// Delivery fees live in the delivery_settings table (editable in the admin dashboard).
+
+// Bank account shown for bank-transfer payments and on pro-forma invoices
+export const BANK_DETAILS = {
+  bankName: 'MoniePoint',
+  accountNumber: '6727587825',
+  accountName: 'C-Chu Media Limited',
+}
+
+// How long a pro-forma invoice quote stays valid. ASSUMPTION: not stored anywhere else,
+// so this is a placeholder for the owner to confirm. The Terms page only says prices may
+// change for future orders.
+export const PROFORMA_VALIDITY_DAYS = 7
+
+// Smallest affiliate payout request, as enforced in the affiliate dashboard (₦)
+export const AFFILIATE_MIN_PAYOUT = 5000
 
 // ── LOYALTY POINTS ───────────────────────────
 export const LOYALTY = {

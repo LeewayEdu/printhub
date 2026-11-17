@@ -3,8 +3,11 @@ import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
-import { Breadcrumbs, BreadcrumbSchema } from '@/components/seo'
+import { Breadcrumbs, BreadcrumbSchema, pageMetadata } from '@/components/seo'
 import { SITE_URL } from '@/lib/site-url'
+import { visibleBadge } from '@/lib/catalog'
+import { withFromPrices } from '@/lib/pricing-server'
+import SiteImage from '@/components/ui/SiteImage'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,38 +17,57 @@ const supabaseServer = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
+async function loadCategory(slug: string): Promise<{ category: Record<string, any>; products: any[] } | null> {
+  try {
+    const { data: category, error } = await supabaseServer
+      .from('categories')
+      .select('*')
+      .eq('slug', slug)
+      .eq('is_active', true)
+      .maybeSingle()
+    if (error || !category) return null
+    const { data: products } = await supabaseServer
+      .from('products')
+      .select('id, name, slug, display_price, price, images, image_url, short_description, badge, pricing_model, area_rate, area_unit, rating, review_count, product_type, category, moq, min_width, min_height, min_order_amount, is_fixed_price')
+      .eq('product_type', slug)
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true })
+    return { category, products: await withFromPrices(products || []) }
+  } catch {
+    return null
+  }
+}
+
 export async function generateStaticParams() {
-  const { data } = await supabaseServer.from('categories').select('slug').eq('is_active', true)
-  return (data || []).map(c => ({ slug: c.slug }))
+  try {
+    const { data } = await supabaseServer.from('categories').select('slug').eq('is_active', true)
+    return (data || []).map(c => ({ slug: c.slug }))
+  } catch {
+    return []
+  }
 }
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
-  const { data: cat } = await supabaseServer.from('categories').select('label, seo_title, meta_description, slug').eq('slug', params.slug).single()
-  if (!cat) return { title: 'Not Found' }
-  const title = cat.seo_title || `${cat.label} | PrintHub Abuja`
-  const description = cat.meta_description || `Browse our full range of ${cat.label} products. Professional printing in Abuja, Nigeria — fast turnaround, competitive prices.`
-  return { title, description, alternates: { canonical: `${SITE_URL}/categories/${cat.slug}` } }
+  const loaded = await loadCategory(params.slug)
+  if (!loaded) return { title: 'Page not found' }
+  const cat = loaded.category
+  return pageMetadata({
+    title: cat.seo_title || (/print/i.test(cat.label) ? cat.label : `${cat.label} Printing`),
+    description: cat.meta_description || `Browse our full range of ${cat.label} products. Professional printing in Abuja, Nigeria — fast turnaround, competitive prices.`,
+    path: `/categories/${cat.slug}`,
+    image: cat.hero_image,
+    imageAlt: cat.label,
+  })
 }
 
 export default async function CategoryPage({ params }: { params: { slug: string } }) {
-  const { data: category } = await supabaseServer
-    .from('categories')
-    .select('*')
-    .eq('slug', params.slug)
-    .eq('is_active', true)
-    .single()
-  if (!category) notFound()
-
-  const { data: products } = await supabaseServer
-    .from('products')
-    .select('id, name, slug, display_price, price, images, image_url, short_description, badge, pricing_model, area_rate, area_unit, rating, review_count')
-    .eq('product_type', params.slug)
-    .eq('is_active', true)
-    .order('sort_order', { ascending: true })
+  const loaded = await loadCategory(params.slug)
+  if (!loaded) notFound()
+  const { category, products } = loaded
 
   const breadcrumbs = [
     { name: 'Home', href: SITE_URL },
-    { name: 'All Products', href: `${SITE_URL}/products` },
+    { name: 'Shop', href: `${SITE_URL}/shop` },
     { name: category.label },
   ]
 
@@ -69,18 +91,16 @@ export default async function CategoryPage({ params }: { params: { slug: string 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20 }} className="cat-products-grid">
             {products.map(p => (
               <Link key={p.id} href={`/products/${p.slug}`} style={{ textDecoration: 'none' }}>
-                <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', height: '100%', transition: 'transform 0.2s, box-shadow 0.2s' }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 24px rgba(0,0,0,0.09)' }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'none'; (e.currentTarget as HTMLElement).style.boxShadow = 'none' }}>
+                <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', height: '100%', }} className="lift-card">
                   <div style={{ aspectRatio: '1/1', overflow: 'hidden', background: '#f7f7f5' }}>
                     {(p.images?.[0] || p.image_url)
-                      ? <img src={p.images?.[0] || p.image_url} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} loading="lazy" />
+                      ? <SiteImage src={p.images?.[0] || p.image_url} alt={p.name} width={400} height={400} sizes="(max-width: 768px) 50vw, 25vw" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40 }}>🖨️</div>
                     }
                   </div>
                   <div style={{ padding: 16 }}>
-                    {p.badge && (
-                      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--red)', background: 'rgba(192,57,43,0.08)', padding: '2px 8px', borderRadius: 10, display: 'inline-block', marginBottom: 6, fontFamily: 'Montserrat' }}>{p.badge}</div>
+                    {visibleBadge(p) && (
+                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--red)', background: 'rgba(192,57,43,0.08)', padding: '2px 8px', borderRadius: 10, display: 'inline-block', marginBottom: 6, fontFamily: 'Montserrat' }}>{visibleBadge(p)}</div>
                     )}
                     <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, color: 'var(--text-primary)', marginBottom: 6, lineHeight: 1.3 }}>{p.name}</div>
                     {p.short_description && (

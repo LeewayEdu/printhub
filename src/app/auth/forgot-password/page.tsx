@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
+import SiteImage from '@/components/ui/SiteImage'
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
@@ -28,7 +29,7 @@ export default function ForgotPasswordPage() {
     <div style={{ minHeight: '100vh', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 16, padding: '40px 36px', width: '100%', maxWidth: 420 }}>
         <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', marginBottom: 32 }}>
-          <img src="/C-Chu_media_Logo_.png" alt="C-Chu Media" style={{ width: 32, height: 32, objectFit: 'contain' }} />
+          <SiteImage src="/C-Chu_media_Logo_.png" alt="C-Chu Media" width={32} height={32} style={{ width: 32, height: 32, objectFit: 'contain' }} />
           <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 15, color: 'var(--text-primary)' }}>PrintHub</div>
         </Link>
 

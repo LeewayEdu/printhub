@@ -38,7 +38,7 @@ export default function AffiliatePage() {
   return (
     <>
       <Navbar />
-      <main>
+      <main id="main-content">
 
         {/* Hero */}
         <section style={{ background: 'var(--black)', padding: '80px 40px', position: 'relative', overflow: 'hidden' }}>
@@ -85,7 +85,7 @@ export default function AffiliatePage() {
                     <stat.icon size={20} color={stat.color} />
                   </div>
                   <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 22, color: 'white', marginBottom: 4 }}>{stat.value}</div>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>{stat.label}</div>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>{stat.label}</div>
                 </div>
               ))}
             </div>

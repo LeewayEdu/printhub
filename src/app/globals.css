@@ -33,7 +33,7 @@ html {
 }
 
 body {
-  font-family: 'Open Sans', sans-serif;
+  font-family: var(--font-open-sans), 'Open Sans', sans-serif;
   color: var(--black);
   background: var(--white);
   line-height: 1.6;
@@ -62,8 +62,8 @@ body {
 
 /* ── TYPOGRAPHY UTILITIES ── */
 @layer utilities {
-  .font-display { font-family: 'Montserrat', sans-serif; }
-  .font-body    { font-family: 'Open Sans', sans-serif; }
+  .font-display { font-family: var(--font-montserrat), 'Montserrat', sans-serif; }
+  .font-body    { font-family: var(--font-open-sans), 'Open Sans', sans-serif; }
 
   .text-balance { text-wrap: balance; }
 
@@ -84,6 +84,12 @@ body {
     box-shadow: 0 12px 32px rgba(192, 57, 43, 0.12);
     border-color: var(--red) !important;
   }
+
+  /* Plain-CSS hover effects (safe to use inside server components) */
+  .lift-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+  .lift-card:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+  .crumb-link { color: var(--gray); text-decoration: none; }
+  .crumb-link:hover { color: var(--red); }
 
   /* Skeleton loading */
   .skeleton {
@@ -133,7 +139,7 @@ body {
   gap: 8px;
   padding: 12px 24px;
   border-radius: 9px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: var(--font-montserrat), 'Montserrat', sans-serif;
   font-weight: 700;
   font-size: 14px;
   cursor: pointer;
@@ -188,7 +194,7 @@ body {
   padding: 12px 16px;
   border: 1px solid var(--border);
   border-radius: 9px;
-  font-family: 'Open Sans', sans-serif;
+  font-family: var(--font-open-sans), 'Open Sans', sans-serif;
   font-size: 14px;
   color: var(--dark);
   background: white;
@@ -199,7 +205,7 @@ body {
   border-color: var(--red);
   box-shadow: 0 0 0 3px var(--red-pale);
 }
-.form-input::placeholder { color: #bbb; }
+.form-input::placeholder { color: #767676; }
 
 /* ── BADGE ── */
 .badge {
@@ -208,11 +214,11 @@ body {
   gap: 6px;
   padding: 4px 12px;
   border-radius: 20px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  font-family: 'Montserrat', sans-serif;
+  font-family: var(--font-montserrat), 'Montserrat', sans-serif;
 }
 .badge-red   { background: var(--red-pale); color: var(--red); }
 .badge-dark  { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.7); }
@@ -222,11 +228,67 @@ body {
 @media (max-width: 480px) {
   .card-img { height: 130px !important; }
   .card-info { padding: 8px 10px !important; gap: 2px !important; }
-  .card-name { font-size: 11px !important; -webkit-line-clamp: 2 !important; }
-  .card-category { font-size: 9px !important; letter-spacing: 0 !important; }
+  .card-name { font-size: 12px !important; -webkit-line-clamp: 2 !important; }
+  .card-category { font-size: 12px !important; letter-spacing: 0 !important; }
   .product-card { border-radius: 8px !important; }
 }
 @media (max-width: 360px) {
   .card-img { height: 110px !important; }
-  .card-name { font-size: 10px !important; }
+  .card-name { font-size: 12px !important; }
+}
+
+/* ── ACCESSIBILITY ── */
+.skip-link {
+  position: absolute;
+  left: 8px;
+  top: -48px;
+  z-index: 10000;
+  background: #111;
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-family: var(--font-montserrat), 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  text-decoration: none;
+}
+.skip-link:focus { top: 8px; outline: 3px solid #fff; outline-offset: 2px; box-shadow: 0 0 0 5px var(--red); }
+main:focus { outline: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ── FONTS ──
+   next/font self-hosts Montserrat and Open Sans under generated family names.
+   Most components set fontFamily: 'Montserrat' / 'Open Sans' inline, so these
+   rules point those names at the self-hosted files. */
+[style*="Montserrat"] { font-family: var(--font-montserrat), 'Montserrat', sans-serif !important; }
+[style*="Open Sans"]  { font-family: var(--font-open-sans), 'Open Sans', sans-serif !important; }
+
+@media print { .no-print { display: none !important; } }
+body.hide-launcher .chat-launcher { display: none !important; }
+
+/* ── STICKY MOBILE BUY BAR (product pages) ── */
+.mobile-buy-bar { display: none; }
+@media (max-width: 767px) {
+  .mobile-buy-bar {
+    display: flex; align-items: center; gap: 10px;
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 900;
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+    background: #fff; border-top: 1px solid var(--border-color, #e8e8e5);
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.08);
+  }
+  /* keep the footer reachable: the page gets room equal to the bar */
+  body.has-buy-bar { padding-bottom: calc(76px + env(safe-area-inset-bottom)); --launcher-lift: calc(76px + env(safe-area-inset-bottom)); }
+}
+
+/* keep the live price in view on desktop while options are changed */
+@media (min-width: 768px) {
+  .price-sticky { position: sticky; top: 68px; z-index: 5; background: var(--bg-primary, #fff); padding: 10px 0; }
 }

@@ -5,6 +5,9 @@ import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
 import { generateIndustryMetadata, Breadcrumbs, BreadcrumbSchema } from '@/components/seo'
 import { SITE_URL } from '@/lib/site-url'
+import { visibleBadge } from '@/lib/catalog'
+import { withFromPrices } from '@/lib/pricing-server'
+import SiteImage from '@/components/ui/SiteImage'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,48 +17,63 @@ const supabaseServer = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
+type Industry = Record<string, any>
+
+// Every fetch is wrapped: a database error or missing row becomes a 404,
+// never an uncaught throw (which would be a 500).
+async function loadIndustry(slug: string): Promise<{ industry: Industry; products: any[] } | null> {
+  try {
+    const { data: industry, error } = await supabaseServer
+      .from('industries')
+      .select('*')
+      .eq('slug', slug)
+      .eq('is_active', true)
+      .maybeSingle()
+    if (error || !industry) return null
+
+    let products: any[] = []
+    const { data: industryProducts } = await supabaseServer
+      .from('industry_products')
+      .select('product_id, sort_order')
+      .eq('industry_id', industry.id)
+      .order('sort_order')
+    if (industryProducts?.length) {
+      const { data } = await supabaseServer
+        .from('products')
+        .select('id, name, slug, display_price, price, images, image_url, short_description, badge, pricing_model, area_rate, area_unit, product_type, category, moq, min_width, min_height, min_order_amount, is_fixed_price')
+        .in('id', industryProducts.map(ip => ip.product_id))
+        .eq('is_active', true)
+      products = await withFromPrices(data || [])
+    }
+    return { industry, products }
+  } catch {
+    return null
+  }
+}
+
 export async function generateStaticParams() {
-  const { data } = await supabaseServer.from('industries').select('slug').eq('is_active', true)
-  return (data || []).map(i => ({ slug: i.slug }))
+  try {
+    const { data } = await supabaseServer.from('industries').select('slug').eq('is_active', true)
+    return (data || []).map(i => ({ slug: i.slug }))
+  } catch {
+    return []
+  }
 }
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
-  const { data } = await supabaseServer.from('industries').select('name, seo_title, meta_description, slug, hero_image').eq('slug', params.slug).single()
-  if (!data) return { title: 'Not Found' }
-  return generateIndustryMetadata(data)
+  const loaded = await loadIndustry(params.slug)
+  if (!loaded) return { title: 'Page not found' }
+  return generateIndustryMetadata(loaded.industry as any)
 }
 
 export default async function IndustryPage({ params }: { params: { slug: string } }) {
-  const { data: industry } = await supabaseServer
-    .from('industries')
-    .select('*')
-    .eq('slug', params.slug)
-    .eq('is_active', true)
-    .single()
-  if (!industry) notFound()
-
-  // Fetch products associated with this industry
-  const { data: industryProducts } = await supabaseServer
-    .from('industry_products')
-    .select('product_id, sort_order')
-    .eq('industry_id', industry.id)
-    .order('sort_order')
-
-  let products: any[] = []
-  if (industryProducts?.length) {
-    const ids = industryProducts.map(ip => ip.product_id)
-    const { data } = await supabaseServer
-      .from('products')
-      .select('id, name, slug, display_price, price, images, image_url, short_description, badge, pricing_model, area_rate, area_unit')
-      .in('id', ids)
-      .eq('is_active', true)
-    products = data || []
-  }
+  const loaded = await loadIndustry(params.slug)
+  if (!loaded) notFound()
+  const { industry, products } = loaded
 
   const breadcrumbs = [
     { name: 'Home', href: SITE_URL },
-    { name: 'Industries', href: `${SITE_URL}/industries` },
-    { name: industry.name },
+        { name: industry.name },
   ]
 
   return (
@@ -66,7 +84,7 @@ export default async function IndustryPage({ params }: { params: { slug: string 
       <div style={{ position: 'relative' as const, minHeight: 380, display: 'flex', alignItems: 'center', background: industry.hero_image ? undefined : '#111', overflow: 'hidden' }}>
         {industry.hero_image && (
           <>
-            <img src={industry.hero_image} alt={industry.name} style={{ position: 'absolute' as const, inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+            <SiteImage src={industry.hero_image} alt={industry.name} width={1600} height={600} sizes="100vw" priority style={{ position: 'absolute' as const, inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
             <div style={{ position: 'absolute' as const, inset: 0, background: 'rgba(0,0,0,0.65)' }} />
           </>
         )}
@@ -99,18 +117,16 @@ export default async function IndustryPage({ params }: { params: { slug: string 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20 }} className="industry-products-grid">
               {products.map(p => (
                 <Link key={p.id} href={`/products/${p.slug}`} style={{ textDecoration: 'none' }}>
-                  <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', height: '100%', transition: 'transform 0.2s, box-shadow 0.2s' }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-3px)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 10px 30px rgba(0,0,0,0.1)' }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'none'; (e.currentTarget as HTMLElement).style.boxShadow = 'none' }}>
+                  <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', height: '100%', }} className="lift-card">
                     <div style={{ aspectRatio: '4/3', overflow: 'hidden', background: '#f7f7f5' }}>
                       {(p.images?.[0] || p.image_url)
-                        ? <img src={p.images?.[0] || p.image_url} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ? <SiteImage src={p.images?.[0] || p.image_url} alt={p.name} width={400} height={300} sizes="(max-width: 768px) 50vw, 25vw" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 }}>🖨️</div>
                       }
                     </div>
                     <div style={{ padding: '16px' }}>
-                      {p.badge && (
-                        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--red)', background: 'rgba(192,57,43,0.08)', padding: '2px 8px', borderRadius: 10, display: 'inline-block', marginBottom: 6, fontFamily: 'Montserrat' }}>{p.badge}</div>
+                      {visibleBadge(p) && (
+                        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--red)', background: 'rgba(192,57,43,0.08)', padding: '2px 8px', borderRadius: 10, display: 'inline-block', marginBottom: 6, fontFamily: 'Montserrat' }}>{visibleBadge(p)}</div>
                       )}
                       <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, color: 'var(--text-primary)', marginBottom: 6, lineHeight: 1.3 }}>{p.name}</div>
                       {p.short_description && (

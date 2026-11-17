@@ -1,17 +1,23 @@
 // src/app/products/[slug]/ProductPageClient.tsx
 'use client'
 
-import { useState, useEffect } from 'react'
+import { visibleBadge } from '@/lib/catalog'
+import { BRAND } from '@/lib/constants'
+import { yearsLabel } from '@/lib/company'
+import { turnaroundFor } from '@/lib/turnaround'
+import { fixedPriceTotal } from '@/lib/priceCalc'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
-import { ShoppingCart, Heart, Share2, ChevronDown, ChevronUp, Star } from 'lucide-react'
+import { ShoppingCart, Heart, Share2, ChevronDown, ChevronUp, Star, MessageCircle } from 'lucide-react'
 import { useCartStore } from '@/store/cartStore'
 import type { DesignPricingResolved } from '@/store/cartStore'
-import LiveCalculatorV2 from '@/components/shop/LiveCalculatorV2'
+import LiveCalculatorV2, { type TierRow } from '@/components/shop/LiveCalculatorV2'
 import DesignPricingFlow from '@/components/shop/DesignPricingFlow'
 import { Breadcrumbs } from '@/components/seo'
 import { fbTrack } from '@/lib/meta-pixel'
 import toast from 'react-hot-toast'
+import SiteImage from '@/components/ui/SiteImage'
 
 interface Props {
   product: any
@@ -19,9 +25,10 @@ interface Props {
   faqs: { question: string; answer: string }[]
   breadcrumbs: { name: string; href?: string }[]
   marketingTags: { label: string; slug: string }[]
+  reviewStats?: { count: number; average: number } | null
 }
 
-export default function ProductPageClient({ product, relatedProducts, faqs, breadcrumbs, marketingTags }: Props) {
+export default function ProductPageClient({ product, relatedProducts, faqs, breadcrumbs, marketingTags, reviewStats }: Props) {
   const [activeImage, setActiveImage] = useState(0)
   const [qty, setQty] = useState(product.moq || 1)
   const [widthIn, setWidthIn] = useState<number>(product.min_width || 1)
@@ -31,10 +38,17 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
   const [resolvedPriceModel, setResolvedPriceModel] = useState('unit')
   const [openFaq, setOpenFaq] = useState<number | null>(null)
   const [wishlisted, setWishlisted] = useState(false)
+  const [tierRows, setTierRows] = useState<TierRow[]>([])
 
   // Design pricing state
   const [designPricingResolved, setDesignPricingResolved] = useState<DesignPricingResolved | null>(null)
   const [linkedAddons, setLinkedAddons] = useState<any[]>([])
+
+  // Fixed-price products (is_fixed_price) are priced from their stored price x quantity and
+  // NEVER from option rates, so the option calculator is not used for them at all.
+  const isFixed = !!product.is_fixed_price
+  const effectivePrice: number | null = isFixed ? fixedPriceTotal(product, qty) : calculatedPrice
+  const effectiveSpecs: Record<string, string> = isFixed ? { Quantity: String(qty) } : specs
 
   const hasDesignPricing = product.design_pricing_type && product.design_pricing_type !== 'none'
 
@@ -61,26 +75,20 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
   const images = product.images?.length ? product.images
     : product.image_url ? [product.image_url] : []
 
-  const printPrice = calculatedPrice || product.display_price || product.price || 0
+  const printPrice = effectivePrice || product.display_price || product.price || 0
   const designCost = designPricingResolved?.designCostTotal ?? 0
   const totalPrice = printPrice + designCost
 
-  const canAddToCart = (() => {
-    if (!calculatedPrice && !product.is_fixed_price) return false
-    if (hasDesignPricing && !designPricingResolved) return false
-    return true
-  })()
+  // The button is never disabled. Until a price exists it explains why, in plain
+  // sight beside the button, and clicking it repeats the reason.
+  const hasPrice = !!effectivePrice || !!product.is_fixed_price
 
   const handleAddToCart = () => {
-    if (!canAddToCart) {
-      if (!calculatedPrice && !product.is_fixed_price) {
-        toast.error('Please configure your product first')
-      } else if (hasDesignPricing && !designPricingResolved) {
-        toast.error('Please complete the design options above')
-      }
+    if (!hasPrice) {
+      toast.error('Choose your options first so we can work out the price')
       return
     }
-    const finalPrintPrice = calculatedPrice || product.display_price || product.price || 0
+    const finalPrintPrice = effectivePrice || product.display_price || product.price || 0
     const displayQty = ['area', 'area_sqin'].includes(resolvedPriceModel)
       ? `${qty} piece${qty !== 1 ? 's' : ''}`
       : `${qty} pcs`
@@ -89,21 +97,64 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
       product.name,
       finalPrintPrice,
       displayQty,
-      specs,
-      designPricingResolved,
+      effectiveSpecs,
+      hasDesignPricing
+        ? (designPricingResolved ?? { hasOwnDesign: true, designCostTotal: 0, designAddons: [] })
+        : null,
     )
   }
 
-  const handleWhatsApp = () => {
-    const msg = encodeURIComponent(
-      `Hello, I'm interested in ordering:\n\n` +
-      `Product: ${product.name}\n` +
-      `Quantity: ${qty}\n` +
-      `${calculatedPrice ? `Estimated Total: ₦${totalPrice.toLocaleString()}\n` : ''}` +
-      `\nPlease confirm availability and delivery timeline.`
-    )
-    window.open(`https://wa.me/2348052929523?text=${msg}`, '_blank')
+  // Pre-filled WhatsApp message: product, chosen options, quantity, total and page link.
+  const buildWhatsAppUrl = () => {
+    const options = Object.entries(effectiveSpecs).filter(([k, v]) => v && k !== 'Quantity').map(([k, v]) => `${k}: ${v}`).join(', ')
+    const lines = [
+      "Hello, I'm interested in ordering:",
+      '',
+      `Product: ${product.name}`,
+      options ? `Options: ${options}` : '',
+      `Quantity: ${qty}`,
+      effectivePrice ? `Estimated total: ₦${totalPrice.toLocaleString()}` : '',
+      `Link: ${window.location.origin}/products/${product.slug}`,
+      '',
+      'Please confirm availability and delivery timeline.',
+    ].filter((l, i, arr) => l !== '' || (arr[i - 1] !== '' && i !== 0))
+    return `https://wa.me/${BRAND.whatsapp}?text=${encodeURIComponent(lines.join('\n'))}`
   }
+
+  const handleWhatsApp = () => {
+    // Record the lead first, but never wait for it: if it fails, WhatsApp still opens.
+    try {
+      const options = Object.entries(effectiveSpecs).filter(([k, v]) => v && k !== 'Quantity').map(([k, v]) => `${k}: ${v}`).join(', ')
+      fetch('/api/leads', {
+        method: 'POST',
+        keepalive: true,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          source: 'whatsapp',
+          product_interest: product.name,
+          quantity: qty,
+          notes: [options && `Options: ${options}`, effectivePrice ? `Estimated total: ₦${totalPrice.toLocaleString()}` : '', `Page: ${window.location.href}`].filter(Boolean).join('\n'),
+        }),
+      }).catch(() => {})
+    } catch { /* ignore */ }
+    window.open(buildWhatsAppUrl(), '_blank', 'noopener')
+  }
+
+  // The floating launcher's WhatsApp item asks the page to handle the click, so it
+  // sends this product's message. Kept in a ref so the listener always sees fresh values.
+  const whatsappRef = useRef(handleWhatsApp)
+  whatsappRef.current = handleWhatsApp
+  useEffect(() => {
+    const onLauncher = (e: Event) => { e.preventDefault(); whatsappRef.current() }
+    window.addEventListener('printhub:whatsapp', onLauncher)
+    return () => window.removeEventListener('printhub:whatsapp', onLauncher)
+  }, [])
+
+  // Tells the rest of the page (chat launcher, consent banner) to sit above the mobile bar
+  useEffect(() => {
+    document.body.classList.add('has-buy-bar')
+    return () => document.body.classList.remove('has-buy-bar')
+  }, [])
 
   const handleShare = async () => {
     try {
@@ -125,12 +176,12 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
         <div>
           <div style={{ borderRadius: 16, overflow: 'hidden', background: '#f7f7f5', aspectRatio: '1/1', marginBottom: 12, position: 'relative' as const }}>
             {images[activeImage]
-              ? <img src={images[activeImage]} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ? <SiteImage src={images[activeImage]} alt={product.name} width={800} height={800} sizes="(max-width: 768px) 100vw, 50vw" priority style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 64 }}>🖨️</div>
             }
-            {product.badge && (
+            {visibleBadge(product) && (
               <div style={{ position: 'absolute' as const, top: 16, left: 16, background: 'var(--red)', color: 'white', fontFamily: 'Montserrat', fontWeight: 700, fontSize: 12, padding: '4px 12px', borderRadius: 20 }}>
-                {product.badge}
+                {visibleBadge(product)}
               </div>
             )}
           </div>
@@ -139,7 +190,7 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
               {images.map((img: string, i: number) => (
                 <button key={i} onClick={() => setActiveImage(i)}
                   style={{ width: 64, height: 64, borderRadius: 8, overflow: 'hidden', border: `2px solid ${activeImage === i ? 'var(--red)' : 'transparent'}`, background: '#f7f7f5', cursor: 'pointer', padding: 0 }}>
-                  <img src={img} alt={`${product.name} view ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <SiteImage src={img} alt={`${product.name} view ${i + 1}`} width={64} height={64} sizes="64px" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 </button>
               ))}
             </div>
@@ -161,7 +212,7 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
             <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6, marginBottom: 14 }}>
               {marketingTags.map(tag => (
                 <Link key={tag.slug} href={`/shop?cat=${encodeURIComponent(tag.label)}`}
-                  style={{ fontSize: 11, color: 'var(--text-secondary)', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 20, padding: '2px 10px', textDecoration: 'none', fontFamily: 'Open Sans' }}>
+                  style={{ fontSize: 12, color: 'var(--text-secondary)', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 20, padding: '2px 10px', textDecoration: 'none', fontFamily: 'Open Sans' }}>
                   {tag.label}
                 </Link>
               ))}
@@ -173,12 +224,12 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
           </h1>
 
           {/* Rating */}
-          {product.rating > 0 && (
+          {reviewStats && reviewStats.count > 0 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
               {[1,2,3,4,5].map(s => (
-                <Star key={s} size={14} color="var(--red)" fill={s <= Math.round(product.rating) ? 'var(--red)' : 'none'} />
+                <Star key={s} size={14} color="var(--red)" fill={s <= Math.round(reviewStats.average) ? 'var(--red)' : 'none'} />
               ))}
-              <span style={{ fontSize: 13, color: 'var(--gray)' }}>{Number(product.rating).toFixed(1)} ({product.review_count} reviews)</span>
+              <span style={{ fontSize: 13, color: 'var(--gray)' }}>{reviewStats.average.toFixed(1)} ({reviewStats.count} review{reviewStats.count === 1 ? '' : 's'})</span>
             </div>
           )}
 
@@ -189,51 +240,41 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
             </p>
           )}
 
-          {/* Price display — shows breakdown when design pricing is resolved */}
-          {calculatedPrice || product.display_price || product.price ? (
-            <div style={{ marginBottom: 20 }}>
-              {hasDesignPricing && designPricingResolved ? (
-                // Full breakdown
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--gray)', marginBottom: 4 }}>
-                    <span>Print subtotal</span>
-                    <span>₦{printPrice.toLocaleString()}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--gray)', marginBottom: 8 }}>
-                    <span>Design</span>
-                    <span>{designCost === 0 ? '₦0 (your file)' : `₦${designCost.toLocaleString()}`}</span>
-                  </div>
-                  <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 28, color: 'var(--red)' }}>
+          {/* Price: one primary figure (live total), per-piece price as small secondary text */}
+          {(effectivePrice || product.display_price || product.price) ? (
+            <div className="price-sticky" style={{ marginBottom: 20 }} aria-live="polite">
+              {effectivePrice ? (
+                <>
+                  <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 30, color: 'var(--red)', lineHeight: 1.1 }}>
                     ₦{totalPrice.toLocaleString()}
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--gray)', marginTop: 2 }}>
+                  <div style={{ fontSize: 12, color: 'var(--gray)', marginTop: 4 }}>
+                    {qty > 1 && <>₦{Math.round(printPrice / qty).toLocaleString()} per piece · </>}
                     {qty} {qty === 1 ? 'piece' : 'pieces'} · VAT inclusive
                   </div>
-                </div>
-              ) : calculatedPrice ? (
-                <div>
-                  <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 28, color: 'var(--red)' }}>
-                    ₦{calculatedPrice.toLocaleString()}
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--gray)', marginTop: 2 }}>
-                    {qty} {qty === 1 ? 'piece' : 'pieces'} · VAT inclusive
-                    {hasDesignPricing && !designPricingResolved && (
-                      <span style={{ color: '#d97706', marginLeft: 6 }}>+ design fee (see below)</span>
-                    )}
-                  </div>
-                </div>
+                  {hasDesignPricing && designPricingResolved && !designPricingResolved.hasOwnDesign && (
+                    <div style={{ fontSize: 13, color: 'var(--text-primary)', marginTop: 8 }}>
+                      Print ₦{printPrice.toLocaleString()}
+                      {designCost > 0 ? <> <strong>+ ₦{designCost.toLocaleString()} design fee</strong></> : <> · design included</>}
+                    </div>
+                  )}
+                  {hasDesignPricing && designPricingResolved?.hasOwnDesign && (
+                    <div style={{ fontSize: 12, color: 'var(--gray)', marginTop: 6 }}>No design fee. Upload your file in the cart.</div>
+                  )}
+                </>
               ) : (
-                <div>
+                <>
                   <div style={{ fontSize: 13, color: 'var(--gray)', marginBottom: 4 }}>Starting from</div>
-                  <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 28, color: 'var(--red)' }}>
+                  <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 30, color: 'var(--red)' }}>
                     ₦{Number(product.display_price || product.price).toLocaleString()}
                   </div>
-                </div>
+                </>
               )}
             </div>
           ) : null}
 
           {/* Live calculator */}
+          {!isFixed && (
           <div style={{ marginBottom: 24 }}>
             <LiveCalculatorV2
               category={product.product_type || product.category}
@@ -244,6 +285,11 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
               minWidth={product.min_width || 0.1}
               minHeight={product.min_height || 0.1}
               minOrderAmount={product.min_order_amount || undefined}
+              hideTotal
+              moq={product.moq || 1}
+              increment={product.increment || 1}
+              maxQty={product.max_qty || null}
+              onTierTable={setTierRows}
               onDimensionChange={(axis, value) => {
                 if (axis === 'width') setWidthIn(value)
                 else setHeightIn(value)
@@ -251,12 +297,11 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
               onPriceUpdate={(total, specSummary) => {
                 setCalculatedPrice(total)
                 setSpecs(specSummary)
-                // Reset design resolution when print config changes
-                if (designPricingResolved) setDesignPricingResolved(null)
               }}
               onPriceModelResolved={setResolvedPriceModel}
             />
           </div>
+          )}
 
           {/* Quantity selector */}
           <div style={{ marginBottom: 20 }}>
@@ -264,17 +309,45 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
               Quantity (min {product.moq || 1})
             </label>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <button
+              <button aria-label="Decrease quantity"
                 onClick={() => setQty((q: number) => Math.max(product.moq || 1, q - (product.increment || 1)))}
                 disabled={qty <= (product.moq || 1)}
                 style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid var(--border)', background: '#f7f7f5', cursor: qty <= (product.moq || 1) ? 'not-allowed' : 'pointer', fontSize: 18, opacity: qty <= (product.moq || 1) ? 0.4 : 1 }}>−</button>
-              <input type="number" value={qty} min={product.moq || 1} step={product.increment || 1}
+              <input aria-label="Quantity" type="number" value={qty} min={product.moq || 1} step={product.increment || 1}
                 onChange={e => setQty(Math.max(product.moq || 1, Number(e.target.value)))}
                 style={{ width: 72, textAlign: 'center' as const, padding: '8px', border: '1px solid var(--border)', borderRadius: 8, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 16 }} />
-              <button onClick={() => setQty((q: number) => q + (product.increment || 1))}
+              <button aria-label="Increase quantity" onClick={() => setQty((q: number) => q + (product.increment || 1))}
                 style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid var(--border)', background: '#f7f7f5', cursor: 'pointer', fontSize: 18 }}>+</button>
             </div>
           </div>
+
+          {/* Bulk pricing: real tiers from the pricing engine, figures for the options chosen above */}
+          {tierRows.length > 1 && (() => {
+            const activeIdx = Math.max(0, tierRows.findIndex(r => qty >= r.minQty && (r.maxQty === null || qty <= r.maxQty)))
+            const next = tierRows[activeIdx + 1]
+            const currentEach = effectivePrice && qty ? printPrice / qty : 0
+            const saving = next && currentEach ? Math.round(currentEach * next.qty - next.total) : 0
+            return (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 6 }}>Bulk pricing</div>
+                <table style={{ width: '100%', borderCollapse: 'collapse' as const, fontSize: 13 }}>
+                  <tbody>
+                    {tierRows.map((r, i) => (
+                      <tr key={r.qty} style={{ background: i === activeIdx ? 'rgba(192,57,43,0.08)' : 'transparent', fontWeight: i === activeIdx ? 700 : 400 }}>
+                        <td style={{ padding: '6px 10px', borderRadius: '6px 0 0 6px' }}>{r.qty} pcs{r.discountPct > 0 ? ` · ${r.discountPct}% off` : ''}</td>
+                        <td style={{ padding: '6px 10px', textAlign: 'right' as const, borderRadius: '0 6px 6px 0' }}>₦{r.each.toLocaleString()} each</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {next && qty < next.qty && saving > 0 && (
+                  <div style={{ fontSize: 13, color: '#047857', marginTop: 6 }}>
+                    Order {(next.qty - qty).toLocaleString()} more to save ₦{saving.toLocaleString()}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
 
           {/* Design pricing flow — shown when product has design pricing configured */}
           {hasDesignPricing && (
@@ -291,44 +364,70 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
           <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
             <button
               onClick={handleAddToCart}
-              disabled={!canAddToCart}
               style={{
                 flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                 padding: '14px 20px', border: 'none', borderRadius: 10, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 15,
-                cursor: canAddToCart ? 'pointer' : 'not-allowed',
-                background: canAddToCart ? 'var(--red)' : '#e5e7eb',
-                color: canAddToCart ? 'white' : '#9ca3af',
+                cursor: 'pointer', background: 'var(--red)', color: 'white',
               }}>
               <ShoppingCart size={18} />
-              {hasDesignPricing && !designPricingResolved ? 'Complete Design Options First' : 'Add to Cart'}
+              Add to cart
             </button>
-            <button onClick={() => setWishlisted(w => !w)}
+            <button aria-label={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'} aria-pressed={wishlisted} onClick={() => setWishlisted(w => !w)}
               style={{ width: 48, height: 48, borderRadius: 10, border: '1px solid var(--border)', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Heart size={18} color={wishlisted ? 'var(--red)' : 'var(--gray)'} fill={wishlisted ? 'var(--red)' : 'none'} />
             </button>
-            <button onClick={handleShare}
+            <button aria-label="Share this product" onClick={handleShare}
               style={{ width: 48, height: 48, borderRadius: 10, border: '1px solid var(--border)', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Share2 size={18} color="var(--gray)" />
             </button>
           </div>
+
+          {!hasPrice && (
+            <div role="status" style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>
+              Choose your options above to see the price.
+            </div>
+          )}
 
           <button onClick={handleWhatsApp}
             style={{ width: '100%', padding: '13px', background: '#25D366', color: 'white', border: 'none', borderRadius: 10, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
             💬 Order via WhatsApp
           </button>
 
-          {/* Turnaround + delivery */}
-          {(product.turnaround_time || product.delivery_information) && (
-            <div style={{ marginTop: 20, padding: '14px 16px', background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 10 }}>
-              {product.turnaround_time && (
-                <div style={{ fontSize: 13, color: '#166534', marginBottom: 4 }}>⏱️ <strong>Turnaround:</strong> {product.turnaround_time}</div>
-              )}
-              {product.delivery_information && (
-                <div style={{ fontSize: 13, color: '#166534' }}>🚚 <strong>Delivery:</strong> {product.delivery_information}</div>
-              )}
+          {/* Trust row */}
+          <ul style={{ listStyle: 'none', margin: '16px 0 0', padding: 0, display: 'grid', gap: 6, fontSize: 13, color: 'var(--text-primary)' }}>
+            <li>🔄 Free reprint if the error is ours</li>
+            <li>🔒 Secure payment via Paystack</li>
+            <li>⭐ {yearsLabel()} · {BRAND.stats.jobs} jobs delivered</li>
+          </ul>
+
+          {/* Turnaround and delivery. Shown only when a turnaround applies (see lib/turnaround.ts). */}
+          {turnaroundFor(product) && (
+            <div style={{ marginTop: 12, fontSize: 13, color: 'var(--text-secondary)' }}>
+              ⏱️ Typical turnaround: {turnaroundFor(product)} · Pickup in Karu or nationwide delivery
             </div>
           )}
+          {product.delivery_information && (
+            <div style={{ marginTop: 6, fontSize: 13, color: 'var(--text-secondary)' }}>🚚 {product.delivery_information}</div>
+          )}
         </div>
+      </div>
+
+      {/* ── Sticky mobile buy bar (screens under 768px) ── */}
+      <div className="mobile-buy-bar" role="region" aria-label="Order summary">
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 12, color: 'var(--gray)' }}>{effectivePrice ? 'Total' : 'From'}</div>
+          <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 18, color: 'var(--red)', lineHeight: 1.1 }}>
+            ₦{(effectivePrice ? totalPrice : Number(product.display_price || product.price || 0)).toLocaleString()}
+          </div>
+        </div>
+        <button onClick={handleAddToCart}
+          style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 14px', border: 'none', borderRadius: 10, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, cursor: 'pointer', background: 'var(--red)', color: 'white' }}>
+          <ShoppingCart size={16} /> Add to cart
+        </button>
+        <button onClick={handleWhatsApp} aria-label="Chat on WhatsApp about this product"
+          style={{ width: 46, height: 46, flexShrink: 0, borderRadius: 10, border: 'none', background: '#25D366', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+          <MessageCircle size={22} />
+        </button>
       </div>
 
       {/* ── Full description ── */}
@@ -381,7 +480,7 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
                   onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'none'; (e.currentTarget as HTMLElement).style.boxShadow = 'none' }}>
                   <div style={{ aspectRatio: '1/1', background: '#f7f7f5', overflow: 'hidden' }}>
                     {(p.images?.[0] || p.image_url)
-                      ? <img src={p.images?.[0] || p.image_url} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ? <SiteImage src={p.images?.[0] || p.image_url} alt={p.name} width={400} height={400} sizes="(max-width: 768px) 50vw, 25vw" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32 }}>🖨️</div>
                     }
                   </div>

@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation'
 import { Heart, Star, ShoppingCart } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
+import { visibleBadge, isNewProduct } from '@/lib/catalog'
 
 // ─── TYPES ────────────────────────────────────────────────────
 export interface ProductCardData {
@@ -29,14 +30,19 @@ export interface ProductCardData {
   rating: number
   review_count: number
   total_orders: number
+  created_at?: string
   is_active: boolean
   moq?: number
+  price_model?: string | null   // category price model (per_100, per_piece, area, ...)
 }
 
 // ─── HELPERS ──────────────────────────────────────────────────
 export function displayPrice(p: ProductCardData) {
   if (p.pricing_model === 'area') return `₦${Number(p.area_rate).toLocaleString()}/${p.area_unit}`
   const base = p.display_price || p.price
+  // Area-priced products (banners, backdrops, window graphics): the "from" figure is the rate for one
+  // square foot, so say so instead of implying a finished job costs that much.
+  if (p.price_model === 'area' && !p.is_fixed_price && (p.moq || 1) <= 1) return `From ₦${Number(base).toLocaleString()} per sq ft`
   if (p.is_fixed_price) return `₦${Number(base).toLocaleString()}`
   return `From ₦${Number(base).toLocaleString()}`
 }
@@ -62,10 +68,11 @@ function formatSold(n: number) {
 }
 
 // ─── STAR DISPLAY ─────────────────────────────────────────────
-export function StarDisplay({ rating, count, size = 12 }: { rating: number; count: number; size?: number }) {
-  if (!count) return (
-    <span style={{ fontSize: size - 1, color: '#10b981', fontWeight: 700, fontFamily: 'Montserrat' }}>NEW</span>
-  )
+export function StarDisplay({ rating, count, size = 12, isNew = false }: { rating: number; count: number; size?: number; isNew?: boolean }) {
+  // No reviews yet: only call the product NEW if it really was created recently.
+  if (!count) return isNew ? (
+    <span style={{ fontSize: Math.max(size - 1, 12), color: '#047857', fontWeight: 700, fontFamily: 'Montserrat' }}>NEW</span>
+  ) : <span />
   const full = Math.floor(rating)
   const half = rating % 1 >= 0.5
   const empty = 5 - full - (half ? 1 : 0)
@@ -76,7 +83,7 @@ export function StarDisplay({ rating, count, size = 12 }: { rating: number; coun
         {half && <Star key="h" size={size} fill="url(#half)" color="#f59e0b" />}
         {Array(empty).fill(0).map((_, i) => <Star key={`e${i}`} size={size} fill="none" color="#d1d5db" />)}
       </div>
-      <span style={{ fontSize: size - 1, color: '#6b7280', fontFamily: 'Open Sans' }}>
+      <span style={{ fontSize: Math.max(size - 1, 12), color: '#6b7280', fontFamily: 'Open Sans' }}>
         {rating.toFixed(1)} ({count})
       </span>
     </div>
@@ -167,7 +174,7 @@ function WishlistHeart({ productId, initialState }: { productId: string; initial
   }
 
   return (
-    <button onClick={toggle}
+    <button aria-label={saved ? 'Remove from wishlist' : 'Add to wishlist'} onClick={toggle}
       style={{ position: 'absolute' as const, top: 8, right: 8, width: 30, height: 30, borderRadius: '50%', background: 'rgba(255,255,255,0.92)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 6px rgba(0,0,0,0.12)', transition: 'transform 0.15s', zIndex: 2 }}
       onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.15)')}
       onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}>
@@ -192,6 +199,7 @@ export function ProductCard({
 }) {
   const imgs = product.images?.length ? product.images : product.image_url ? [product.image_url] : []
   const handleClick = href ? undefined : () => onOpen(product)
+  const badge = visibleBadge(product)
 
   return (
     <div className="product-card"
@@ -200,20 +208,20 @@ export function ProductCard({
       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = 'none'; (e.currentTarget as HTMLElement).style.transform = 'none' }}>
 
       {/* Image — square 1:1 */}
-      <div className="card-img" style={{ width: '100%', aspectRatio: '1 / 1', background: 'var(--bg-secondary)', position: 'relative' as const, overflow: 'hidden', cursor: 'pointer' }}
+      <div className="card-img" style={{ width: '100%', aspectRatio: '4 / 3', background: 'var(--bg-secondary)', position: 'relative' as const, overflow: 'hidden', cursor: 'pointer' }}
         onClick={href ? () => window.location.href = href : () => onOpen(product)}>
         <CardImage imgs={imgs} name={product.name} />
 
         {/* Badge */}
-        {product.badge && (
-          <div style={{ position: 'absolute' as const, top: 8, left: 8, background: 'var(--red)', color: 'white', fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 10, fontFamily: 'Montserrat', zIndex: 2 }}>
-            {product.badge}
+        {badge && (
+          <div style={{ position: 'absolute' as const, top: 8, left: 8, background: 'var(--red)', color: 'white', fontSize: 12, fontWeight: 700, padding: '3px 8px', borderRadius: 10, fontFamily: 'Montserrat', zIndex: 2 }}>
+            {badge}
           </div>
         )}
 
         {/* Discount badge */}
         {product.discount_type && product.discount_value && (
-          <div style={{ position: 'absolute' as const, top: product.badge ? 32 : 8, left: 8, background: '#10b981', color: 'white', fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 10, fontFamily: 'Montserrat', zIndex: 2 }}>
+          <div style={{ position: 'absolute' as const, top: badge ? 32 : 8, left: 8, background: '#10b981', color: 'white', fontSize: 12, fontWeight: 700, padding: '3px 8px', borderRadius: 10, fontFamily: 'Montserrat', zIndex: 2 }}>
             {product.discount_type === 'percentage' ? `${product.discount_value}% OFF` : 'SALE'}
           </div>
         )}
@@ -226,14 +234,15 @@ export function ProductCard({
       <div className="card-info" style={{ padding: '12px 14px', flex: 1, display: 'flex', flexDirection: 'column' as const, gap: 4 }}>
         {/* Name */}
         <div className="card-name" style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.4, flex: 1 }}>
-          {product.name}
+          {/* A real anchor so search engines can follow the product link */}
+          {href ? <Link href={href} style={{ color: 'inherit', textDecoration: 'none' }}>{product.name}</Link> : product.name}
         </div>
 
         {/* Stars + sold */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}>
-          <StarDisplay rating={product.rating || 0} count={product.review_count || 0} />
+          <StarDisplay rating={product.rating || 0} count={product.review_count || 0} isNew={isNewProduct(product)} />
           {product.total_orders > 0 && (
-            <span style={{ fontSize: 10, color: 'var(--text-secondary)', fontFamily: 'Open Sans' }}>
+            <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontFamily: 'Open Sans' }}>
               {formatSold(product.total_orders)} sold
             </span>
           )}
@@ -249,10 +258,10 @@ export function ProductCard({
                   <span style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 14, color: 'var(--red)' }}>
                     ₦{disc.discounted.toLocaleString()}
                   </span>
-                  <span style={{ fontFamily: 'Montserrat', fontWeight: 600, fontSize: 11, color: '#999', textDecoration: 'line-through' }}>
+                  <span style={{ fontFamily: 'Montserrat', fontWeight: 600, fontSize: 12, color: '#6B6B6B', textDecoration: 'line-through' }}>
                     ₦{disc.original.toLocaleString()}
                   </span>
-                  <span style={{ fontSize: 10, fontWeight: 700, background: 'var(--red)', color: 'white', padding: '1px 5px', borderRadius: 4 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, background: 'var(--red)', color: 'white', padding: '1px 5px', borderRadius: 4 }}>
                     -{disc.pct}%
                   </span>
                 </div>
@@ -263,11 +272,17 @@ export function ProductCard({
               </div>
             )
           })()}
-          {product.moq && product.moq > 1 && (
-            <div style={{ fontSize: 10, color: 'var(--text-secondary)', fontFamily: 'Open Sans', marginTop: 1 }}>
-              Min: {product.moq} pcs
-            </div>
-          )}
+          {product.moq && product.moq > 1 && (() => {
+            // Per-piece figure only where it can be derived safely: 'per 100' categories,
+            // taking the card price as the price at the minimum quantity.
+            const base = Number(product.display_price || product.price)
+            const each = product.price_model === 'per_100' && base > 0 ? Math.round(base / product.moq) : 0
+            return (
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontFamily: 'Open Sans', marginTop: 1 }}>
+                Min {product.moq} pcs{each > 0 ? ` · about ₦${each.toLocaleString()} each` : ''}
+              </div>
+            )
+          })()}
         </div>
 
         {/* Order button */}
@@ -275,7 +290,7 @@ export function ProductCard({
           style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px', background: 'var(--red)', color: 'white', border: 'none', borderRadius: 8, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 12, cursor: 'pointer', marginTop: 8, transition: 'background 0.2s' }}
           onMouseEnter={e => (e.currentTarget.style.background = 'var(--red-dark)')}
           onMouseLeave={e => (e.currentTarget.style.background = 'var(--red)')}>
-          <ShoppingCart size={13} /> Order Now
+          <ShoppingCart size={13} /> {product.is_fixed_price ? 'See price' : 'Choose options'}
         </button>
       </div>
     </div>
@@ -312,7 +327,8 @@ export function ShopSidebar({
   const cats = [
     { id: 'All Products', label: 'All Products', icon: '🛒' },
     ...Object.keys(categoryMap)
-      .filter(k => k !== 'All Products')
+      // hide categories that have no active products
+      .filter(k => k !== 'All Products' && categoryMap[k] > 0)
       .map(label => ({ id: label, label, icon: categoryIcons?.[label] || '🏷️' })),
   ]
 
@@ -343,7 +359,7 @@ export function ShopSidebar({
                   </span>
                 </div>
                 {count > 0 && (
-                  <span style={{ fontSize: 11, fontWeight: 600, color: isActive ? 'var(--red)' : 'var(--text-secondary)', background: isActive ? 'rgba(192,57,43,0.1)' : 'var(--bg-secondary)', padding: '2px 7px', borderRadius: 10, fontFamily: 'Montserrat', flexShrink: 0 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: isActive ? 'var(--red)' : 'var(--text-secondary)', background: isActive ? 'rgba(192,57,43,0.1)' : 'var(--bg-secondary)', padding: '2px 7px', borderRadius: 10, fontFamily: 'Montserrat', flexShrink: 0 }}>
                     {count}
                   </span>
                 )}
@@ -354,7 +370,7 @@ export function ShopSidebar({
 
         {/* Quick links */}
         <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: 'var(--text-secondary)', marginBottom: 4 }}>Quick Links</div>
+          <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: 'var(--text-secondary)', marginBottom: 4 }}>Quick Links</div>
           {[
             { label: '🚀 Starter Kits', href: '/starter-kits' },
             { label: '🗳️ Campaign Materials', href: '/election-campaign' },

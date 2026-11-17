@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
+import { confirmOrderPayment } from '@/lib/paystack'
+import { alertPaymentReview } from '@/lib/alerts'
 
 // Use service role key — this runs server-side only, never exposed to client
 const supabase = createClient(
@@ -47,141 +49,31 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ received: true })
       }
 
-      // ── 4. Find the order by Paystack reference ──────────────
-      const { data: order, error: findErr } = await supabase
-        .from('orders')
-        .select('id, status, total_amount, user_id, email, first_name, last_name')
-        .eq('paystack_reference', reference)
-        .single()
-
-      if (findErr || !order) {
-        // Reference not found — could be a duplicate webhook or timing issue
-        console.error('Order not found for reference:', reference, findErr?.message)
-        return NextResponse.json({ received: true }) // Always return 200 to Paystack
+      // ── 4-7. Confirm through the shared server routine (checks reference, amount and
+      //         currency, idempotent). The browser can no longer mark orders paid, so a
+      //         webhook finding an order still 'pending' is the normal case.
+      const result = await confirmOrderPayment(supabase, {
+        reference, status, amountKobo, currency: String(data.currency || ''),
+      })
+      if (result.state === 'amount_mismatch' && result.review?.firstTime && result.order) {
+        await alertPaymentReview({ orderId: result.order.id, reference, ...result.review })
       }
-
-      // ── 5. Skip if already confirmed ─────────────────────────
-      if (order.status === 'paid' || order.status === 'processing') {
-        console.log('Order already confirmed:', order.id)
+      if (result.state === 'order_not_found') {
+        // The order may not exist yet (the browser creates it after the popup); the verify route
+        // will confirm it then.
+        console.error('Order not found for reference:', reference)
         return NextResponse.json({ received: true })
       }
-
-      // ── 6. Verify amount matches (protect against manipulation) ──
-      const expectedAmount = Number(order.total_amount)
-      const tolerance = 1 // allow ₦1 rounding difference
-      if (Math.abs(amountNaira - expectedAmount) > tolerance) {
-        console.error(`Amount mismatch: paid ₦${amountNaira}, expected ₦${expectedAmount}`)
-        // Mark as suspicious but don't fail — investigate manually
-        await supabase
-          .from('orders')
-          .update({ status: 'payment_review', paystack_reference: reference })
-          .eq('id', order.id)
+      if (result.state !== 'paid' || !result.order) {
+        console.log(`Webhook for ${reference}: ${result.state}`)
         return NextResponse.json({ received: true })
       }
-
-      // ── 7. Confirm the order as paid ─────────────────────────
-      const { error: updateErr } = await supabase
-        .from('orders')
-        .update({
-          status: 'paid',
-          paystack_reference: reference,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', order.id)
-
-      if (updateErr) {
-        console.error('Failed to update order status:', updateErr.message)
-        return NextResponse.json({ error: 'DB update failed' }, { status: 500 })
-      }
+      const order = result.order
 
       console.log(`✅ Order ${order.id} confirmed as paid via webhook. Ref: ${reference}`)
 
-      // ── 8. Affiliate commission ───────────────────────────────
-      const customerId = order.user_id
-      try {
-        if (customerId) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('referred_by')
-            .eq('id', customerId)
-            .single()
-
-          if (profile?.referred_by) {
-            // FK column may be user_id or profile_id depending on when the DB was set up
-            let affiliate: any = null
-            const { data: a1 } = await supabase
-              .from('affiliates')
-              .select('id, total_earnings, pending_payout')
-              .eq('user_id', profile.referred_by)
-              .single()
-            affiliate = a1
-            if (!affiliate) {
-              const { data: a2 } = await supabase
-                .from('affiliates')
-                .select('id, total_earnings, pending_payout')
-                .eq('profile_id', profile.referred_by)
-                .single()
-              affiliate = a2
-            }
-
-            if (affiliate) {
-              // Count prior orders from this customer already attributed to this affiliate
-              const { count: priorCount } = await supabase
-                .from('commissions')
-                .select('id', { count: 'exact', head: true })
-                .eq('affiliate_id', affiliate.id)
-                .eq('referred_customer', customerId)
-
-              const prior = priorCount ?? 0
-              const rate = prior < 5 ? 0.10 : prior < 10 ? 0.05 : 0.03
-              const commissionAmount = Math.round(amountNaira * rate * 100) / 100
-
-              await supabase.from('commissions').insert({
-                affiliate_id: affiliate.id,
-                order_id: order.id,
-                referred_customer: customerId,
-                order_total: amountNaira,
-                rate,
-                amount: commissionAmount,
-                status: 'pending',
-              })
-
-              await supabase
-                .from('affiliates')
-                .update({
-                  total_earnings: (Number(affiliate.total_earnings) || 0) + commissionAmount,
-                  pending_payout: (Number(affiliate.pending_payout) || 0) + commissionAmount,
-                })
-                .eq('id', affiliate.id)
-
-              // Update referrals row if it exists
-              const { data: refRow } = await supabase
-                .from('referrals')
-                .select('total_orders, total_spent, total_commission')
-                .eq('affiliate_id', affiliate.id)
-                .eq('profile_id', customerId)
-                .single()
-
-              if (refRow) {
-                await supabase
-                  .from('referrals')
-                  .update({
-                    total_orders: (refRow.total_orders || 0) + 1,
-                    total_spent: (Number(refRow.total_spent) || 0) + amountNaira,
-                    total_commission: (Number(refRow.total_commission) || 0) + commissionAmount,
-                  })
-                  .eq('affiliate_id', affiliate.id)
-                  .eq('profile_id', customerId)
-              }
-
-              console.log(`✅ Commission ₦${commissionAmount} (${(rate * 100).toFixed(0)}%) created for affiliate ${affiliate.id}`)
-            }
-          }
-        }
-      } catch (commErr: any) {
-        // Non-critical — order is already confirmed, commission can be fixed manually
-        console.error('Commission processing failed:', commErr.message)
-      }
+      // Affiliate commission is NOT paid here any more: it is earned when the order is marked
+      // delivered (lib/commissions.ts), for card and bank-transfer orders alike.
 
       // ── 9. Send confirmation notifications ───────────────────
       try {

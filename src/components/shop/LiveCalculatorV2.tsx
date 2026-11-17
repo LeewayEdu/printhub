@@ -6,6 +6,16 @@ import {
   SpecOption, SpecSelection, QtyTier, AddonSelection
 } from '@/lib/priceEngineV2'
 import { getCategoryPriceModel } from '@/lib/categories'
+import { PAGE_STEPPER_CONFIG, DEFAULT_PAGE_STEPPER } from '@/lib/priceCalc'
+
+export interface TierRow {
+  qty: number          // smallest orderable quantity inside this tier
+  minQty: number
+  maxQty: number | null
+  each: number         // price per piece at that quantity, for the options currently chosen
+  total: number
+  discountPct: number
+}
 
 interface LiveCalculatorV2Props {
   category: string
@@ -17,6 +27,11 @@ interface LiveCalculatorV2Props {
   minHeight?: number   // minimum height enforced on dimension inputs (ft or in)
   minOrderAmount?: number  // charged price floor — shown as "Minimum order applies" when hit
   isAreaBased?: boolean
+  hideTotal?: boolean   // the host page shows the price itself
+  moq?: number
+  increment?: number
+  maxQty?: number | null
+  onTierTable?: (rows: TierRow[]) => void
   applyPreset?: { specs?: Record<string, string>; addons?: string[] } | null
   onPriceUpdate: (total: number, specs: Record<string, string>, summaryText: string) => void
   onSpecsUpdate?: (specs: SpecSelection) => void
@@ -24,29 +39,10 @@ interface LiveCalculatorV2Props {
   onPriceModelResolved?: (priceModel: string) => void
 }
 
-// ── PER-CATEGORY PAGE STEPPER CONFIG ──────────────────────────
-// Previously the "Number of Pages" stepper was hardcoded to step=4,
-// min=8 for EVERY per_page category — magazines, brochures, book
-// printing, and jotters all behaved identically. That's wrong for
-// jotters/diaries, which are only sold in fixed leaf-count tiers
-// (50/100/150/200), not arbitrary page counts in steps of 4.
-//
-// This config is keyed by category slug (the same `category` prop
-// already passed into this component as product_type). Any category
-// NOT listed here falls back to the original magazines/brochures
-// behavior (step 4, min 8, default 100) — so existing categories are
-// unaffected by this change.
-const PAGE_STEPPER_CONFIG: Record<string, { step: number; min: number; max?: number; default: number; label: string }> = {
-  'jotter-printing': { step: 50, min: 50, max: 200, default: 50, label: 'leaves' },
-  // Add other leaf/page-tiered categories here the same way, e.g.:
-  // 'notebook-stationery': { step: 50, min: 50, max: 300, default: 100, label: 'leaves' },
-}
-const DEFAULT_PAGE_STEPPER = { step: 4, min: 8, max: undefined as number | undefined, default: 100, label: 'pages' }
-
 export default function LiveCalculatorV2({
   category, productName, qty, widthFt = 1, heightFt = 1,
   minWidth = 0.1, minHeight = 0.1, minOrderAmount,
-  isAreaBased = false,
+  isAreaBased = false, hideTotal = false, moq = 1, increment = 1, maxQty = null, onTierTable,
   applyPreset, onPriceUpdate, onSpecsUpdate, onDimensionChange, onPriceModelResolved
 }: LiveCalculatorV2Props) {
 
@@ -57,6 +53,8 @@ export default function LiveCalculatorV2({
   const [addonQtys, setAddonQtys] = useState<Record<string, number>>({})
   const [tiers, setTiers] = useState<QtyTier[]>([])
   const [selection, setSelection] = useState<SpecSelection>({})
+  // Accordion: one option group open at a time; undefined = first group (default), '' = all closed
+  const [openGroup, setOpenGroup] = useState<string | undefined>(undefined)
   const [priceModel, setPriceModel] = useState<string>('unit')
   const [pages, setPages] = useState(pageConfig.default)
   // Split loading state: priceModel resolves independently and fast (single
@@ -167,6 +165,30 @@ export default function LiveCalculatorV2({
       minOrderAmount,
     })
 
+    // Tier table: the same calculate() at the first orderable quantity of each real tier
+    if (onTierTable) {
+      const sorted = [...tiers].sort((a, b) => a.min_qty - b.min_qty)
+      const orderable = (min: number) => {
+        let q = Math.max(min, moq)
+        if (increment > 1) q = moq + Math.ceil((q - moq) / increment) * increment
+        return q
+      }
+      const rows: TierRow[] = []
+      const push = (q: number, minQty: number, maxQ: number | null) => {
+        if ((maxQty && q > maxQty) || rows.some(r => r.qty === q)) return
+        const r = calculate({ category, priceModel, specs: selection, addons: addonSelections, qty: q, widthFt, heightFt, minWidth, minHeight, pages, tiers, minOrderAmount })
+        // A tier that gives no extra discount over the previous row adds nothing: merge it into that row
+        const prev = rows[rows.length - 1]
+        if (prev && prev.discountPct === r.discountPct) { prev.maxQty = maxQ; return }
+        rows.push({ qty: q, minQty, maxQty: maxQ, each: Math.round(r.total / q), total: r.total, discountPct: r.discountPct })
+      }
+      if (sorted.length) {
+        if (sorted[0].min_qty > moq) push(orderable(moq), 0, sorted[0].min_qty - 1)
+        sorted.forEach(t => push(orderable(t.min_qty), t.min_qty, t.max_qty))
+      }
+      onTierTable(rows.length > 1 ? rows : [])
+    }
+
     setTotal(result.total)
     setTierLabel(result.tierLabel)
     setDiscountPct(result.discountPct)
@@ -242,39 +264,58 @@ export default function LiveCalculatorV2({
           ))}
         </div>
       ) : (
-        Object.entries(groups).map(([group, options]) => {
-          const selectedOpt = selection[group]
-          return (
-            <div key={group}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 7 }}>
-                {groupLabel(group)}
-              </div>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const }}>
-                {options.map(opt => (
-                  <button
-                    key={opt.id}
-                    onClick={() => selectOption(group, opt)}
-                    style={btnActive(selection[group]?.id === opt.id)}
-                  >
-                    {opt.option_label}
+        (() => {
+          const entries = Object.entries(groups)
+          const collapsible = entries.length > 1
+          const openName = openGroup === undefined ? entries[0]?.[0] : openGroup
+          return entries.map(([group, options]) => {
+            const selectedOpt = selection[group]
+            const isOpen = !collapsible || openName === group
+            return (
+              <div key={group} style={collapsible ? { border: '1px solid #e8e8e5', borderRadius: 10, overflow: 'hidden' } : undefined}>
+                {collapsible ? (
+                  <button type="button" onClick={() => setOpenGroup(isOpen ? '' : group)} aria-expanded={isOpen}
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '11px 14px', background: isOpen ? '#fafaf8' : 'white', border: 'none', cursor: 'pointer', textAlign: 'left' as const }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#6B6B6B', textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>{groupLabel(group)}</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{selectedOpt?.option_label?.trim() || 'Choose'}</span>
+                      <span aria-hidden="true" style={{ fontSize: 12, color: '#6B6B6B' }}>{isOpen ? '▲' : '▼'}</span>
+                    </span>
                   </button>
-                ))}
+                ) : (
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#6B6B6B', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 7 }}>
+                    {groupLabel(group)}
+                  </div>
+                )}
+                {isOpen && (
+                  <div style={collapsible ? { padding: '10px 14px 14px' } : undefined}>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const }}>
+                      {options.map(opt => (
+                        <button
+                          key={opt.id}
+                          onClick={() => selectOption(group, opt)}
+                          style={btnActive(selection[group]?.id === opt.id)}
+                        >
+                          {opt.option_label}
+                        </button>
+                      ))}
+                    </div>
+                    {selectedOpt?.note && (
+                      <div style={{ fontSize: 12, color: '#6B6B6B', marginTop: 5, fontStyle: 'italic' as const }}>
+                        💡 {selectedOpt.note}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-              {/* Guidance note for the currently-selected option in this group —
-                  e.g. "Best for full-colour designs, any quantity" for print methods */}
-              {selectedOpt?.note && (
-                <div style={{ fontSize: 11, color: '#888', marginTop: 5, fontStyle: 'italic' as const }}>
-                  💡 {selectedOpt.note}
-                </div>
-              )}
-            </div>
-          )
-        })
+            )
+          })
+        })()
       )}
 
       {isAreaCategory && (
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 7 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#6B6B6B', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 7 }}>
             Dimensions {priceModel === 'area_sqin' ? '(inches)' : '(feet)'}
           </div>
 
@@ -313,10 +354,10 @@ export default function LiveCalculatorV2({
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 3 }}>
-              <label style={{ fontSize: 10, color: '#888', fontWeight: 600 }}>
+              <label style={{ fontSize: 12, color: '#6B6B6B', fontWeight: 600 }}>
                 WIDTH {minWidth > 0.1 ? <span style={{ color: 'var(--red)' }}>min {minWidth}{priceModel === 'area_sqin' ? 'in' : 'ft'}</span> : ''}
               </label>
-              <input
+              <input aria-label="Width"
                 type="number"
                 value={widthFt}
                 min={minWidth}
@@ -325,12 +366,12 @@ export default function LiveCalculatorV2({
                 style={{ width: 70, textAlign: 'center' as const, padding: '6px', border: `1px solid ${widthFt < minWidth ? '#ef4444' : '#e8e8e5'}`, borderRadius: 8, fontSize: 14, fontFamily: 'Montserrat', fontWeight: 700, outline: 'none' }}
               />
             </div>
-            <div style={{ fontSize: 18, color: '#888', marginTop: 18 }}>×</div>
+            <div style={{ fontSize: 18, color: '#6B6B6B', marginTop: 18 }}>×</div>
             <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 3 }}>
-              <label style={{ fontSize: 10, color: '#888', fontWeight: 600 }}>
+              <label style={{ fontSize: 12, color: '#6B6B6B', fontWeight: 600 }}>
                 HEIGHT {minHeight > 0.1 ? <span style={{ color: 'var(--red)' }}>min {minHeight}{priceModel === 'area_sqin' ? 'in' : 'ft'}</span> : ''}
               </label>
-              <input
+              <input aria-label="Height"
                 type="number"
                 value={heightFt}
                 min={minHeight}
@@ -339,7 +380,7 @@ export default function LiveCalculatorV2({
                 style={{ width: 70, textAlign: 'center' as const, padding: '6px', border: `1px solid ${heightFt < minHeight ? '#ef4444' : '#e8e8e5'}`, borderRadius: 8, fontSize: 14, fontFamily: 'Montserrat', fontWeight: 700, outline: 'none' }}
               />
             </div>
-            <div style={{ fontSize: 12, color: '#888', marginTop: 18 }}>
+            <div style={{ fontSize: 12, color: '#6B6B6B', marginTop: 18 }}>
               {priceModel === 'area_sqin' ? 'in' : 'ft'}
             </div>
             <div style={{ marginTop: 18, fontSize: 12, color: 'var(--red)', fontWeight: 700, fontFamily: 'Montserrat' }}>
@@ -347,7 +388,7 @@ export default function LiveCalculatorV2({
             </div>
           </div>
           {(widthFt < minWidth || heightFt < minHeight) && (
-            <div style={{ fontSize: 11, color: '#ef4444', marginTop: 6 }}>
+            <div style={{ fontSize: 12, color: '#ef4444', marginTop: 6 }}>
               ⚠️ Minimum size is {minWidth} × {minHeight} {priceModel === 'area_sqin' ? 'inches' : 'ft'}
             </div>
           )}
@@ -362,13 +403,13 @@ export default function LiveCalculatorV2({
           consistently use pageConfig.step. */}
       {isBookCategory && (
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 7 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#6B6B6B', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 7 }}>
             Number of {pageConfig.label === 'leaves' ? 'Leaves' : 'Pages'}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <button onClick={() => setPages(p => Math.max(pageConfig.min, p - pageConfig.step))}
+            <button aria-label="Decrease pages" onClick={() => setPages(p => Math.max(pageConfig.min, p - pageConfig.step))}
               style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #d1d5db', background: '#f3f4f6', cursor: 'pointer', fontSize: 16, color: '#1A1A1A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
-            <input
+            <input aria-label="Number of pages"
               type="number"
               value={pages}
               min={pageConfig.min}
@@ -382,9 +423,9 @@ export default function LiveCalculatorV2({
               style={{ width: 70, textAlign: 'center' as const, padding: '6px', border: '1px solid #e8e8e5', borderRadius: 8, fontSize: 14, fontFamily: 'Montserrat', fontWeight: 700, outline: 'none' }}
               className="no-spinners"
             />
-            <button onClick={() => setPages(p => pageConfig.max ? Math.min(pageConfig.max, p + pageConfig.step) : p + pageConfig.step)}
+            <button aria-label="Increase pages" onClick={() => setPages(p => pageConfig.max ? Math.min(pageConfig.max, p + pageConfig.step) : p + pageConfig.step)}
               style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #d1d5db', background: '#f3f4f6', cursor: 'pointer', fontSize: 16, color: '#1A1A1A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
-            <span style={{ fontSize: 12, color: '#888' }}>{pageConfig.label}</span>
+            <span style={{ fontSize: 12, color: '#6B6B6B' }}>{pageConfig.label}</span>
           </div>
         </div>
       )}
@@ -392,7 +433,7 @@ export default function LiveCalculatorV2({
       {/* ── ADD-ONS — independent quantity per add-on ── */}
       {addonOptions.length > 0 && (
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 7 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#6B6B6B', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 7 }}>
             Add-ons
           </div>
           <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
@@ -404,10 +445,10 @@ export default function LiveCalculatorV2({
                     <div style={{ fontSize: 13, fontWeight: 600, fontFamily: 'Montserrat', color: '#1A1A1A' }}>{opt.option_label}</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <button onClick={() => setAddonQty(opt.id, q - 1)}
+                    <button aria-label="Decrease add-on quantity" onClick={() => setAddonQty(opt.id, q - 1)}
                       disabled={q <= 0}
                       style={{ width: 28, height: 28, borderRadius: 7, border: '1px solid #d1d5db', background: q <= 0 ? '#f3f4f6' : '#fff', cursor: q <= 0 ? 'not-allowed' : 'pointer', fontSize: 15, color: '#1A1A1A', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: q <= 0 ? 0.4 : 1 }}>−</button>
-                    <input
+                    <input aria-label="Add-on quantity"
                       type="number"
                       value={q}
                       min={0}
@@ -415,7 +456,7 @@ export default function LiveCalculatorV2({
                       className="no-spinners"
                       style={{ width: 40, textAlign: 'center' as const, padding: '4px', border: '1px solid #e8e8e5', borderRadius: 7, fontSize: 13, fontFamily: 'Montserrat', fontWeight: 700, outline: 'none', background: '#fff', color: '#1A1A1A' }}
                     />
-                    <button onClick={() => setAddonQty(opt.id, q + 1)}
+                    <button aria-label="Increase add-on quantity" onClick={() => setAddonQty(opt.id, q + 1)}
                       style={{ width: 28, height: 28, borderRadius: 7, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontSize: 15, color: '#1A1A1A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
                   </div>
                 </div>
@@ -425,12 +466,20 @@ export default function LiveCalculatorV2({
         </div>
       )}
 
+      {/* When the host page shows the price, keep only the notices that explain it */}
+      {hideTotal && total !== null && (discountPct > 0 || minimumApplied) && (
+        <div style={{ fontSize: 12, fontWeight: 600 }}>
+          {discountPct > 0 && tierLabel && <div style={{ color: '#047857' }}>🎉 {tierLabel}: {discountPct}% discount applied</div>}
+          {minimumApplied && <div style={{ color: '#92400e' }}>Minimum order applies</div>}
+        </div>
+      )}
+
       {/* Live price display */}
-      {total !== null && (
+      {!hideTotal && total !== null && (
         <div style={{ background: 'linear-gradient(135deg, rgba(192,57,43,0.06) 0%, rgba(192,57,43,0.02) 100%)', border: '1.5px solid rgba(192,57,43,0.2)', borderRadius: 12, padding: '14px 16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
-              <div style={{ fontSize: 11, color: '#888', fontFamily: 'Montserrat', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 2 }}>
+              <div style={{ fontSize: 12, color: '#6B6B6B', fontFamily: 'Montserrat', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 2 }}>
                 {isAreaCategory
                   ? `${widthFt}${priceModel === 'area_sqin' ? 'in' : 'ft'} × ${heightFt}${priceModel === 'area_sqin' ? 'in' : 'ft'} · qty ${qty}`
                   : isBookCategory
@@ -438,12 +487,12 @@ export default function LiveCalculatorV2({
                   : `${qty} pcs`} · VAT inclusive
               </div>
               {discountPct > 0 && tierLabel && (
-                <div style={{ fontSize: 11, color: '#10b981', fontWeight: 600, marginBottom: 2 }}>
+                <div style={{ fontSize: 12, color: '#10b981', fontWeight: 600, marginBottom: 2 }}>
                   🎉 {tierLabel} — {discountPct}% discount applied
                 </div>
               )}
               {minimumApplied && (
-                <div style={{ fontSize: 11, color: '#92400e', fontWeight: 600 }}>
+                <div style={{ fontSize: 12, color: '#92400e', fontWeight: 600 }}>
                   Minimum order applies
                 </div>
               )}
@@ -453,7 +502,7 @@ export default function LiveCalculatorV2({
                 ₦{total.toLocaleString()}
               </div>
               {qty > 1 && (
-                <div style={{ fontSize: 11, color: '#888', marginTop: 3 }}>
+                <div style={{ fontSize: 12, color: '#6B6B6B', marginTop: 3 }}>
                   ₦{Math.round(total / qty).toLocaleString()} per piece
                 </div>
               )}

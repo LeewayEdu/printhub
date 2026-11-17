@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
+import { FAQS } from './faqs'
 
 const STEPS = [
   {
@@ -12,11 +13,11 @@ const STEPS = [
   },
   {
     num: '02', icon: '🛍️', title: 'Browse and configure your product',
-    desc: 'Visit the Shop page and browse 65+ products across 14 categories. Click any product to open the order modal. Select your specs — paper weight, lamination, size, finishing — and watch the price update live. For banner printing, enter your width and height in feet and the system calculates the total automatically.',
+    desc: 'Visit the Shop page and browse our full catalogue of print products. Click any product to open the order modal. Select your specs — paper weight, lamination, size, finishing — and watch the price update live. For banner printing, enter your width and height in feet and the system calculates the total automatically.',
   },
   {
-    num: '03', icon: '🎨', title: 'Submit your design',
-    desc: 'At checkout, for each item you can upload your design file (PNG, PDF, AI, PSD), share a Google Drive or Dropbox link, or request our design team to create one for you by filling a simple brief with your business name, colours, and notes.',
+    num: '03', icon: '🎨', title: 'Tell us about your design',
+    desc: 'On the product page, choose "Yes, I have my file" or "No, I need design". If you have a file you do not need it yet: you can upload it after you pay. If you need design, pick the design option and its fee is added before you pay.',
   },
   {
     num: '04', icon: '🚚', title: 'Choose your delivery method',
@@ -24,66 +25,15 @@ const STEPS = [
   },
   {
     num: '05', icon: '💳', title: 'Pay securely via Paystack',
-    desc: 'Pay online using your debit card, bank transfer, or USSD via Paystack — Nigeria\'s most trusted payment gateway. Your order is confirmed immediately after payment.',
+    desc: 'Pay online using your debit card, bank transfer, or USSD via Paystack — Nigeria\'s most trusted payment gateway. Your order is confirmed as soon as we have verified your payment.',
   },
   {
-    num: '06', icon: '🏭', title: 'We print and produce',
-    desc: 'Our team reviews your order and design, confirms details via WhatsApp if needed, and goes into production. You can track your order status in real time from your dashboard.',
+    num: '06', icon: '🏭', title: 'Upload your design, approve the proof, we print',
+    desc: 'After paying, upload your design file from the order confirmation page or from My Orders (PDF, PNG, JPG, AI, PSD, EPS, TIFF or CDR, or a Google Drive or Dropbox link). We will not start printing until we have it. Our team then reviews it, sends a proof, confirms details via WhatsApp if needed, and goes into production. You can track your order status in real time from your dashboard.',
   },
   {
     num: '07', icon: '📦', title: 'Receive your order',
     desc: 'Pick up from our studio or receive delivery to your address. A receipt is sent with your order. Rate your experience and earn loyalty points automatically when your order is marked delivered.',
-  },
-]
-
-const FAQS = [
-  {
-    q: 'How long does printing take?',
-    a: 'Turnaround time depends on the product. Business cards and flyers are typically ready in 2-3 working days. Banners and branded items take 3-5 working days. Books and signage take 7-14 working days. Rush orders can be discussed via WhatsApp.',
-  },
-  {
-    q: 'What file formats do you accept for designs?',
-    a: 'We accept PDF, PNG, JPG, AI (Adobe Illustrator), PSD (Photoshop), and CorelDRAW files. For best print quality, files should be at 300 DPI or higher. PDF is preferred.',
-  },
-  {
-    q: 'What if I don\'t have a design?',
-    a: 'No problem. At checkout you can request our design team to create one for you. Fill in a brief with your business name, preferred colours, slogan, and any notes or reference images. Design fees vary by product and are included in some packages.',
-  },
-  {
-    q: 'Can I order from outside Abuja?',
-    a: 'Yes. We ship nationwide via waybill to all 36 states. Interstate delivery fees range from ₦3,000 to ₦7,000 depending on your state. You can also send a representative to pick up from our Karu Office.',
-  },
-  {
-    q: 'What is the minimum order quantity?',
-    a: 'MOQ varies by product. Business cards start at 100 pieces. Flyers at 100 pieces. T-shirts at 6 pieces. Banners and signage start at 1 piece. You can see the MOQ for each product on its order page.',
-  },
-  {
-    q: 'How does the loyalty points system work?',
-    a: 'You earn 2% of every order value as loyalty points when your order is delivered. 1 point equals ₦1. Points can be redeemed at checkout. Minimum redemption is 500 points (₦500).',
-  },
-  {
-    q: 'Can I track my order?',
-    a: 'Yes. Log into your dashboard and go to My Orders. Every order shows its current status: Pending, Confirmed, In Production, Ready, Shipped, or Delivered. You also receive WhatsApp updates.',
-  },
-  {
-    q: 'What payment methods do you accept?',
-    a: 'We accept all debit cards, bank transfers, and USSD payments via Paystack. Cash payment is available for pickup orders.',
-  },
-  {
-    q: 'Can I reorder a previous job?',
-    a: 'Yes. Go to your dashboard, find the previous order, and click Reorder. Your specs and quantity are pre-filled. You just confirm and pay.',
-  },
-  {
-    q: 'What is the affiliate program?',
-    a: 'You earn commission every time someone you referred places an order. The commission is 10% on their first 5 orders, 5% on orders 6-10, and 3% on all orders after that — for life. No investment needed. Just share your unique referral link.',
-  },
-  {
-    q: 'What if I am not happy with my order?',
-    a: 'We take quality very seriously. If there is a production error on our part, we reprint at no cost. Contact us via WhatsApp or email within 48 hours of receiving your order with photos of the issue.',
-  },
-  {
-    q: 'Do you offer bulk discounts?',
-    a: 'Yes. All our unit-priced products have quantity tiers — the more you order, the lower the cost per unit. The price updates automatically as you adjust quantity on the product page.',
   },
 ]
 
@@ -93,7 +43,7 @@ export default function HowItWorksPage() {
   return (
     <>
       <Navbar />
-      <main>
+      <main id="main-content">
 
         {/* Hero */}
         <section style={{ background: 'var(--black)', padding: '80px 40px', position: 'relative', overflow: 'hidden' }}>
@@ -136,7 +86,7 @@ export default function HowItWorksPage() {
                   </div>
                   {/* Content */}
                   <div style={{ paddingBottom: i < STEPS.length - 1 ? 36 : 0, paddingTop: 8 }}>
-                    <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 11, color: 'var(--red)', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 4 }}>Step {step.num}</div>
+                    <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 12, color: 'var(--red)', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 4 }}>Step {step.num}</div>
                     <div style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 18, color: 'var(--text-primary)', marginBottom: 8 }}>{step.title}</div>
                     <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.8 }}>{step.desc}</div>
                   </div>
