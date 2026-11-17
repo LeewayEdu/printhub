@@ -15,6 +15,7 @@ interface AdminOrdersState {
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
   addProductionNote: (orderId: string, note: string) => Promise<void>;
   approveReceipt: (orderId: string) => Promise<void>;
+  markPaidManually: (orderId: string, note: string) => Promise<boolean>;
   setFilter: (filter: OrderStatus | 'all') => void;
 }
 
@@ -66,12 +67,15 @@ export const useAdminOrdersStore = create<AdminOrdersState>((set, get) => ({
 
     // ── On delivery: award loyalty points + affiliate commission ──
     if (status === 'delivered') {
-      // Loyalty points
-      const { error: loyaltyErr } = await supabase.rpc('award_loyalty_on_delivery', {
-        p_order_id: orderId,
-        p_admin_id: session.user.id,
-      });
-      if (loyaltyErr) console.error('Loyalty award failed:', loyaltyErr.message);
+      // Loyalty points (test orders never earn points)
+      const isTest = !!(get().orders.find(o => o.id === orderId) as any)?.is_test;
+      if (!isTest) {
+        const { error: loyaltyErr } = await supabase.rpc('award_loyalty_on_delivery', {
+          p_order_id: orderId,
+          p_admin_id: session.user.id,
+        });
+        if (loyaltyErr) console.error('Loyalty award failed:', loyaltyErr.message);
+      }
 
       // Affiliate commission: awarded on the server, once per order (see lib/commissions.ts)
       try {
@@ -101,7 +105,7 @@ export const useAdminOrdersStore = create<AdminOrdersState>((set, get) => ({
     });
 
     const messages: Record<string, string> = {
-      delivered: 'Order marked delivered. Loyalty points + commissions awarded ✅',
+      delivered: ((get().orders.find(o => o.id === orderId) as any)?.is_test) ? 'Test order marked delivered. No points or commission awarded.' : 'Order marked delivered. Loyalty points + commissions awarded ✅',
       paid: 'Payment confirmed. Receipt verified ✅',
       processing: 'Order moved to production',
       shipped: 'Order marked as shipped',
@@ -153,6 +157,26 @@ export const useAdminOrdersStore = create<AdminOrdersState>((set, get) => ({
       filteredOrders: get().filteredOrders.map(o => o.id === orderId ? { ...o, status: 'paid', receipt_verified: true } as any : o),
     });
     toast.success('Receipt approved. Order marked as paid ✅');
+  },
+
+  // Marks an order paid by hand through the server, which requires a note and records who and when.
+  markPaidManually: async (orderId, note) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return false;
+    const res = await fetch('/api/admin/orders/mark-paid', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ orderId, note }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) { toast.error(json?.error || 'Could not mark the order paid'); return false; }
+    const patch = { status: 'paid', receipt_verified: true } as any;
+    set({
+      orders: get().orders.map(o => o.id === orderId ? { ...o, ...patch } : o),
+      filteredOrders: get().filteredOrders.map(o => o.id === orderId ? { ...o, ...patch } : o),
+    });
+    toast.success(json?.audited === false ? 'Marked paid. The audit log entry could not be saved, but the note is on the order.' : 'Order marked paid by hand and recorded ✅');
+    return true;
   },
 
   setFilter: (filter) => {
