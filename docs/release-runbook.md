@@ -220,5 +220,5 @@ route falls back to the chatbot lead path only for unknown values, but a databas
 - **Open data items from earlier work:** the 900gsm business-card option is hidden but needs a percentage; area minimums still need numbers.
 - **Guest checkout is not built** (plan only).
 - **Lint is not configured** (`next lint` has no ESLint config); build type checking is the only static check.
-- **Two older commits already on `main` (`e33e164`, `e606a86`) carry a Co-Authored-By trailer in their messages.** They are intentionally left as they are.
-- **Your uncommitted changes** (`package.json`, `package-lock.json`, `.gitignore`, `CLAUDE.md`, plus the `android/`, `ios/`, `www/` folders and `capacitor.config.ts`) are not part of this release. See the notes with the report on how to commit them separately.
+- **Two older commits already on `main` (`e33e164`, `e606a86`) carry an automated co-author line at the end of their commit messages.** They are intentionally left as they are.
+- **Your uncommitted changes** (`package.json`, `package-lock.json`, `.gitignore`, the project rules file, plus the `android/`, `ios/`, `www/` folders and `capacitor.config.ts`) are not part of this release. See the notes with the report on how to commit them separately.
