@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import type { DesignPricingResolved } from '@/store/cartStore'
+import { designUnitWord, designUnitText } from '@/lib/design-unit'
 
 interface LinkedAddon {
   id: string
@@ -35,7 +36,8 @@ export default function DesignPricingFlow({ product, linkedAddons, onResolved, o
   const minUnits = product.design_min_units || 1
   const flatFee = Number(product.design_flat_fee || 0)
   const unitRate = Number(product.design_unit_rate || 0)
-  const unitLabel = product.design_unit_label || 'units'
+  // The label is typed by an admin and may be empty or a number: designUnitWord/designUnitText always give a real word
+  const unitLabel = product.design_unit_label
 
   const selectedAddons = linkedAddons.filter(la => {
     const answer = addonAnswers[la.id]
@@ -130,7 +132,7 @@ export default function DesignPricingFlow({ product, linkedAddons, onResolved, o
           {product.design_pricing_type === 'unit_based' && (
             <div style={{ marginBottom: 12 }}>
               <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 6, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>
-                {unitLabel} <span style={{ fontWeight: 400, textTransform: 'none' as const }}>(minimum {minUnits})</span>
+                {designUnitWord(unitLabel, minUnits)} <span style={{ fontWeight: 400, textTransform: 'none' as const }}>(minimum {minUnits})</span>
               </label>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <button aria-label="Decrease design quantity"
@@ -215,7 +217,7 @@ export default function DesignPricingFlow({ product, linkedAddons, onResolved, o
             <div style={{ background: '#fafafa', border: '1px solid var(--border-color)', borderRadius: 9, padding: '12px 14px', marginBottom: 14 }}>
               {product.design_pricing_type === 'unit_based' && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4 }}>
-                  <span>{designUnits} {unitLabel} × ₦{unitRate.toLocaleString()}</span>
+                  <span>{designUnitText(unitLabel, designUnits)} × ₦{unitRate.toLocaleString()}</span>
                   <span>₦{(unitRate * designUnits).toLocaleString()}</span>
                 </div>
               )}
