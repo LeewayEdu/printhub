@@ -3,7 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { designUnitWord, designUnitText, isUnitWord, DEFAULT_DESIGN_UNIT } from '../src/lib/design-unit.ts'
+import { designUnitWord, designUnitText, isUnitWord, designUnitLabelProblem, DEFAULT_DESIGN_UNIT } from '../src/lib/design-unit.ts'
 
 const QTY = [1, 2, 3]
 
@@ -56,4 +56,36 @@ test('the arithmetic is unchanged: units x rate (3 x 3,000 = 9,000; minimum 2 = 
   const src = readFileSync(new URL('../src/components/shop/DesignPricingFlow.tsx', import.meta.url), 'utf8')
   assert.match(src, /unitRate \* Math\.max\(designUnits, minUnits\)/)
   assert.equal(3 * 3000, 9000); assert.equal(2 * 3000, 6000)
+})
+
+test('admin unit label check: numbers, ranges and symbols are flagged, words and empty are fine', () => {
+  const fn = designUnitLabelProblem
+  for (const bad of ['', ' ', '1', '1-2', '--', null, undefined, 3]) assert.equal(isUnitWord(bad), false, String(bad))
+})
+
+test('the design block renders the unit only through the helper (no raw label in the page text)', () => {
+  const src = readFileSync(new URL('../src/components/shop/DesignPricingFlow.tsx', import.meta.url), 'utf8')
+  assert.match(src, /designUnitWord\(unitLabel, minUnits\)/)
+  assert.match(src, /designUnitText\(unitLabel, designUnits\)/)
+  assert.ok(!/\{unitLabel\}/.test(src), 'unitLabel must not be rendered directly')
+  assert.ok(!/design_unit_label \|\| 'units'/.test(src), 'old "units" fallback removed')
+})
+
+test('the arithmetic is unchanged: units x rate (3 x 3,000 = 9,000; minimum 2 = 6,000)', () => {
+  const src = readFileSync(new URL('../src/components/shop/DesignPricingFlow.tsx', import.meta.url), 'utf8')
+  assert.match(src, /unitRate \* Math\.max\(designUnits, minUnits\)/)
+  assert.equal(3 * 3000, 9000); assert.equal(2 * 3000, 6000)
+})
+
+test('admin unit label check: numbers, ranges and symbols are flagged, words and empty are fine', () => {
+  const src = readFileSync(new URL('../src/lib/design-unit.ts', import.meta.url), 'utf8')
+  const m = src.match(/export function designUnitLabelProblem[\s\S]*?\n}\n/)
+  assert.ok(m, 'designUnitLabelProblem exists')
+  const isWord = l => typeof l === 'string' && /[A-Za-zÀ-ɏ]/.test(l.trim())
+  const fn = new Function('isUnitWord', m[0].replace('export function', 'function').replace(/\(label: unknown\): string \| null/, '(label)') + '; return designUnitLabelProblem')(isWord)
+  for (const bad of ['1', '2', '1-2', ' 12 ', '--', '#', '1/2']) assert.ok(fn(bad), `flags "${bad}"`)
+  for (const ok of ['designs', 'sides', 'Side', '', '   ', null, undefined]) assert.equal(fn(ok), null, `accepts ${JSON.stringify(ok)}`)
+  const page = readFileSync(new URL('../src/app/dashboard/admin/products/page.tsx', import.meta.url), 'utf8')
+  assert.match(page, /designUnitLabelProblem\(form\.design_unit_label\)/, 'form uses the check')
+  assert.match(page, /form\.design_unit_label !== \(\(editing as any\)\?\.design_unit_label \|\| ''\)/, 'unchanged saved values are not blocked')
 })

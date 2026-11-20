@@ -32,3 +32,11 @@ export function designUnitWord(label: unknown, quantity: number): string {
 export function designUnitText(label: unknown, quantity: number): string {
   return `${quantity} ${designUnitWord(label, quantity)}`
 }
+
+/** Admin form check for the Unit Label field. Returns a message when the text is not a usable word, otherwise null.
+ *  Empty is allowed (the page then shows "designs"). Numbers, ranges like "1-2" and symbol-only text are not words. */
+export function designUnitLabelProblem(label: unknown): string | null {
+  if (typeof label !== 'string' || label.trim() === '') return null
+  if (isUnitWord(label)) return null
+  return 'Unit Label must be a word such as "designs" or "sides", not a number or symbols. Leave it empty to show "designs".'
+}

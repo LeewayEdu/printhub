@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Plus, Pencil, Trash2, X, Upload, LayoutGrid, List, Star, GripVertical, Download, Save, RotateCcw, ShieldAlert, Clock } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { designUnitLabelProblem } from '@/lib/design-unit'
 import { getCategories, CategoryRow } from '@/lib/categories'
 
 interface ProductForm {
@@ -392,6 +393,11 @@ export default function AdminProductsPage() {
     if (!form.name) { toast.error('Product name is required'); return }
     if (!form.category) { toast.error('Category is required'); return }
     if (!form.display_price && form.is_fixed_price) { toast.error('Fixed price is required for a fixed-price product'); return }
+    // A bad unit label is refused only when it was changed here; a value already saved is left alone so other edits still save
+    if (form.design_pricing_type === 'unit_based' && form.design_unit_label !== ((editing as any)?.design_unit_label || '')) {
+      const labelProblem = designUnitLabelProblem(form.design_unit_label)
+      if (labelProblem) { toast.error(labelProblem); return }
+    }
     setIsLoading(true)
     const newImageUrls = form.images.length > 0 ? await uploadImages(form.images) : []
     const allImages = [...form.existing_images, ...newImageUrls]
@@ -1264,7 +1270,10 @@ export default function AdminProductsPage() {
                       <div>
                         <label style={labelStyle}>Unit Label</label>
                         <input value={form.design_unit_label} onChange={e => setF('design_unit_label', e.target.value)}
-                          placeholder="e.g. Number of pages" style={inputStyle} />
+                          placeholder="e.g. designs" style={inputStyle} />
+                        {designUnitLabelProblem(form.design_unit_label) && (
+                          <div role="alert" style={{ fontSize: 12, color: '#b45309', marginTop: 4 }}>{designUnitLabelProblem(form.design_unit_label)}</div>
+                        )}
                       </div>
                       <div>
                         <label style={labelStyle}>Rate per Unit (₦)</label>
