@@ -207,7 +207,8 @@ select relname, relrowsecurity from pg_class where relname in ('orders','order_i
 select conname, pg_get_constraintdef(oid) from pg_constraint where conrelid='public.leads'::regclass;
 select column_name, data_type, udt_name from information_schema.columns where table_schema='public' and table_name='leads' and column_name='source';
 -- R4: is there any other writer to orders (triggers)?
-select tgname, tgrelid::regclass from pg_trigger where not tgisinternal and tgrelid::regclass::text in ('public.orders','public.order_items','public.profiles') order by 2,1;
+select c.relname as table_name, t.tgname, pg_get_triggerdef(t.oid) as definition from pg_trigger t join pg_class c on c.oid = t.tgrelid where not t.tgisinternal and c.relnamespace = 'public'::regnamespace and c.relname in ('orders','order_items','profiles') order by 1,2;
+-- (the first version compared the table's printed name with 'public.orders'; the printed name has no schema when it is on the search path, so it matched nothing)
 -- R5: storage buckets (after the books migration)
 select id, public from storage.buckets where id in ('book-files','book-public');
 ```
@@ -215,17 +216,17 @@ For R3: if `leads.source` has a check constraint or enum that does not list `cas
 route falls back to the chatbot lead path only for unknown values, but a database-level restriction would drop the row silently.
 
 ## 8. Known issues I am launching with
-- **No migration has ever been run by me.** Nothing about the books tables, RLS, buckets, stamping or the seed is tested against a real database.
+- *(Superseded: the migrations in section 1 were run on 2026-11-20 and 2026-11-21, see section 9.)* The books tables, buckets, stamping and the seed are applied, but no book is published, so they carry no real traffic yet.
 - **Books are hidden** (menu flag off) and USD is off. The `/books` pages exist by URL and show "coming soon" until a book is published.
 - **Print cost per book is not set**, so print book sales will be flagged "needs print cost" with author share 0 until it is entered.
 - **Stamping, Paystack, emails and storage have not been exercised live.** The 30 MB ebook limit and function memory are based on generated test files.
 - **Naira settled amount for USD orders is entered by hand** (the Paystack field was not confirmed). USD is off, so this is dormant.
 - **Statements for authors do not exist yet** (that is Phase 2, not in this release).
-- **Case studies are unpublished** and both clients' written consent is outstanding. The Ezra cover photos print the book title on the cover, which is visible if the photo is shown without consent.
+- **Case studies are published (owner decision, 2026-11-21)** with first names only, the party and state kept neutral on the rally page, and no photo with a visible face (5 rally photos and the spine photo removed). The 6 book-cover photos stay (illustrated artwork, the product).
 - **Refund policy and Terms:** the digital refund policy is a draft and not live; the live Terms are unchanged; contact placeholders remain.
-- **Loyalty points:** a database function or trigger that awards points has not been inspected (`docs/loyalty-fix-plan.md`).
+- **Loyalty points: fixed 2026-11-21.** Two writers credited 2% each (database trigger `on_order_delivered` and the admin screen's call to `award_loyalty_on_delivery`). The admin call was removed (`d5ea626`). The five affected customers keep their points; reconciliation rows were added to `loyalty_log` (section 9). Open: the trigger also credits test orders, and a one-award-per-order unique index is not in place.
 - **Content CSP is report-only**, not enforcing.
-- **Open data items from earlier work:** the 900gsm business-card option is hidden but needs a percentage; area minimums still need numbers.
+- **Open data items from earlier work:** area minimums still need numbers. (The 900gsm option is live at +100% since 2026-11-21.)
 - **Guest checkout is not built** (plan only).
 - **`.env.example`** was rewritten to match what the code reads (required at build, required at runtime, optional). Placeholders only.
 - **Security advisories (`npm audit`, after upgrading `next` and `eslint-config-next` from 14.2.5 to 14.2.35, the latest 14.2.x patch):**
@@ -241,10 +242,58 @@ route falls back to the chatbot lead path only for unknown values, but a databas
     separate, tested task.
   - *Other direct dependencies still flagged (not changed in this release):* `next-auth` (critical), `zod` (high), `paystack` (the old
     `request` library chain: critical `request` and `form-data`, no fix published) and `nanoid` (high) are listed in `package.json` but
-    **not imported anywhere in `src`**, so they never run; removing them is a safe follow-up. `xlsx` (high, no fix published) is used by
+    **not imported anywhere in `src`**, so they never ran. **`next-auth`, `zod`, `paystack` and `nanoid` were removed on 2026-11-21** (`npm ci` verified in a clean copy). `xlsx` (high, no fix published) is used by
     the admin bulk-upload page only. `resend` (moderate) is used for email; its fix is a major version. Totals: production 20 before and
     after (the `next` package stays flagged), all dependencies 28 before and 26 after. Do not run `npm audit fix --force`: it would force
     major upgrades.
 - **Lint is not configured** (`next lint` has no ESLint config); build type checking is the only static check.
 - **Two older commits already on `main` (`e33e164`, `e606a86`) carry an automated co-author line at the end of their commit messages.** They are intentionally left as they are.
 - **Your uncommitted changes** (`package.json`, `package-lock.json`, `.gitignore`, the project rules file, plus the `android/`, `ios/`, `www/` folders and `capacitor.config.ts`) are not part of this release. See the notes with the report on how to commit them separately.
+
+## 9. What actually ran on production (log)
+All times UTC. Database changes were run with `psql -1` (one transaction each, stop on error) and checked with read-only queries afterwards.
+
+### Backups (read-only dumps, kept outside the repository in `~/printhub-backups/`)
+Public-schema dumps and policy exports on 2026-11-19 and 2026-11-20; policies saved before and after the payment-integrity migration
+(`printhub-policies-before-payment-integrity-2026-11-21.txt`, `printhub-policies-after-2026-11-20.txt`).
+
+### Migrations and data changes
+| When | What | Result |
+|---|---|---|
+| 2026-11-20 (exact time not recorded here) | `books-migration.sql`, `books-1b-migration.sql`, `books-royalty-seed.sql` | applied, verified (9 books tables with row security, 2 buckets, `is_admin()`, new order columns, seed rules) |
+| 2026-11-20 (same) | `payment-fields-migration.sql` (**run before the deploy, earlier than step 3C above**, because it only adds columns) | applied, verified |
+| 2026-11-20 (after the deploy was green) | `commission-uniqueness-migration.sql`, `lead-capture-migration.sql` | applied, verified. The old public `leads_insert` policy was deliberately kept (owner choice A) |
+| 2026-11-20 23:52:40 | `payment-integrity-migration.sql` | applied after a real Paystack order (#32275A86) passed every check. Policies on `orders` and `order_items` are now: customers read their own, admins manage; unique index `orders_paystack_reference_key` created |
+| 2026-11-21 00:57:50 | `spec_options` 900gsm (business cards and birthday invitation cards): `percentage`, +100, active | 1 row; calculator checked on both live pages: ₦10,750 / ₦13,975 / ₦21,500 at 100 cards, ₦107,500 for 900gsm at 500 |
+| 2026-11-21 01:06:48 | 5 reconciliation rows in `loyalty_log` (type `adjust`, 7,088 points in total) | balances equal the log for all 5 customers |
+| 2026-11-21 01:07:16 | `is_test = true` on 6 test orders (fd1841b5, acfee1e5, 9b0dd948, 8fe7e447, c9c235e6, 931caf12) | status and points untouched; 27 real orders remain |
+
+Not run: dropping `leads_insert` (waits for the owner's "go" after the lead check), any change to orders c5581fe1, 3d6c4605 and the four delivered third-party orders.
+
+### Code released to `main` (each deploy READY before the next)
+`3f3c780` release; `c291faf` design unit label fix and admin hint; `d5ea626` loyalty single writer; `5494a57` page titles within 60 characters, `/api/notify`
+protection, unused packages removed; `4a45aed` case studies; `e27e7b8` books launching-soon page; `3c93f6c` price list. The site-review fixes (`/shop` on phones,
+case-study titles) follow in the next push.
+
+### Environment (Vercel Production)
+`CRON_SECRET` is set (2026-11-20). `NOTIFY_SECRET` is optional: the Paystack webhook sends `x-notify-secret` and `/api/notify` accepts `NOTIFY_SECRET`, or `CRON_SECRET` if that is not set.
+To show "Books" in the menu: set `BOOKS_NAV_ENABLED=true` for Production and redeploy (the page is a launching-soon page, noindex, until a book is published).
+
+### Rollback for the data changes of 2026-11-21 (exact statements)
+```sql
+-- 900gsm back to hidden, as before
+update public.spec_options set is_active = false where id = '9727db81-37b8-4c33-b938-64c7c0e70b65';
+-- (original values were modifier_type 'base_rate', price_modifier 50; not needed while it is hidden)
+
+-- remove the 5 reconciliation rows
+delete from public.loyalty_log where type = 'adjust' and note like 'Reconciliation: a second 2%%';
+
+-- tests back to normal orders
+update public.orders set is_test = false
+ where id::text like any (array['fd1841b5%', 'acfee1e5%', '9b0dd948%', '8fe7e447%', 'c9c235e6%', '931caf12%']);
+```
+Payment integrity: use section 1, D, with `~/printhub-backups/printhub-policies-before-payment-integrity-2026-11-21.txt`.
+
+### Housekeeping still open
+Rotate the Supabase database password (a fragment of it appeared in an error message on 2026-11-19); drop `leads_insert`; hyphen-slug redirects (`docs/hyphen-slugs-redirect-task.md`);
+the eight orders listed in section 8 of the owner's review; the Next 15 upgrade (`docs/next15-upgrade-plan.md`).
