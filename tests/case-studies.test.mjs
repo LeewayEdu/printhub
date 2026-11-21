@@ -41,12 +41,15 @@ test('as published (owner decision 2026-11-21): both live, first names only, no 
   // the party case keeps party and state neutral even though it is published
   assert.equal(a.title, '550 banners and iron frames in five days for a state rally')
   assert.ok(a.disclaimer && /does not imply endorsement/.test(a.disclaimer))
-  // photos: none for the rally (every photo showed faces); the spine photo (author's surname) is out; the files are gone from public/
-  assert.deepEqual(apcShipped.images, [])
-  assert.equal(a.hero, null)
+  // photos: the rally has exactly the three blurred, neutrally named photos; the spine photo (author's surname) is out
+  assert.deepEqual(apcShipped.images.map(i => i.src.split('/').pop()), ['banner-on-steel-frame.jpg', 'banner-on-poles.jpg', 'banner-install-ladder.jpg'])
+  assert.equal(a.hero.src.split('/').pop(), 'banner-on-steel-frame.jpg')
+  assert.ok(apcShipped.images.every(i => !/apc|tinubu|shettima|party|lalong|akume|nasarawa|plateau|renewed/i.test(`${i.src} ${i.alt} ${i.caption}`)))
   assert.ok(!ezraShipped.images.some(i => /spine/.test(i.src)))
   const dir = new URL('../public/images/case-studies/', import.meta.url).pathname
-  assert.ok(!readdirSync(dir).includes('state-rally-banners'))
+  // only the three listed files are in the rally folder (no original photo can sit there unlisted)
+  assert.deepEqual(readdirSync(join(dir, 'state-rally-banners')).sort(), ['banner-install-ladder.jpg', 'banner-on-poles.jpg', 'banner-on-steel-frame.jpg'])
+  for (const i of apcShipped.images) assert.ok(readdirSync(join(dir, 'state-rally-banners')).includes(i.src.split('/').pop()), i.src)
   assert.ok(!readdirSync(join(dir, 'book-printing-600-copies')).includes('volume-2-spine.jpg'))
   // every listed image file exists
   for (const i of ezraShipped.images) assert.ok(readdirSync(join(dir, 'book-printing-600-copies')).includes(i.src.split('/').pop()), i.src)
@@ -60,7 +63,7 @@ test('as published: both are in the sitemap and the public lists, and the index 
   assert.deepEqual(publicCaseLinks().map(c => c.slug).sort(), ['book-printing-600-copies', 'state-rally-banners'])
   assert.equal(resolveCase('state-rally-banners', undefined, {}).preview, false)
   const m = caseMetadata(buildView(apcShipped))
-  assert.match(m.openGraph.images[0].url, /og-image/)    // no hero photo: the site image is the social image
+  assert.match(m.openGraph.images[0].url, /state-rally-banners\/banner-on-steel-frame\.jpg/)    // the blurred hero photo is the social image
   assert.match(JSON.parse(JSON.stringify(articleJsonLd(buildView(apcShipped)))).image[0], /^https:\/\//)
 })
 

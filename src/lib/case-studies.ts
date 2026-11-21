@@ -109,14 +109,20 @@ export const CASE_STUDIES: CaseStudy[] = [
       whatsappMessage: 'Hi, I saw your APC Grand Rally banner case study and I want a quote for large-format banners.',
     },
     serviceLink: { href: '/election-campaign', label: 'See campaign printing' },
-    images: [],   // see the decision comment below: no photo of this job is free of faces
+    // Three install photos with every face and all banner text and logos blurred, neutral file names (owner-supplied 2026-11-21).
+    // Alt text and captions describe the install only: no party, no person, no place.
+    images: [
+      img('state-rally-banners', 'banner-on-steel-frame.jpg', 1280, 1280, 'Large printed banner mounted on a welded steel frame beside a road, with a worker on the frame', 'A banner going up on a welded steel frame', 'hero'),
+      img('state-rally-banners', 'banner-on-poles.jpg', 1280, 1280, 'Large printed banner mounted on two steel poles beside a road', 'A banner mounted on steel poles'),
+      img('state-rally-banners', 'banner-install-ladder.jpg', 1280, 1280, 'Large printed banner being fixed in place on a roadside frame, with a ladder leaning against it', 'Fixing a banner in place on site'),
+    ],
     seo: {
       title: 'Case study: 550 rally banners in five days | C-Chu Media',
       description: 'How C-Chu Media printed 20 banners at 10 × 20 ft and 530 at 4 × 6 ft, with welded iron frames, in five days. Large-format printing in Abuja, Nigeria.',
     },
     // Owner decision 2026-11-21: published. The client is named by first name only ("Paula") and the party, the state and the rally
-    // name stay neutral (keepNeutral). No photos: every photo of this job shows printed portraits of public figures or workers' faces,
-    // so none is used (rule: no photo with a visible face). Add face-free photos to `images` when available.
+    // name stay neutral (keepNeutral). Only the blurred photos listed in `images` are used: the original photos show faces and
+    // banner text and must never be added back (rule: no visible face, no readable party or person on any photo).
     published: true,
     consentGiven: true,
     keepNeutral: true,
