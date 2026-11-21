@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
 import { confirmOrderPayment } from '@/lib/paystack'
 import { alertPaymentReview } from '@/lib/alerts'
+import { notifySecret } from '@/lib/notify-auth'
 import { fulfilBooksForOrder } from '@/lib/books/fulfil'
 
 // Use service role key — this runs server-side only, never exposed to client
@@ -90,9 +91,9 @@ export async function POST(req: NextRequest) {
 
         const itemNames = items?.map(i => `${i.name} (${i.display_qty || '1 pcs'})`).join(', ') || ''
 
-        await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/notify`, {
+        const notifyRes = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/notify`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'x-notify-secret': notifySecret() },
           body: JSON.stringify({
             orderId: order.id.slice(0, 8).toUpperCase(),
             customerName: `${order.first_name} ${order.last_name}`,
@@ -104,6 +105,7 @@ export async function POST(req: NextRequest) {
             webhookConfirmed: true,
           })
         })
+        if (!notifyRes.ok) console.error('Notification refused after webhook:', notifyRes.status, '(set NOTIFY_SECRET or CRON_SECRET in the environment)')
       } catch (notifyErr) {
         // Non-critical — order is already confirmed, just log
         console.error('Notification failed after webhook:', notifyErr)

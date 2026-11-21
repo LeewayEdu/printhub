@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
+import { supabaseAdmin } from '@/lib/supabase'
+import { rateLimit, clientIp } from '@/lib/rate-limit'
+import { identifyNotifyCaller, shortOrderId, escapeHtml } from '@/lib/notify-auth'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -70,8 +73,35 @@ async function sendWhatsAppAlert(message: string): Promise<{ ok: boolean; provid
 }
 
 export async function POST(req: NextRequest) {
+  const limit = rateLimit(`notify:${clientIp(req.headers)}`, 60, 60 * 60 * 1000)
+  if (!limit.allowed) return NextResponse.json({ error: 'rate_limited' }, { status: 429 })
+
+  const caller = identifyNotifyCaller(req.headers)
+  if (caller.mode === 'none') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   try {
-    const { orderId, customerName, customerEmail, customerPhone, total, items, itemsArr, subtotal, deliveryFee, deliveryArea, address, paymentMethod, paystackRef } = await req.json()
+    const body = await req.json().catch(() => null)
+    if (!body || typeof body !== 'object') return NextResponse.json({ error: 'Bad request' }, { status: 400 })
+    let { orderId, customerName, customerEmail, customerPhone, total, items, itemsArr, subtotal, deliveryFee, deliveryArea, address, paymentMethod, paystackRef } = body as any
+
+    // A signed-in customer can only trigger the emails for one of their own orders, and the name, email, total and payment
+    // method come from that order, never from the request.
+    if (caller.mode === 'user') {
+      const db = supabaseAdmin()
+      const { data: { user }, error: authErr } = await db.auth.getUser(caller.token)
+      if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      const { data: mine } = await db.from('orders')
+        .select('id, first_name, last_name, email, total_amount, payment_method')
+        .eq('user_id', user.id).order('created_at', { ascending: false }).limit(25)
+      const order = (mine || []).find((o: any) => shortOrderId(o.id) === String(orderId || '').toUpperCase())
+      if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 403 })
+      customerName = `${order.first_name} ${order.last_name}`.trim()
+      customerEmail = order.email
+      total = order.total_amount
+      paymentMethod = order.payment_method === 'bank' ? 'bank' : 'paystack'
+    }
+    // Text that goes inside the email HTML is escaped (names, addresses and item names are typed by customers)
+    const h = escapeHtml
 
     // ── WhatsApp notification — currently disabled while a provider
     // decision is pending (UltraMsg renewal vs Meta Cloud API). Email is
@@ -110,7 +140,7 @@ export async function POST(req: NextRequest) {
       const itemsHtml = (itemsArr || []).map((item: any) => `
         <tr>
           <td style="padding:10px 14px;border-bottom:1px solid #f0f0f0;font-size:13px;color:#2C2C2C">
-            ${item.name}${item.displayQty ? ` <span style="color:#6B6B6B">(${item.displayQty})</span>` : ''}
+            ${h(item.name)}${item.displayQty ? ` <span style="color:#6B6B6B">(${h(item.displayQty)})</span>` : ''}
           </td>
           <td style="padding:10px 14px;border-bottom:1px solid #f0f0f0;font-size:13px;text-align:right;font-weight:700">
             ₦${Number(item.price).toLocaleString()}
@@ -123,16 +153,16 @@ export async function POST(req: NextRequest) {
   <div style="max-width:580px;margin:32px auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08)">
     <div style="background:#C0392B;padding:28px 32px">
       <div style="font-weight:900;font-size:22px;color:white">📦 New PrintHub Order</div>
-      <div style="font-size:13px;color:rgba(255,255,255,0.75);margin-top:4px">Order #${orderId} has just been placed</div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.75);margin-top:4px">Order #${h(orderId)} has just been placed</div>
     </div>
     <div style="padding:24px 32px;border-bottom:1px solid #F0F0F0">
       <div style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#C0392B;margin-bottom:14px">Customer Details</div>
       <table style="width:100%;border-collapse:collapse">
-        <tr><td style="padding:5px 0;font-size:12px;color:#6B6B6B;width:130px">Name</td><td style="padding:5px 0;font-size:13px;font-weight:600">${customerName}</td></tr>
-        <tr><td style="padding:5px 0;font-size:12px;color:#6B6B6B">Email</td><td style="padding:5px 0;font-size:13px">${customerEmail || '—'}</td></tr>
-        <tr><td style="padding:5px 0;font-size:12px;color:#6B6B6B">Phone</td><td style="padding:5px 0;font-size:13px">${customerPhone || '—'}</td></tr>
-        <tr><td style="padding:5px 0;font-size:12px;color:#6B6B6B">Delivery</td><td style="padding:5px 0;font-size:13px">${deliveryArea || '—'}${address ? ' — ' + address : ''}</td></tr>
-        <tr><td style="padding:5px 0;font-size:12px;color:#6B6B6B">Payment</td><td style="padding:5px 0;font-size:13px">${paymentMethod === 'paystack' ? '💳 Paystack' : '🏦 Bank Transfer'}${paystackRef ? ' (' + paystackRef + ')' : ''}</td></tr>
+        <tr><td style="padding:5px 0;font-size:12px;color:#6B6B6B;width:130px">Name</td><td style="padding:5px 0;font-size:13px;font-weight:600">${h(customerName)}</td></tr>
+        <tr><td style="padding:5px 0;font-size:12px;color:#6B6B6B">Email</td><td style="padding:5px 0;font-size:13px">${h(customerEmail) || '—'}</td></tr>
+        <tr><td style="padding:5px 0;font-size:12px;color:#6B6B6B">Phone</td><td style="padding:5px 0;font-size:13px">${h(customerPhone) || '—'}</td></tr>
+        <tr><td style="padding:5px 0;font-size:12px;color:#6B6B6B">Delivery</td><td style="padding:5px 0;font-size:13px">${h(deliveryArea) || '—'}${address ? ' — ' + h(address) : ''}</td></tr>
+        <tr><td style="padding:5px 0;font-size:12px;color:#6B6B6B">Payment</td><td style="padding:5px 0;font-size:13px">${paymentMethod === 'paystack' ? '💳 Paystack' : '🏦 Bank Transfer'}${paystackRef ? ' (' + h(paystackRef) + ')' : ''}</td></tr>
       </table>
     </div>
     <div style="padding:24px 32px;border-bottom:1px solid #F0F0F0">
@@ -193,16 +223,16 @@ export async function POST(req: NextRequest) {
     <div style="padding:32px">
       <div style="font-size:22px;font-weight:800;color:#1A1A1A;margin-bottom:8px">Order confirmed! 🎉</div>
       <p style="font-size:14px;color:#555;line-height:1.7;margin-bottom:24px">
-        Hi ${customerName}, thank you for your order. We have received it and our team will begin processing shortly.
+        Hi ${h(customerName)}, thank you for your order. We have received it and our team will begin processing shortly.
       </p>
       <div style="background:#F7F7F5;border-radius:10px;padding:20px;margin-bottom:24px">
         <div style="display:flex;justify-content:space-between;margin-bottom:8px">
           <span style="font-size:13px;color:#666">Order ID</span>
-          <span style="font-size:13px;font-weight:700;color:#1A1A1A">#${orderId}</span>
+          <span style="font-size:13px;font-weight:700;color:#1A1A1A">#${h(orderId)}</span>
         </div>
         <div style="display:flex;justify-content:space-between;margin-bottom:8px">
           <span style="font-size:13px;color:#666">Items</span>
-          <span style="font-size:13px;color:#1A1A1A">${items}</span>
+          <span style="font-size:13px;color:#1A1A1A">${h(items)}</span>
         </div>
         <div style="display:flex;justify-content:space-between;padding-top:12px;border-top:1px solid #e5e7eb;margin-top:8px">
           <span style="font-size:15px;font-weight:700;color:#1A1A1A">Total</span>

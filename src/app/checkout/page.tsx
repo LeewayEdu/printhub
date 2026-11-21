@@ -175,7 +175,8 @@ export default function CheckoutPage() {
     const itemNames = items.map(i => `${i.name} (${i.displayQty})`).join(', ')
     fetch('/api/notify', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      // the signed-in session proves the order is this customer's; the server then uses the order's own name, email and total
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${current?.access_token ?? ''}` },
       body: JSON.stringify({
         orderId: shortId,
         customerName: `${firstName} ${lastName}`,
