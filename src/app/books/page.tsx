@@ -1,17 +1,27 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import { pageMetadata } from '@/components/seo'
 import BookCard from '@/components/books/BookCard'
 import { allCategories, loadPublishedBooks, queryBooks, type BookSort } from '@/lib/books/catalogue'
+import { booksIndexState, BOOKS_SOON_WHATSAPP_MESSAGE } from '@/lib/books/launching'
+import { BRAND } from '@/lib/constants'
 
 export const dynamic = 'force-dynamic'
 
-export const metadata = pageMetadata({
+const baseMeta = pageMetadata({
   title: 'C-Chu Books: Nigerian books in print and ebook',
   description: 'Buy books published by C-Chu Media as ebooks, print copies or bundles. Instant ebook download and delivery across Nigeria.',
   path: '/books',
 })
+
+// Until a book is published the page is a launching-soon page and is kept out of search results
+export async function generateMetadata(): Promise<Metadata> {
+  const books = await loadPublishedBooks().catch(() => [])
+  const { robots } = booksIndexState(books.length)
+  return robots ? { ...baseMeta, robots } : baseMeta
+}
 
 const SORTS: { value: BookSort; label: string }[] = [
   { value: 'newest', label: 'Newest' }, { value: 'title', label: 'Title A to Z' },
@@ -31,6 +41,32 @@ export default async function BooksIndex({ searchParams }: { searchParams: { q?:
     if (p > 1) u.set('page', String(p))
     const s = u.toString()
     return `/books${s ? `?${s}` : ''}`
+  }
+
+  if (booksIndexState(all.length).comingSoon) {
+    const waHref = `https://wa.me/${BRAND.whatsapp}?text=${encodeURIComponent(BOOKS_SOON_WHATSAPP_MESSAGE)}`
+    return (
+      <>
+        <Navbar />
+        <main id="main-content" style={{ background: 'var(--bg-secondary)', padding: '40px 16px 72px', minHeight: '70vh' }}>
+          <section aria-labelledby="books-soon" style={{ maxWidth: 720, margin: '0 auto', textAlign: 'center', background: 'var(--bg-card, #fff)', border: '1px solid var(--border-color, #e8e8e5)', borderRadius: 18, padding: 'clamp(28px, 6vw, 56px) clamp(18px, 5vw, 48px)' }}>
+            <span className="badge badge-red">Launching soon</span>
+            <h1 id="books-soon" style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 'clamp(28px, 5vw, 40px)', lineHeight: 1.15, margin: '16px 0 10px' }}>C-Chu Books: our first titles are launching soon</h1>
+            <p style={{ fontSize: 16, lineHeight: 1.7, color: 'var(--text-secondary)', maxWidth: 520, margin: '0 auto 24px' }}>
+              We are getting the first books ready, each as an ebook with instant download and as a print copy delivered across Nigeria. Message us and we will tell you the moment they are available.
+            </p>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+              <a href={waHref} target="_blank" rel="noopener noreferrer" className="btn btn-primary">Message us on WhatsApp</a>
+              <Link href="/shop" className="btn" style={{ background: 'transparent', color: 'var(--text-primary)', border: '2px solid var(--border-color, #e8e8e5)' }}>Browse print products</Link>
+            </div>
+            <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '28px 0 0' }}>
+              Writing a book of your own? <Link href="/book-publishing" style={{ color: 'var(--red)', fontWeight: 700 }}>See our publishing and printing services</Link>.
+            </p>
+          </section>
+        </main>
+        <Footer />
+      </>
+    )
   }
 
   return (
