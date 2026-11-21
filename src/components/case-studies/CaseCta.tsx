@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { BRAND } from '@/lib/constants'
+import { trackLead, leadSucceeded } from '@/lib/pixel-events'
 
 // WhatsApp call to action with the prefilled message from the case-study data. Tapping it records a lead
 // (source "case_study", product_interest = the case slug) in the background: the link opens straight away
@@ -16,7 +17,7 @@ export default function CaseCta({ slug, label, message, serviceHref, serviceLabe
       fetch('/api/leads', {
         method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ source: 'case_study', product_interest: slug, notes: 'Tapped the WhatsApp button on a case study page' }),
-      }).catch(() => {})
+      }).then(async res => { if (await leadSucceeded(res)) trackLead('case_study') }).catch(() => {})
     } catch { /* never block the link */ }
   }
   return (

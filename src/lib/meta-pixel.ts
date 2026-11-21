@@ -9,9 +9,11 @@ declare global {
   }
 }
 
-export function fbTrack(event: string, params?: Record<string, unknown>) {
+// eventId (optional) is Meta's de-duplication id: the same id sent twice is counted once.
+export function fbTrack(event: string, params?: Record<string, unknown>, eventId?: string) {
   if (typeof window === 'undefined' || typeof window.fbq !== 'function') return
-  window.fbq('track', event, params)
+  if (eventId) window.fbq('track', event, params ?? {}, { eventID: eventId })
+  else window.fbq('track', event, params)
 }
 
 export function fbPageview() {

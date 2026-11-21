@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import toast from 'react-hot-toast'
 import { FileText } from 'lucide-react'
+import { trackLead, leadSucceeded } from '@/lib/pixel-events'
 import { buildProforma, PROFORMA_STORAGE_KEY, type ProformaCartItem, type ProformaDelivery } from '@/lib/proforma'
 
 // "Request pro-forma" button with a small inline form. On submit it records a lead
@@ -38,7 +39,7 @@ export default function ProformaRequest({ items, delivery, prefill }: {
           product_interest: doc.lines.map(l => l.name).join('; ').slice(0, 200),
           notes: `Pro-forma ${doc.number}${company.trim() ? ` for ${company.trim()}` : ''}. Total ₦${doc.total.toLocaleString()}. ${doc.lines.length} item(s).`,
         }),
-      }).catch(() => {})
+      }).then(async res => { if (!hp.trim() && await leadSucceeded(res)) trackLead('quote_form') }).catch(() => {})
     } catch { /* ignore */ }
 
     window.open('/pro-forma', '_blank')

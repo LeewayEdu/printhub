@@ -4,6 +4,7 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import toast from 'react-hot-toast'
 import { cookieStorage } from './customCookieStorage'
+import { trackAddToCart } from '@/lib/pixel-events'
 
 export interface DesignDetails {
   type: 'upload' | 'link' | 'request' | null
@@ -105,6 +106,7 @@ export const useCartStore = create<CartState>()(
           items: [...get().items, newItem],
           lastAdded: silent ? get().lastAdded : { key: Date.now(), cartItemId: newItem.cartItemId, name, summary: summary.slice(0, 120), price: newItem.price },
         })
+        trackAddToCart(name, newItem.price)
       },
 
       addBookToCart: (b) => {

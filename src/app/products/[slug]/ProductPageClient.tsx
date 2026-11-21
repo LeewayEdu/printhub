@@ -16,6 +16,7 @@ import LiveCalculatorV2, { type TierRow } from '@/components/shop/LiveCalculator
 import DesignPricingFlow from '@/components/shop/DesignPricingFlow'
 import { Breadcrumbs } from '@/components/seo'
 import { fbTrack } from '@/lib/meta-pixel'
+import { trackLead, leadSucceeded } from '@/lib/pixel-events'
 import toast from 'react-hot-toast'
 import SiteImage from '@/components/ui/SiteImage'
 
@@ -135,7 +136,7 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
           quantity: qty,
           notes: [options && `Options: ${options}`, effectivePrice ? `Estimated total: ₦${totalPrice.toLocaleString()}` : '', `Page: ${window.location.href}`].filter(Boolean).join('\n'),
         }),
-      }).catch(() => {})
+      }).then(async res => { if (await leadSucceeded(res)) trackLead('whatsapp') }).catch(() => {})
     } catch { /* ignore */ }
     window.open(buildWhatsAppUrl(), '_blank', 'noopener')
   }

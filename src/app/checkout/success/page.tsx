@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase/client'
 import { CheckCircle, Package, MessageCircle } from 'lucide-react'
 import DesignUploadStep, { DesignReceivedNote } from '@/components/orders/DesignUploadStep'
 import { orderAwaitingDesign } from '@/lib/design-status'
+import { trackPurchaseOnce } from '@/lib/pixel-events'
 
 function OrderSuccessContent() {
   const searchParams = useSearchParams()
@@ -47,6 +48,9 @@ function OrderSuccessContent() {
     load()
     return () => { cancelled = true }
   }, [orderId])
+
+  // Ad measurement: Purchase is sent once, and only for an order the server has confirmed paid (never pending, bank transfer or test).
+  useEffect(() => { trackPurchaseOnce(order) }, [order])
 
   const verifying = !!order && !!order.paystack_reference && order.status === 'pending'
   const inReview = !!order && order.status === 'payment_review'

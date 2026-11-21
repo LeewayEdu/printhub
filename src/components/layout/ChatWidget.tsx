@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { MessageCircle, X, Send, Loader, Phone } from 'lucide-react'
 import { BRAND } from '@/lib/constants'
 import SiteImage from '@/components/ui/SiteImage'
+import { trackLead, leadSucceeded } from '@/lib/pixel-events'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -88,6 +89,8 @@ export default function ChatWidget() {
         setLeadSaving(false)
         return
       }
+      // Ad measurement: only after the server accepted the lead (and the hidden trap field was empty)
+      if (!leadHp.trim() && await leadSucceeded(res)) trackLead('chatbot')
     } catch (e) { /* non-critical */ }
     setLeadError('')
     setLeadSaving(false)
