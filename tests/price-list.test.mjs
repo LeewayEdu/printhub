@@ -131,3 +131,10 @@ test('price-list files contain no phone number, email address or attribution', (
     assert.ok(!/claude|anthropic|co-authored/i.test(t), `${f}: no attribution`)
   }
 })
+
+test('the printed copy carries the configured WhatsApp number and no other contact', () => {
+  const page = readFileSync(new URL('../src/app/price-list/page.tsx', import.meta.url), 'utf8')
+  assert.match(page, /pl-print-only[^>]*>Quotations and orders: WhatsApp \{whatsappDisplay\}/)
+  assert.match(page, /BRAND\.whatsapp\.replace/)
+  assert.equal((page.match(/\+234|@cchumedia|info@/g) || []).length, 0)
+})

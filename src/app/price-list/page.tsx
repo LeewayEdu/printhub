@@ -19,6 +19,8 @@ export const metadata: Metadata = pageMetadata({
   path: '/price-list',
 })
 
+// Display form of the configured number (digits come from BRAND.whatsapp; no number is typed in this file)
+const whatsappDisplay = BRAND.whatsapp.replace(/^(\d{3})(\d{3})(\d{3})(\d{4})$/, '+$1 $2 $3 $4')
 const whatsappHref = `https://wa.me/${BRAND.whatsapp}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`
 
 export default function PriceListPage() {
@@ -194,6 +196,8 @@ export default function PriceListPage() {
               </ul>
             </div>
             <p className="pl-small">Prices effective {EFFECTIVE.label}.</p>
+            {/* Shown on the printed copy only (the WhatsApp button is hidden in print). The number is the one configured for the site. */}
+            <p className="pl-small pl-print-only">Quotations and orders: WhatsApp {whatsappDisplay}</p>
           </section>
         </div>
       </main>
