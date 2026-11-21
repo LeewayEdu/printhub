@@ -139,7 +139,7 @@ test('without consent no place name appears in copy, rows, client line, SEO text
   }
   assert.equal(buildView(apc).atAGlance[0].value, 'Branding for a state rally')
   assert.equal(buildView(ezra).atAGlance[0].value, 'Another state in Nigeria')
-  assert.equal(buildView(ezra).seo.title, 'Case study: 600 books for a client in another state | C-Chu Media')
+  assert.equal(buildView(ezra).seo.title, 'Case study: 600 printed books, two titles | C-Chu Media')
   assert.ok(PLACES.test(JSON.stringify(buildView(flip(ezra, { consentGiven: true })).seo)))
 })
 test('slugs and image paths are neutral', () => {
@@ -181,7 +181,7 @@ test('Article JSON-LD parses, is an Article, and has no rating, review or testim
 })
 test('metadata comes from the data, with the hero as the social image and a canonical URL', () => {
   const m = caseMetadata(buildView(ezra))
-  assert.equal(m.title.absolute, 'Case study: 600 books for a client in another state | C-Chu Media')
+  assert.equal(m.title.absolute, 'Case study: 600 printed books, two titles | C-Chu Media')
   assert.match(m.alternates.canonical, /\/case-studies\/book-printing-600-copies$/)
   assert.match(m.openGraph.images[0].url, /volume-1-cover-on-desk\.jpg$/); assert.match(m.twitter.images[0], /volume-1-cover-on-desk\.jpg$/)
   assert.equal(m.robots, undefined)
@@ -219,4 +219,11 @@ test('the WhatsApp tap records a case_study lead without blocking the link', () 
   assert.match(cta, /\.catch\(\(\) => \{\}\)/)
   const leads = readFileSync(new URL('../src/app/api/leads/route.ts', import.meta.url), 'utf8')
   assert.match(leads, /'case_study'/)
+})
+
+test('case study page titles stay at 60 characters or less', () => {
+  for (const c of CASE_STUDIES) for (const consent of [false, true]) {
+    const t = buildView(flip(c, { consentGiven: consent })).seo.title
+    assert.ok(t.length <= 60, `${t} (${t.length})`)
+  }
 })

@@ -14,7 +14,7 @@ const csp = [
   "font-src 'self' data: https://fonts.gstatic.com",
   "img-src 'self' data: blob: https://res.cloudinary.com https://images.unsplash.com https://*.supabase.co https://*.supabase.in https://storage.googleapis.com https://www.facebook.com https://*.paystack.co",
   "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.supabase.in https://api.paystack.co https://checkout.paystack.com https://www.facebook.com https://connect.facebook.net https://api.groq.com https://vercel.live https://*.vercel-scripts.com",
-  "frame-src 'self' https://checkout.paystack.com https://js.paystack.co https://vercel.live",
+  "frame-src 'self' https://checkout.paystack.com https://js.paystack.co https://vercel.live https://www.google.com",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",

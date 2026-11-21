@@ -293,7 +293,7 @@ export default function ShopPageClient({
 
         {/* Shop body */}
         <section style={{ background: 'var(--bg-secondary)', minHeight: '60vh' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: 0 }} className="shop-layout">
+          <div style={{ display: 'grid', gridTemplateColumns: '240px minmax(0, 1fr)', gap: 0 }} className="shop-layout">
 
             <div style={{ borderRight: '1px solid var(--border-color)', background: 'var(--bg-card)', minHeight: '60vh' }}>
               <ShopSidebar
@@ -592,9 +592,9 @@ export default function ShopPageClient({
 
       <style dangerouslySetInnerHTML={{ __html: `
         @media (max-width: 1024px) {
-          .shop-layout { grid-template-columns: 1fr !important; }
+          .shop-layout { grid-template-columns: minmax(0, 1fr) !important; }
           .shop-layout > div:first-child { display: none !important; }
-          .shop-layout > div:last-child { width: 100% !important; padding: 16px !important; box-sizing: border-box !important; }
+          .shop-layout > div:last-child { width: 100% !important; min-width: 0 !important; max-width: 100% !important; padding: 16px !important; box-sizing: border-box !important; }
           .pg { grid-template-columns: repeat(3, 1fr) !important; gap: 10px !important; }
           .mg { grid-template-columns: 1fr !important; }
         }

@@ -111,7 +111,7 @@ export const CASE_STUDIES: CaseStudy[] = [
     serviceLink: { href: '/election-campaign', label: 'See campaign printing' },
     images: [],   // see the decision comment below: no photo of this job is free of faces
     seo: {
-      title: 'Case study: 550 rally banners and iron frames in five days | C-Chu Media',
+      title: 'Case study: 550 rally banners in five days | C-Chu Media',
       description: 'How C-Chu Media printed 20 banners at 10 × 20 ft and 530 at 4 × 6 ft, with welded iron frames, in five days. Large-format printing in Abuja, Nigeria.',
     },
     // Owner decision 2026-11-21: published. The client is named by first name only ("Paula") and the party, the state and the rally
@@ -179,7 +179,7 @@ export const CASE_STUDIES: CaseStudy[] = [
       img('book-printing-600-copies', 'volume-2-cover-in-hand.jpg', 720, 1280, 'A hand holding up a finished copy of Volume 2', 'A finished Volume 2'),
     ],
     seo: {
-      title: 'Case study: 600 books for a client in Taraba State | C-Chu Media',
+      title: 'Case study: 600 printed books, two titles | C-Chu Media',
       description: 'How a client in Jalingo found C-Chu Media online and ordered 600 printed books across two titles. Book printing in Abuja, Nigeria.',
     },
     // Owner decision 2026-11-21: published, client named by first name only ("Ezra"). Photos: the spine photo is not used because the
