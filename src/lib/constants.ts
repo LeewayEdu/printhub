@@ -42,6 +42,7 @@ export const NAV_LINKS = [
   { label: 'Starter Kits', href: '/starter-kits' },
   { label: 'Campaign', href: '/election-campaign' },
   { label: 'Publishing', href: '/book-publishing' },
+  { label: 'Our work', href: '/case-studies' },
   { label: 'Earn with us', href: '/affiliate' },
   { label: 'Contact', href: '/contact' },
 ]

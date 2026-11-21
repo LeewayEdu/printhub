@@ -3,7 +3,7 @@ import { isValidPreview } from '@/lib/case-study-preview'
 
 /** Display-safe list for the small link blocks: PUBLISHED cases only, titles already through the consent rules. */
 export function publicCaseLinks(cases: CaseStudy[] = CASE_STUDIES) {
-  return cases.filter(c => c.published).map(buildView).map(c => ({ slug: c.slug, title: c.title, category: c.category, serviceHref: c.serviceLink.href }))
+  return cases.filter(c => c.published).map(buildView).map(c => ({ slug: c.slug, title: c.title, category: c.category, summary: c.summary, serviceHref: c.serviceLink.href }))
 }
 
 /**
