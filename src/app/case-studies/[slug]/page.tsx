@@ -27,7 +27,7 @@ export default function CaseStudyPage(props: Props) {
   const r = resolve(props)
   if (!r) notFound()
   const { v, preview } = r
-  const ratio = v.hero.width / v.hero.height
+  const ratio = v.hero ? v.hero.width / v.hero.height : 1
 
   return (
     <>
@@ -52,12 +52,14 @@ export default function CaseStudyPage(props: Props) {
           </header>
 
           {/* Hero: shown whole (never cropped), at its own proportions */}
+          {v.hero && (
           <figure style={{ margin: '22px auto', maxWidth: `min(100%, ${Math.round(560 * ratio)}px)` }}>
             <div style={{ position: 'relative', aspectRatio: String(ratio), background: '#eee', borderRadius: 14, overflow: 'hidden' }}>
               <Image src={v.hero.src} alt={v.hero.alt} fill priority sizes="(max-width: 960px) 100vw, 560px" style={{ objectFit: 'contain' }} />
             </div>
             <figcaption style={{ fontSize: 13, color: 'var(--text-secondary, #6b6b6b)', marginTop: 8, textAlign: 'center' }}>{v.hero.caption}</figcaption>
           </figure>
+          )}
 
           <dl aria-label="Key figures" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, margin: '0 0 32px' }}>
             {v.stats.map(s => (
@@ -104,10 +106,12 @@ export default function CaseStudyPage(props: Props) {
             <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.8 }}>{v.demonstrates.map(d => <li key={d}>{d}</li>)}</ul>
           </section>
 
+          {v.images.length > 0 && (
           <section aria-labelledby="gallery" style={{ marginBottom: 32 }}>
             <h2 id="gallery" style={h2}>Photos</h2>
             <CaseGallery title={v.title} images={v.images.map(i => ({ src: i.src, alt: i.alt, caption: i.caption, width: i.width, height: i.height }))} />
           </section>
+          )}
 
           {v.disclaimer && <p role="note" style={{ fontSize: 13, color: 'var(--text-secondary, #6b6b6b)', borderTop: '1px solid var(--border-color, #e8e8e5)', paddingTop: 14, margin: '0 0 28px', maxWidth: 720 }}>{v.disclaimer}</p>}
 

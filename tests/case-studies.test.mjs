@@ -13,22 +13,61 @@ import { publicCaseLinks } from '../src/lib/case-study-access.ts'
 
 const TOKEN = 'a-long-random-preview-token-123'
 const env = { CASE_STUDY_PREVIEW_TOKEN: TOKEN }
-const apc = CASE_STUDIES.find(c => c.slug === 'state-rally-banners')
-const ezra = CASE_STUDIES.find(c => c.slug === 'book-printing-600-copies')
+const apcShipped = CASE_STUDIES.find(c => c.slug === 'state-rally-banners')
+const ezraShipped = CASE_STUDIES.find(c => c.slug === 'book-printing-600-copies')
 const flip = (c, flags) => ({ ...c, ...flags })
+// The rules below are tested on the cases as they were before publishing (unpublished, no consent), so a later change to the
+// shipped flags never hides a rule. The shipped state itself is tested in 'as published'.
+const TEST_IMAGES = [
+  { file: 't/a.jpg', src: '/images/case-studies/t/a.jpg', alt: 'A test photo of a banner on a frame', caption: 'Test one', role: 'hero', width: 1280, height: 1280 },
+  { file: 't/b.jpg', src: '/images/case-studies/t/b.jpg', alt: 'A second test photo of a banner', caption: 'Test two', width: 1280, height: 1280 },
+]
+const apc = flip(apcShipped, { published: false, consentGiven: false, keepNeutral: false, images: TEST_IMAGES })
+const ezra = flip(ezraShipped, { published: false, consentGiven: false })
+const BEFORE = [apc, ezra]
 const NAMES = /\bAPC\b|Paula|Ezra|Dumpho|Phokh|Wurkun|Anpandi|Nasarawa|Jalingo|Taraba/
 
 // ── both cases ship unpublished and without consent ─────────────────────────────────────────────────
-test('both cases are unpublished and have no consent in the data', () => {
+test('as published (owner decision 2026-11-21): both live, first names only, no photo with a face', () => {
   assert.equal(CASE_STUDIES.length, 2)
-  for (const c of CASE_STUDIES) { assert.equal(c.published, false, c.slug); assert.equal(c.consentGiven, false, c.slug) }
+  for (const c of CASE_STUDIES) { assert.equal(c.published, true, c.slug); assert.equal(c.consentGiven, true, c.slug) }
+  const a = buildView(apcShipped), e = buildView(ezraShipped)
+  // first names only, no honorifics or surnames
+  assert.equal(e.clientLine, 'Ezra, Jalingo, Taraba State.')
+  assert.equal(a.clientLine, 'Coordinated through Paula at a party regional coordination office.')
+  for (const t of [JSON.stringify(a), JSON.stringify(e), JSON.stringify(caseMetadata(a)), JSON.stringify(caseMetadata(e))]) {
+    assert.ok(!/Haruna|Dr\. Paula|Mr\. Ezra|\bAPC\b|Nasarawa|Tinubu|Shettima/.test(t), t.match(/Haruna|Dr\. Paula|Mr\. Ezra|\bAPC\b|Nasarawa|Tinubu|Shettima/)?.[0])
+  }
+  // the party case keeps party and state neutral even though it is published
+  assert.equal(a.title, '550 banners and iron frames in five days for a state rally')
+  assert.ok(a.disclaimer && /does not imply endorsement/.test(a.disclaimer))
+  // photos: none for the rally (every photo showed faces); the spine photo (author's surname) is out; the files are gone from public/
+  assert.deepEqual(apcShipped.images, [])
+  assert.equal(a.hero, null)
+  assert.ok(!ezraShipped.images.some(i => /spine/.test(i.src)))
+  const dir = new URL('../public/images/case-studies/', import.meta.url).pathname
+  assert.ok(!readdirSync(dir).includes('state-rally-banners'))
+  assert.ok(!readdirSync(join(dir, 'book-printing-600-copies')).includes('volume-2-spine.jpg'))
+  // every listed image file exists
+  for (const i of ezraShipped.images) assert.ok(readdirSync(join(dir, 'book-printing-600-copies')).includes(i.src.split('/').pop()), i.src)
+  // dates stay hidden until supplied; the pull quote is C-Chu's own line
+  assert.equal(a.date, null); assert.equal(e.date, null)
+  assert.equal(e.pullQuote.attribution, 'C-Chu Media')
+})
+test('as published: both are in the sitemap and the public lists, and the index is indexable', () => {
+  assert.deepEqual(caseSitemapPaths(CASE_STUDIES), ['/case-studies', '/case-studies/state-rally-banners', '/case-studies/book-printing-600-copies'])
+  assert.equal(publishedCaseViews().length, 2)
+  assert.deepEqual(publicCaseLinks().map(c => c.slug).sort(), ['book-printing-600-copies', 'state-rally-banners'])
+  assert.equal(resolveCase('state-rally-banners', undefined, {}).preview, false)
+  const m = caseMetadata(buildView(apcShipped))
+  assert.match(m.openGraph.images[0].url, /og-image/)    // no hero photo: the site image is the social image
+  assert.match(JSON.parse(JSON.stringify(articleJsonLd(buildView(apcShipped)))).image[0], /^https:\/\//)
 })
 
 // ── unpublished cases are in no public list ──────────────────────────────────────────────────────────────
 test('unpublished cases are not in the sitemap, the index or the links list', () => {
-  assert.deepEqual(caseSitemapPaths(CASE_STUDIES), [])
-  assert.equal(publishedCaseViews().length, 0)
-  assert.deepEqual(publicCaseLinks(), [])
+  assert.deepEqual(caseSitemapPaths(BEFORE), [])
+  assert.deepEqual(publicCaseLinks(BEFORE), [])
   assert.deepEqual(publicCaseLinks([flip(ezra, { published: true })]).map(c => c.slug), ['book-printing-600-copies'])
   assert.match(readFileSync(new URL('../src/app/api/case-studies/links/route.ts', import.meta.url), 'utf8'), /publicCaseLinks\(\)/)
   assert.equal(caseIndexMetadata(false).robots.index, false, 'index is noindex while nothing is published')
@@ -42,12 +81,12 @@ test('the sitemap lists a case only when it is published AND consented', () => {
 
 // ── public routes and preview ──────────────────────────────────────────────────────────────────────────────
 test('public routes: unpublished slugs are a 404, unknown slugs are a 404', () => {
-  assert.equal(resolveCase('state-rally-banners', undefined, env), null)
-  assert.equal(resolveCase('book-printing-600-copies', 'wrong', env), null)
-  assert.equal(resolveCase('nope', TOKEN, env), null)
+  assert.equal(resolveCase('state-rally-banners', undefined, env, BEFORE), null)
+  assert.equal(resolveCase('book-printing-600-copies', 'wrong', env, BEFORE), null)
+  assert.equal(resolveCase('nope', TOKEN, env, BEFORE), null)
 })
 test('preview: a valid token shows an unpublished case, flagged as preview', () => {
-  const r = resolveCase('state-rally-banners', TOKEN, env)
+  const r = resolveCase('state-rally-banners', TOKEN, env, BEFORE)
   assert.equal(r.preview, true); assert.equal(r.v.slug, 'state-rally-banners')
 })
 test('preview is off when the token is missing or too short, and it is compared safely', () => {
@@ -56,7 +95,7 @@ test('preview is off when the token is missing or too short, and it is compared 
   assert.equal(isValidPreview(TOKEN + 'x', env), false)
   assert.equal(isValidPreview(undefined, env), false)
   assert.equal(isValidPreview([TOKEN], env), true)
-  assert.equal(resolveCase('book-printing-600-copies', TOKEN, {}), null)
+  assert.equal(resolveCase('book-printing-600-copies', TOKEN, {}, BEFORE), null)
 })
 test('a published case is public with no token, and is not a preview', () => {
   const r = resolveCase('book-printing-600-copies', undefined, {}, [flip(ezra, { published: true })])
@@ -72,7 +111,7 @@ test('the preview token is never in the code or in any response data', () => {
 
 // ── consent ─────────────────────────────────────────────────────────────────────────────────────────────────────
 test('without consent: no client name, no book titles, no Titles row, no party name, anywhere in the displayed copy', () => {
-  for (const v of allCaseViews()) {
+  for (const v of BEFORE.map(buildView)) {
     const text = JSON.stringify(v)
     assert.ok(!NAMES.test(text), `${v.slug}: ${text.match(NAMES)}`)
     assert.ok(!v.atAGlance.some(r => r.label === 'Titles'))
@@ -85,9 +124,9 @@ test('without consent: no client name, no book titles, no Titles row, no party n
 })
 test('with consent: the named wording and the Titles row are used', () => {
   const a = buildView(flip(apc, { consentGiven: true })), e = buildView(flip(ezra, { consentGiven: true }))
-  assert.match(a.title, /APC Grand Rally/); assert.match(a.clientLine, /Dr\. Paula/)
+  assert.match(a.title, /APC Grand Rally/); assert.match(a.clientLine, /Paula/)
   assert.ok(e.atAGlance.some(r => r.label === 'Titles' && /Dumpho/.test(r.value)))
-  assert.equal(e.clientLine, 'Mr. Ezra, Jalingo, Taraba State.')
+  assert.equal(e.clientLine, 'Ezra, Jalingo, Taraba State.')
   assert.match(JSON.stringify(a), /Nasarawa State/); assert.match(JSON.stringify(e), /Jalingo, Taraba State/)
 })
 test('without consent no place name appears in copy, rows, client line, SEO text, metadata or alt text; with consent it does', () => {

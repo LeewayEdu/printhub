@@ -30,7 +30,7 @@ export default function CaseStudiesIndex() {
           ) : (
             <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>
               {cases.map(c => (
-                <li key={c.slug}><CaseCard c={{ slug: c.slug, title: c.title, summary: c.summary, category: c.category, stats: c.stats, heroSrc: c.hero.src, heroAlt: c.hero.alt }} /></li>
+                <li key={c.slug}><CaseCard c={{ slug: c.slug, title: c.title, summary: c.summary, category: c.category, stats: c.stats, heroSrc: c.hero?.src ?? null, heroAlt: c.hero?.alt ?? null }} /></li>
               ))}
             </ul>
           )}

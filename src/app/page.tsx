@@ -27,7 +27,7 @@ export const metadata: Metadata = {
 export default async function Page() {
   const data = await getHomeData()
   // Published case studies only (none today). Display-safe: the consent rules are already applied.
-  const recentJobs = publishedCaseViews().map(c => ({ slug: c.slug, title: c.title, summary: c.summary, category: c.category, stats: c.stats, heroSrc: c.hero.src, heroAlt: c.hero.alt }))
+  const recentJobs = publishedCaseViews().map(c => ({ slug: c.slug, title: c.title, summary: c.summary, category: c.category, stats: c.stats, heroSrc: c.hero?.src ?? null, heroAlt: c.hero?.alt ?? null }))
   return (
     <>
       <LocalBusinessSchema />

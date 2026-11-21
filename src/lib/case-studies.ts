@@ -11,7 +11,8 @@
 //   * Publish WITH the client named: set `published: true` AND `consentGiven: true`, only after written consent.
 //   * The sitemap lists a case only when BOTH flags are true.
 //   * Fill in `date` (for example "March 2026") when you have it. `dateTODO` is never shown on the site.
-//   * Both cases are currently published: false and consentGiven: false.
+//   * DECISION 2026-11-21 (owner, Silas): both cases are published, with first names only (no surnames, no company names) and no
+//     photo that shows a face. See the comment on each case below.
 //   * Preview of an unpublished case: /case-studies/<slug>?preview=<token>, where the token is the value of the
 //     CASE_STUDY_PREVIEW_TOKEN environment variable (set it in Vercel; it is not stored in code).
 
@@ -51,6 +52,8 @@ export interface CaseStudy {
   consentGiven: boolean
   /** Word-for-word swaps used while consentGiven is false, so no party or person is named. Longest first. */
   noConsentReplacements: [string, string][]
+  /** When true the neutral title and the replacements above are used even though consentGiven is true (names the client by first name only, keeps the party and places neutral). */
+  keepNeutral?: boolean
 }
 
 // Site rule: no AI vendor names in user-facing copy (from the project rules file). Applied to every case, consent or not.
@@ -87,7 +90,7 @@ export const CASE_STUDIES: CaseStudy[] = [
     ],
     clientLine: {
       withoutConsent: "Coordinated through the party's South-South coordination office.",
-      withConsent: 'Coordinated through Dr. Paula, South-South Coordinator for APC.',
+      withConsent: 'Coordinated through Paula at a party regional coordination office.',
     },
     sections: [
       { heading: 'The brief', body: 'C-Chu Media was contracted to handle branding for Nasarawa State ahead of the APC Grand Rally. The assignment was substantial: 20 large banners measuring 10 × 20 feet and 530 banners measuring 4 × 6 feet.' },
@@ -106,19 +109,17 @@ export const CASE_STUDIES: CaseStudy[] = [
       whatsappMessage: 'Hi, I saw your APC Grand Rally banner case study and I want a quote for large-format banners.',
     },
     serviceLink: { href: '/election-campaign', label: 'See campaign printing' },
-    images: [
-      img('state-rally-banners', 'rally-banner-iron-frame-roadside.jpg', 1280, 1280, 'Large printed campaign banner mounted on a welded iron frame beside a road', 'A 10 × 20 ft banner on its iron structure', 'hero'),
-      img('state-rally-banners', 'rally-large-banner-close-up.jpg', 1280, 1280, 'Close view of a large printed banner for the grand rally on its frame', 'Print detail on a large banner'),
-      img('state-rally-banners', 'rally-banner-installation-on-frame.jpg', 1280, 1280, 'Workers fixing a large printed banner onto an iron frame', 'Installation on the frame'),
-      img('state-rally-banners', 'rally-banner-installation-ladder.jpg', 1280, 1280, 'Team members on a ladder and the frame top securing a large printed banner', 'Fitting the banner on site'),
-      img('state-rally-banners', 'rally-banner-on-poles-scale.jpg', 1280, 1280, 'A large printed banner on poles with people standing below for scale', 'The scale of a 10 × 20 ft banner'),
-    ],
+    images: [],   // see the decision comment below: no photo of this job is free of faces
     seo: {
       title: 'Case study: 550 rally banners and iron frames in five days | C-Chu Media',
       description: 'How C-Chu Media printed 20 banners at 10 × 20 ft and 530 at 4 × 6 ft, with welded iron frames, in five days. Large-format printing in Abuja, Nigeria.',
     },
-    published: false,
-    consentGiven: false,
+    // Owner decision 2026-11-21: published. The client is named by first name only ("Paula") and the party, the state and the rally
+    // name stay neutral (keepNeutral). No photos: every photo of this job shows printed portraits of public figures or workers' faces,
+    // so none is used (rule: no photo with a visible face). Add face-free photos to `images` when available.
+    published: true,
+    consentGiven: true,
+    keepNeutral: true,
     noConsentReplacements: [
       ['Nasarawa State ahead of the APC Grand Rally', 'a state rally'],
       ['Nasarawa State for the APC Grand Rally', 'a state rally'],
@@ -147,7 +148,7 @@ export const CASE_STUDIES: CaseStudy[] = [
     ],
     clientLine: {
       withoutConsent: 'A client in Jalingo, Taraba State.',
-      withConsent: 'Mr. Ezra, Jalingo, Taraba State.',
+      withConsent: 'Ezra, Jalingo, Taraba State.',
     },
     sections: [
       { heading: 'The story', body: 'The client, based in Jalingo, Taraba State, discovered C-Chu Media through ChatGPT. We had never met in person, yet he reached out and trusted us with a substantial book-printing assignment: two titles, 300 copies of each.' },
@@ -176,14 +177,16 @@ export const CASE_STUDIES: CaseStudy[] = [
       img('book-printing-600-copies', 'volume-2-copies-boxed.jpg', 1280, 720, 'Stacks of navy-covered Volume 2 copies packed in a carton', 'Volume 2 copies packed for delivery'),
       img('book-printing-600-copies', 'volume-1-cover-in-hand.jpg', 720, 1280, 'A hand holding up a finished copy of Volume 1', 'A finished Volume 1'),
       img('book-printing-600-copies', 'volume-2-cover-in-hand.jpg', 720, 1280, 'A hand holding up a finished copy of Volume 2', 'A finished Volume 2'),
-      img('book-printing-600-copies', 'volume-2-spine.jpg', 720, 1280, 'Spine of a finished book showing the printed title along its edge', 'Spine detail'),
     ],
     seo: {
       title: 'Case study: 600 books for a client in Taraba State | C-Chu Media',
       description: 'How a client in Jalingo found C-Chu Media online and ordered 600 printed books across two titles. Book printing in Abuja, Nigeria.',
     },
-    published: false,
-    consentGiven: false,
+    // Owner decision 2026-11-21: published, client named by first name only ("Ezra"). Photos: the spine photo is not used because the
+    // printed spine shows the author's surname. The covers show illustrated pupils and a teacher (the book's artwork, not people
+    // we photographed); they are kept because they are the product.
+    published: true,
+    consentGiven: true,
     noConsentReplacements: [
       ['Jalingo, Taraba State, Nigeria', 'Another state in Nigeria'],
       ['in Jalingo, Taraba State', 'in another state'],
@@ -211,7 +214,8 @@ export interface CaseView {
   cta: CaseStudy['cta']
   serviceLink: CaseStudy['serviceLink']
   images: CaseImage[]
-  hero: CaseImage
+  /** null when a case has no public photo */
+  hero: CaseImage | null
   seo: CaseStudy['seo']
   published: boolean
   consentGiven: boolean
@@ -219,19 +223,20 @@ export interface CaseView {
 
 /** The only way page code reads a case: consent and vendor-neutral wording are applied here, once. */
 export function buildView(c: CaseStudy): CaseView {
+  const neutral = !c.consentGiven || !!c.keepNeutral
   const swap = (text: string) => {
     let t = text
-    if (!c.consentGiven) for (const [from, to] of c.noConsentReplacements) t = t.split(from).join(to)
+    if (neutral) for (const [from, to] of c.noConsentReplacements) t = t.split(from).join(to)
     for (const [from, to] of VENDOR_NEUTRAL) t = t.split(from).join(to)
     return t.trim()
   }
   const rows = c.atAGlance
     .filter(r => c.consentGiven || r.label !== 'Titles')          // the Titles row never shows without consent
     .map(r => ({ label: r.label, value: swap(r.value) }))
-  const hero = c.images.find(i => i.role === 'hero') || c.images[0]
+  const hero = c.images.find(i => i.role === 'hero') || c.images[0] || null
   return {
     slug: c.slug, category: c.category,
-    title: swap(!c.consentGiven && c.neutralTitle ? c.neutralTitle : c.title),
+    title: swap(neutral && c.neutralTitle ? c.neutralTitle : c.title),
     summary: swap(c.summary),
     date: c.date && !/TODO/i.test(c.date) ? c.date : null,          // a date shows only once it has been filled in
     stats: c.stats, atAGlance: rows,

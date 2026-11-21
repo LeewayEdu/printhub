@@ -2,7 +2,7 @@
 // review, rating or testimonial structured data.
 
 import type { Metadata } from 'next'
-import { pageMetadata } from '@/lib/seo-meta'
+import { pageMetadata, DEFAULT_OG_IMAGE } from '@/lib/seo-meta'
 import { SITE_URL } from '@/lib/site-url'
 import type { CaseStudy, CaseView } from '@/lib/case-studies'
 
@@ -12,7 +12,7 @@ const abs = (src: string) => (/^https?:\/\//.test(src) ? src : `${SITE_URL}${src
 export function caseMetadata(v: CaseView, opts: { preview?: boolean } = {}): Metadata {
   const meta = pageMetadata({
     title: v.seo.title, description: v.seo.description, path: `/case-studies/${v.slug}`,
-    image: v.hero.src, imageAlt: v.hero.alt,
+    image: v.hero?.src, imageAlt: v.hero?.alt,
   })
   // The data's title already carries the brand, so use it exactly as written
   const title = { absolute: v.seo.title }
@@ -44,7 +44,7 @@ export function articleJsonLd(v: CaseView): Record<string, unknown> {
     '@type': 'Article',
     headline: v.title,
     description: v.seo.description,
-    image: [abs(v.hero.src)],
+    image: [v.hero ? abs(v.hero.src) : DEFAULT_OG_IMAGE],
     url, mainEntityOfPage: { '@type': 'WebPage', '@id': url },
     articleSection: v.category,
     author: org,
