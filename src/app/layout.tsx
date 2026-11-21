@@ -10,7 +10,6 @@ import Script from 'next/script'
 import { Montserrat, Open_Sans } from 'next/font/google'
 import { SITE_URL } from '@/lib/site-url'
 import MetaPixel from '@/components/analytics/MetaPixel'
-import ConsentBanner from '@/components/analytics/ConsentBanner'
 
 // Self-hosted by Next at build time (no render-blocking request to Google Fonts).
 // Both are variable fonts, so every weight the site uses is available.
@@ -54,7 +53,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <a href="#main-content" className="skip-link">Skip to content</a>
-        <ConsentBanner />
         <MetaPixel />
         <Suspense fallback={null}>
           <ReferralCapture />

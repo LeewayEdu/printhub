@@ -1,10 +1,16 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { usePathname } from 'next/navigation'
 import Script from 'next/script'
 import { META_PIXEL_ID, fbPageview } from '@/lib/meta-pixel'
-import { CONSENT_EVENT, readConsent, type Consent } from './consent'
+
+// Staff areas are never tracked: the Pixel is not loaded there and no PageView is sent from them.
+export function isTrackingExcluded(pathname: string | null): boolean {
+  if (!pathname) return false
+  return pathname === '/admin' || pathname.startsWith('/admin/')
+    || pathname === '/dashboard/admin' || pathname.startsWith('/dashboard/admin/')
+}
 
 // Fires PageView on every client-side route change. App Router navigations
 // don't reload the page, so the base pixel script's own automatic PageView
@@ -15,13 +21,14 @@ import { CONSENT_EVENT, readConsent, type Consent } from './consent'
 // this from the root layout.
 function RouteChangePageview() {
   const pathname = usePathname()
-  const isFirstRun = useRef(true)
+  const baseLoaded = useRef(false)
 
   useEffect(() => {
-    // Skip the very first run — the base pixel snippet below already fires
-    // an initial PageView itself; firing again here would double-count it.
-    if (isFirstRun.current) {
-      isFirstRun.current = false
+    if (isTrackingExcluded(pathname)) return
+    // The first tracked page of a visit: the base pixel snippet below fires its own
+    // PageView when it loads; firing again here would double-count it.
+    if (!baseLoaded.current) {
+      baseLoaded.current = true
       return
     }
     fbPageview()
@@ -31,16 +38,8 @@ function RouteChangePageview() {
 }
 
 export default function MetaPixel() {
-  // The pixel only loads after the visitor accepts (see ConsentBanner).
-  const [consent, setConsent] = useState<Consent>(null)
-  useEffect(() => {
-    setConsent(readConsent())
-    const sync = () => setConsent(readConsent())
-    window.addEventListener(CONSENT_EVENT, sync)
-    return () => window.removeEventListener(CONSENT_EVENT, sync)
-  }, [])
-
-  if (!META_PIXEL_ID || consent !== 'granted') return null
+  const pathname = usePathname()
+  if (!META_PIXEL_ID || isTrackingExcluded(pathname)) return null
 
   return (
     <>
@@ -58,7 +57,6 @@ export default function MetaPixel() {
           fbq('track', 'PageView');
         `}
       </Script>
-      {/* No <noscript> fallback pixel: it would load without the visitor's consent. */}
       <RouteChangePageview />
     </>
   )

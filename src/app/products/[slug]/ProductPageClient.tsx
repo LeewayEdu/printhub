@@ -150,7 +150,7 @@ export default function ProductPageClient({ product, relatedProducts, faqs, brea
     return () => window.removeEventListener('printhub:whatsapp', onLauncher)
   }, [])
 
-  // Tells the rest of the page (chat launcher, consent banner) to sit above the mobile bar
+  // Tells the rest of the page (chat launcher) to sit above the mobile bar
   useEffect(() => {
     document.body.classList.add('has-buy-bar')
     return () => document.body.classList.remove('has-buy-bar')
