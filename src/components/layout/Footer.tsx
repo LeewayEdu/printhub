@@ -50,6 +50,7 @@ export default function Footer() {
                 { label: 'Starter Kits', href: '/starter-kits' },
                 { label: 'Campaign Materials', href: '/election-campaign' },
                 { label: 'Book Publishing', href: '/book-publishing' },
+                { label: 'Price List', href: '/price-list' },
                 ...(BOOKS_NAV_ENABLED ? [{ label: 'Books', href: '/books' }] : []),
                 { label: 'Affiliate Program', href: '/affiliate' },
               ].map(item => (

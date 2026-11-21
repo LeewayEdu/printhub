@@ -16,7 +16,7 @@ export const revalidate = 3600
 // Static pages that exist as routes. No lastmod: they have no database record.
 const STATIC_PATHS = [
   '', '/shop', '/about', '/contact', '/how-it-works', '/starter-kits',
-  '/book-publishing', '/election-campaign', '/affiliate', '/privacy', '/terms',
+  '/book-publishing', '/price-list', '/election-campaign', '/affiliate', '/privacy', '/terms',
 ]
 
 type Row = { slug: string | null; updated_at?: string | null; created_at?: string | null }

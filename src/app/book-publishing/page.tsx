@@ -208,6 +208,11 @@ export default function BookPublishingPage() {
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'var(--red)', color: 'white', fontFamily: 'Montserrat', fontWeight: 700, fontSize: 15, padding: '14px 28px', borderRadius: 9, textDecoration: 'none' }}>
                 💬 Get a Full Publishing Quote
               </a>
+              <div style={{ marginTop: 14 }}>
+                <Link href="/price-list" style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: 14, color: 'var(--red)', textDecoration: 'underline' }}>
+                  See the full Price List
+                </Link>
+              </div>
             </div>
           </div>
         </section>
