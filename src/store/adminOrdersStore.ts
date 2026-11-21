@@ -73,17 +73,11 @@ export const useAdminOrdersStore = create<AdminOrdersState>((set, get) => ({
 
     if (error) { toast.error(error.message); return; }
 
-    // ── On delivery: award loyalty points + affiliate commission ──
+    // ── On delivery: affiliate commission (loyalty points come from the database trigger) ──
     if (status === 'delivered') {
-      // Loyalty points (test orders never earn points)
-      const isTest = !!(get().orders.find(o => o.id === orderId) as any)?.is_test;
-      if (!isTest) {
-        const { error: loyaltyErr } = await supabase.rpc('award_loyalty_on_delivery', {
-          p_order_id: orderId,
-          p_admin_id: session.user.id,
-        });
-        if (loyaltyErr) console.error('Loyalty award failed:', loyaltyErr.message);
-      }
+      // Loyalty points are credited once, by the database trigger on_order_delivered (2% of the order total) the moment the
+      // status becomes 'delivered'. This screen used to call award_loyalty_on_delivery as well, which credited a second 2%
+      // (4% in total), so it must not be called from here.
 
       // Affiliate commission: awarded on the server, once per order (see lib/commissions.ts)
       try {
